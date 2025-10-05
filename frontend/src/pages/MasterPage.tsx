@@ -363,7 +363,7 @@ export default function MasterPage() {
       setLoading(true);
       const newCode = editEmployeeCode.trim();
       const newName = editEmployeeName.trim();
-      const newDeptId = editEmployeeDept || null;
+      const newDeptId = editEmployeeDept || undefined;
 
       const res = await adminApi.updateEmployee(editingEmployee.id, newCode, newName, newDeptId);
       
