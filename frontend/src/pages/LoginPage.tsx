@@ -4,7 +4,10 @@ import { api } from '../api/attendance';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function LoginPage() {
-  console.log('🔵 LoginPage が読み込まれました');
+  // 開発環境でのみログ出力
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🔵 LoginPage が読み込まれました');
+  }
   const [employeeCode, setEmployeeCode] = useState('');
   const [employeeName, setEmployeeName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -29,7 +32,9 @@ export default function LoginPage() {
       const res = await api.master(today);
       if (res.list) {
         setEmployeeList(res.list);
-        console.log('社員リスト更新:', res.list.length, '件');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('社員リスト更新:', res.list.length, '件');
+        }
       }
     } catch (error) {
       console.error('社員リスト更新エラー:', error);
@@ -78,24 +83,32 @@ export default function LoginPage() {
     setError('');
 
     try {
-      console.log('LoginPage: ログイン処理開始');
+      // 開発環境でのみログ出力
+      if (process.env.NODE_ENV === 'development') {
+        console.log('LoginPage: ログイン処理開始');
+      }
       
       // 今日のデータを取得して社員情報を確認
       const today = new Date().toISOString().slice(0, 10);
-      console.log('LoginPage: APIを呼び出し中...', `api.master(${today})`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('LoginPage: APIを呼び出し中...', `api.master(${today})`);
+      }
       
       const res = await api.master(today);
-      console.log('LoginPage: API応答:', res);
-      
-      // デバッグ用：登録されている社員一覧を表示
-      console.log('登録されている社員一覧:', res.list?.map(emp => ({ code: emp.code, name: emp.name })) || []);
-      console.log('入力された情報:', { code: employeeCode.trim(), name: employeeName.trim() });
+      if (process.env.NODE_ENV === 'development') {
+        console.log('LoginPage: API応答:', res);
+        // デバッグ用：登録されている社員一覧を表示
+        console.log('登録されている社員一覧:', res.list?.map(emp => ({ code: emp.code, name: emp.name })) || []);
+        console.log('入力された情報:', { code: employeeCode.trim(), name: employeeName.trim() });
+      }
       
       const employee = res.list?.find(emp => 
         emp.code === employeeCode.trim() && emp.name === employeeName.trim()
       );
 
-      console.log('LoginPage: 該当社員:', employee);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('LoginPage: 該当社員:', employee);
+      }
 
       if (employee) {
         // 記憶機能の処理

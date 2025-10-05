@@ -113,7 +113,10 @@ const calcIllegalOvertimeFromTimes = (clockIn?: string | null, clockOut?: string
 };
 
 export default function PersonalPage() {
-  console.log('🟡 PersonalPage が読み込まれました');
+  // 開発環境でのみログ出力
+  if (process.env.NODE_ENV === 'development') {
+    console.log('🟡 PersonalPage が読み込まれました');
+  }
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -213,12 +216,14 @@ export default function PersonalPage() {
         const employeeData = list.find((emp) => emp.code === employeeCode.trim()) || null;
         setTodayData(employeeData);
 
-        console.log('📊 初期データ読み込み:', { 
-          employeeData, 
-          clock_in: employeeData?.clock_in,
-          clock_out: employeeData?.clock_out,
-          status: employeeData?.status
-        });
+        if (process.env.NODE_ENV === 'development') {
+          console.log('📊 初期データ読み込み:', { 
+            employeeData, 
+            clock_in: employeeData?.clock_in,
+            clock_out: employeeData?.clock_out,
+            status: employeeData?.status
+          });
+        }
 
         // ユーザー情報
         if (employeeData) {
@@ -227,13 +232,15 @@ export default function PersonalPage() {
             department: employeeData.dept || employeeData.department_name || employeeData.department || '未所属',
             dept: employeeData.dept,
           });
-          console.log('👤 ユーザー情報設定:', {
-            name: employeeData.name,
-            dept: employeeData.dept,
-            department_name: employeeData.department_name,
-            department: employeeData.department,
-            final: employeeData.dept || employeeData.department_name || employeeData.department || '未所属'
-          });
+          if (process.env.NODE_ENV === 'development') {
+            console.log('👤 ユーザー情報設定:', {
+              name: employeeData.name,
+              dept: employeeData.dept,
+              department_name: employeeData.department_name,
+              department: employeeData.department,
+              final: employeeData.dept || employeeData.department_name || employeeData.department || '未所属'
+            });
+          }
         } else {
           setUserInfo(null);
         }

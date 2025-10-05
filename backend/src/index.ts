@@ -11,18 +11,25 @@ const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
 const isDebugMode = LOG_LEVEL === 'debug';
 const isProduction = process.env.NODE_ENV === 'production';
 
-// ログ関数
+// ログ関数（本番環境では必要最小限のログのみ出力）
 const logger = {
   info: (message: string, ...args: any[]) => {
-    if (!isProduction) console.log(`ℹ️ ${message}`, ...args);
+    if (!isProduction || LOG_LEVEL === 'info') {
+      console.log(`ℹ️ ${message}`, ...args);
+    }
   },
   debug: (message: string, ...args: any[]) => {
-    if (isDebugMode) console.log(`🐛 ${message}`, ...args);
+    if (isDebugMode && !isProduction) {
+      console.log(`🐛 ${message}`, ...args);
+    }
   },
   warn: (message: string, ...args: any[]) => {
-    console.warn(`⚠️ ${message}`, ...args);
+    if (!isProduction || LOG_LEVEL === 'warn' || LOG_LEVEL === 'info') {
+      console.warn(`⚠️ ${message}`, ...args);
+    }
   },
   error: (message: string, ...args: any[]) => {
+    // エラーログは常に出力
     console.error(`❌ ${message}`, ...args);
   }
 };

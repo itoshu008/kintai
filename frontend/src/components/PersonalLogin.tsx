@@ -38,18 +38,24 @@ export default function PersonalLogin({ onLoginSuccess, onLoginError }: Personal
     setError('');
 
     try {
-      console.log('PersonalLogin: ログイン処理開始', { employeeCode: employeeCode.trim(), employeeName: employeeName.trim() });
+      if (process.env.NODE_ENV === 'development') {
+        console.log('PersonalLogin: ログイン処理開始', { employeeCode: employeeCode.trim(), employeeName: employeeName.trim() });
+      }
       
       // 今日のデータを取得して社員情報を確認
       const today = new Date().toISOString().slice(0, 10);
       const res = await api.master(today);
-      console.log('PersonalLogin: API応答:', res);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('PersonalLogin: API応答:', res);
+      }
       
       const employee = res.list?.find((emp: any) => 
         emp.code === employeeCode.trim() && emp.name === employeeName.trim()
       );
 
-      console.log('PersonalLogin: 該当社員:', employee);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('PersonalLogin: 該当社員:', employee);
+      }
 
       if (employee) {
         const employeeData = {
@@ -69,13 +75,17 @@ export default function PersonalLogin({ onLoginSuccess, onLoginError }: Personal
           localStorage.setItem('rememberMe', 'false');
         }
 
-        console.log('PersonalLogin: ログイン成功', employeeData);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('PersonalLogin: ログイン成功', employeeData);
+        }
         onLoginSuccess(employeeData);
       } else {
         const errorMsg = '社員番号または名前が正しくありません';
         setError(errorMsg);
         onLoginError(errorMsg);
-        console.log('PersonalLogin: 認証失敗');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('PersonalLogin: 認証失敗');
+        }
       }
     } catch (err: any) {
       const errorMsg = 'ログインに失敗しました: ' + (err.message || err);
