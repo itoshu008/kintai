@@ -6,6 +6,27 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 
+// ログレベル設定
+const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
+const isDebugMode = LOG_LEVEL === 'debug';
+const isProduction = process.env.NODE_ENV === 'production';
+
+// ログ関数
+const logger = {
+  info: (message: string, ...args: any[]) => {
+    if (!isProduction) console.log(`ℹ️ ${message}`, ...args);
+  },
+  debug: (message: string, ...args: any[]) => {
+    if (isDebugMode) console.log(`🐛 ${message}`, ...args);
+  },
+  warn: (message: string, ...args: any[]) => {
+    console.warn(`⚠️ ${message}`, ...args);
+  },
+  error: (message: string, ...args: any[]) => {
+    console.error(`❌ ${message}`, ...args);
+  }
+};
+
 // ES moduleで__dirnameを取得
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -295,8 +316,8 @@ app.get('/api/admin/holidays/:date', (req, res) => {
   });
 });
 
-// データ永続化のためのファイルパス
-const DATA_DIR = path.resolve('data');
+// データ永続化のためのファイルパス（環境変数対応）
+const DATA_DIR = process.env.DATA_DIR || path.resolve(__dirname, '../data');
 const DEPARTMENTS_FILE = path.join(DATA_DIR, 'departments.json');
 const EMPLOYEES_FILE = path.join(DATA_DIR, 'employees.json');
 const ATTENDANCE_FILE = path.join(DATA_DIR, 'attendance.json');
@@ -308,29 +329,29 @@ const saveData = (file: string, data: any) => {
     // ディレクトリが存在しない場合は作成
     if (!existsSync(DATA_DIR)) {
       require('fs').mkdirSync(DATA_DIR, { recursive: true });
+      logger.info(`データディレクトリ作成: ${DATA_DIR}`);
     }
     writeFileSync(file, JSON.stringify(data, null, 2));
-    console.log(`💾 データ保存: ${path.basename(file)}`);
+    logger.info(`データ保存: ${path.basename(file)}`);
   } catch (error) {
-    console.error(`❌ データ保存エラー: ${path.basename(file)}`, error);
+    logger.error(`データ保存エラー: ${path.basename(file)}`, error);
+    throw error; // エラーを再スローして呼び出し元で処理
   }
 };
 
 const loadData = (file: string, defaultData: any) => {
-  console.log(`🔍 データファイル確認: ${file}`);
-  console.log(`📁 DATA_DIR: ${DATA_DIR}`);
-  console.log(`📁 __dirname: ${__dirname}`);
   try {
     if (existsSync(file)) {
       const data = JSON.parse(readFileSync(file, 'utf8'));
-      console.log(`📂 データ読み込み: ${path.basename(file)} (${Array.isArray(data) ? data.length : Object.keys(data).length}件)`);
-      console.log(`📄 ファイル内容: ${JSON.stringify(data, null, 2)}`);
+      logger.info(`データ読み込み: ${path.basename(file)} (${Array.isArray(data) ? data.length : Object.keys(data).length}件)`);
       return data;
     }
   } catch (error) {
-    console.error(`❌ データ読み込みエラー: ${path.basename(file)}`, error);
+    logger.error(`データ読み込みエラー: ${path.basename(file)}`, error);
+    // ファイルが破損している場合は空データで初期化
+    saveData(file, defaultData);
   }
-  console.log(`🆕 空データ作成: ${path.basename(file)}`);
+  logger.info(`空データ作成: ${path.basename(file)}`);
   // ダミーデータは作成せず、空のデータを返す
   return Array.isArray(defaultData) ? [] : {};
 };
