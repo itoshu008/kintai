@@ -24,6 +24,8 @@ cd frontend
 echo "📦 Installing frontend dependencies..."
 npm install --prefer-offline --no-audit 2>&1 | grep -v "EACCES" || true
 echo "🏗️ Building frontend (force clean)..."
+echo "📋 Running TypeScript check..."
+npm run build:check || echo "⚠️ TypeScript check failed, trying simple build..."
 npm run build
 echo "✅ Frontend build completed"
 
