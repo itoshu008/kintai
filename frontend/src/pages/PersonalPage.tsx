@@ -727,32 +727,49 @@ export default function PersonalPage() {
               style={{
                 background: 'green',
                 color: 'white',
-                padding: window.innerWidth <= 768 ? '8px 16px' : '12px 20px',
-                borderRadius: window.innerWidth <= 768 ? '8px' : '10px',
-                display: 'inline-flex',
+                padding: window.innerWidth <= 768 ? '12px 16px' : '12px 20px',
+                borderRadius: window.innerWidth <= 768 ? '12px' : '10px',
+                display: 'flex',
+                flexDirection: window.innerWidth <= 768 ? 'column' : 'row',
                 alignItems: 'center',
                 gap: window.innerWidth <= 768 ? '8px' : '12px',
-                fontSize: window.innerWidth <= 768 ? '16px' : '20px',
+                fontSize: window.innerWidth <= 768 ? '18px' : '20px',
                 fontWeight: 700,
                 margin: '0 auto',
-                flexWrap: window.innerWidth <= 768 ? 'wrap' : 'nowrap',
                 justifyContent: 'center',
+                maxWidth: window.innerWidth <= 768 ? '100%' : 'auto',
               }}
             >
-              <span>PERSONAL PAGE</span>
+              <span style={{ fontSize: window.innerWidth <= 768 ? '20px' : '20px' }}>📱 パーソナルページ</span>
               {(user || userInfo) && (
                 <>
-                  <span style={{ opacity: 0.7 }}>|</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '16px' }}>👤</span>
-                    <span style={{ fontSize: '16px' }}>{userInfo?.name || user?.name || employeeName}</span>
-                    <span style={{ opacity: 0.8, fontSize: '14px' }}>({user?.code || employeeCode})</span>
-                  </div>
-                  <span style={{ opacity: 0.7 }}>|</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '16px' }}>🏢</span>
-                    <span style={{ fontSize: '16px' }}>{userInfo?.dept || userInfo?.department || user?.department || todayData?.dept || todayData?.department_name || '開発部'}</span>
-                  </div>
+                  {window.innerWidth <= 768 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '16px' }}>
+                        <span>👤</span>
+                        <span>{userInfo?.name || user?.name || employeeName}</span>
+                        <span style={{ opacity: 0.8, fontSize: '14px' }}>({user?.code || employeeCode})</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '16px' }}>
+                        <span>🏢</span>
+                        <span>{userInfo?.dept || userInfo?.department || user?.department || todayData?.dept || todayData?.department_name || '開発部'}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <span style={{ opacity: 0.7 }}>|</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '16px' }}>👤</span>
+                        <span style={{ fontSize: '16px' }}>{userInfo?.name || user?.name || employeeName}</span>
+                        <span style={{ opacity: 0.8, fontSize: '14px' }}>({user?.code || employeeCode})</span>
+                      </div>
+                      <span style={{ opacity: 0.7 }}>|</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '16px' }}>🏢</span>
+                        <span style={{ fontSize: '16px' }}>{userInfo?.dept || userInfo?.department || user?.department || todayData?.dept || todayData?.department_name || '開発部'}</span>
+                      </div>
+                    </>
+                  )}
                 </>
               )}
             </div>
@@ -817,7 +834,8 @@ export default function PersonalPage() {
               <div
                 style={{
                   display: 'flex',
-                  gap: '12px',
+                  flexDirection: window.innerWidth <= 768 ? 'column' : 'row',
+                  gap: window.innerWidth <= 768 ? '12px' : '12px',
                   justifyContent: 'center',
                 }}
               >
@@ -834,18 +852,19 @@ export default function PersonalPage() {
                   }}
                   disabled={loading || !!todayData?.clock_in}
                   style={{
-                    padding: window.innerWidth <= 768 ? '12px 16px' : '14px 20px',
-                    border: '2px solid #059669',
-                    borderRadius: window.innerWidth <= 768 ? '8px' : '12px',
+                    padding: window.innerWidth <= 768 ? '16px 20px' : '14px 20px',
+                    border: '3px solid #059669',
+                    borderRadius: window.innerWidth <= 768 ? '12px' : '12px',
                     background: todayData?.clock_in ? '#f3f4f6' : '#059669',
                     color: todayData?.clock_in ? '#9ca3af' : 'white',
                     cursor: (loading || todayData?.clock_in) ? 'not-allowed' : 'pointer',
-                    fontSize: window.innerWidth <= 768 ? '14px' : '16px',
-                    fontWeight: 600,
+                    fontSize: window.innerWidth <= 768 ? '18px' : '16px',
+                    fontWeight: 700,
                     transition: 'all 0.3s ease',
                     opacity: loading ? 0.6 : 1,
                     flex: 1,
-                    minHeight: window.innerWidth <= 768 ? '48px' : '50px',
+                    minHeight: window.innerWidth <= 768 ? '60px' : '50px',
+                    boxShadow: window.innerWidth <= 768 ? '0 4px 8px rgba(5,150,105,0.3)' : 'none',
                   }}
                   title={todayData?.clock_in ? '本日は既に出勤済みです（1日1回限り）' : '出勤を記録します'}
                 >
@@ -865,19 +884,20 @@ export default function PersonalPage() {
                   }}
                   disabled={loading || !todayData?.clock_in || !!todayData?.clock_out}
                   style={{
-                    padding: window.innerWidth <= 768 ? '12px 16px' : '14px 20px',
-                    border: '2px solid #dc2626',
-                    borderRadius: window.innerWidth <= 768 ? '8px' : '12px',
+                    padding: window.innerWidth <= 768 ? '16px 20px' : '14px 20px',
+                    border: '3px solid #dc2626',
+                    borderRadius: window.innerWidth <= 768 ? '12px' : '12px',
                     background: todayData?.clock_out ? '#f3f4f6' : 
                                !todayData?.clock_in ? '#e5e7eb' : '#dc2626',
                     color: (todayData?.clock_out || !todayData?.clock_in) ? '#9ca3af' : 'white',
                     cursor: (loading || todayData?.clock_out || !todayData?.clock_in) ? 'not-allowed' : 'pointer',
-                    fontSize: window.innerWidth <= 768 ? '14px' : '16px',
-                    fontWeight: 600,
+                    fontSize: window.innerWidth <= 768 ? '18px' : '16px',
+                    fontWeight: 700,
                     transition: 'all 0.3s ease',
                     opacity: loading ? 0.6 : 1,
                     flex: 1,
-                    minHeight: window.innerWidth <= 768 ? '48px' : '50px',
+                    minHeight: window.innerWidth <= 768 ? '60px' : '50px',
+                    boxShadow: window.innerWidth <= 768 ? '0 4px 8px rgba(220,38,38,0.3)' : 'none',
                   }}
                   title={
                     todayData?.clock_out ? '本日は既に退勤済みです（1日1回限り）' :
@@ -969,8 +989,8 @@ export default function PersonalPage() {
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                gap: '16px',
+                gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: window.innerWidth <= 768 ? '12px' : '16px',
                 marginBottom: '24px',
               }}
             >
@@ -980,14 +1000,14 @@ export default function PersonalPage() {
                   background: 'white',
                   border: '2px solid #059669',
                   borderRadius: '12px',
-                  padding: '20px',
+                  padding: window.innerWidth <= 768 ? '16px' : '20px',
                   textAlign: 'center',
                   boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
                 }}
               >
                 <div
                   style={{
-                    fontSize: '14px',
+                    fontSize: window.innerWidth <= 768 ? '16px' : '14px',
                     color: '#059669',
                     marginBottom: '8px',
                     fontWeight: 600,
@@ -997,7 +1017,7 @@ export default function PersonalPage() {
                 </div>
                 <div
                   style={{
-                    fontSize: '18px',
+                    fontSize: window.innerWidth <= 768 ? '24px' : '18px',
                     fontWeight: 700,
                     color: '#374151',
                   }}
@@ -1012,14 +1032,14 @@ export default function PersonalPage() {
                   background: 'white',
                   border: '2px solid #dc2626',
                   borderRadius: '12px',
-                  padding: '20px',
+                  padding: window.innerWidth <= 768 ? '16px' : '20px',
                   textAlign: 'center',
                   boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
                 }}
               >
                 <div
                   style={{
-                    fontSize: '14px',
+                    fontSize: window.innerWidth <= 768 ? '16px' : '14px',
                     color: '#dc2626',
                     marginBottom: '8px',
                     fontWeight: 600,
@@ -1029,7 +1049,7 @@ export default function PersonalPage() {
                 </div>
                 <div
                   style={{
-                    fontSize: '18px',
+                    fontSize: window.innerWidth <= 768 ? '24px' : '18px',
                     fontWeight: 700,
                     color: '#374151',
                   }}
@@ -1044,14 +1064,14 @@ export default function PersonalPage() {
                   background: 'white',
                   border: '2px solid #7c3aed',
                   borderRadius: '12px',
-                  padding: '20px',
+                  padding: window.innerWidth <= 768 ? '16px' : '20px',
                   textAlign: 'center',
                   boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
                 }}
               >
                 <div
                   style={{
-                    fontSize: '14px',
+                    fontSize: window.innerWidth <= 768 ? '16px' : '14px',
                     color: '#7c3aed',
                     marginBottom: '8px',
                     fontWeight: 600,
@@ -1061,7 +1081,7 @@ export default function PersonalPage() {
                 </div>
                 <div
                   style={{
-                    fontSize: '18px',
+                    fontSize: window.innerWidth <= 768 ? '24px' : '18px',
                     fontWeight: 700,
                     color: '#374151',
                   }}
@@ -1441,24 +1461,24 @@ export default function PersonalPage() {
                   <div
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                      gap: '16px',
+                      gridTemplateColumns: window.innerWidth <= 768 ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(200px, 1fr))',
+                      gap: window.innerWidth <= 768 ? '12px' : '16px',
                     }}
                   >
                     <div
                       style={{
                         background: 'white',
-                        padding: '16px',
+                        padding: window.innerWidth <= 768 ? '12px' : '16px',
                         borderRadius: '12px',
                         textAlign: 'center',
                         border: '2px solid #059669',
                         boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                       }}
                     >
-                      <div style={{ fontSize: '14px', color: '#059669', fontWeight: 600, marginBottom: '8px' }}>
+                      <div style={{ fontSize: window.innerWidth <= 768 ? '12px' : '14px', color: '#059669', fontWeight: 600, marginBottom: '8px' }}>
                         出勤日数
                       </div>
-                      <div style={{ fontSize: '20px', fontWeight: 700, color: '#374151' }}>
+                      <div style={{ fontSize: window.innerWidth <= 768 ? '18px' : '20px', fontWeight: 700, color: '#374151' }}>
                         {workDays}日
                       </div>
                     </div>
@@ -1466,17 +1486,17 @@ export default function PersonalPage() {
                     <div
                       style={{
                         background: 'white',
-                        padding: '16px',
+                        padding: window.innerWidth <= 768 ? '12px' : '16px',
                         borderRadius: '12px',
                         textAlign: 'center',
                         border: '2px solid #7c3aed',
                         boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
                       }}
                     >
-                      <div style={{ fontSize: '14px', color: '#7c3aed', fontWeight: 600, marginBottom: '8px' }}>
+                      <div style={{ fontSize: window.innerWidth <= 768 ? '12px' : '14px', color: '#7c3aed', fontWeight: 600, marginBottom: '8px' }}>
                         総勤務時間
                       </div>
-                      <div style={{ fontSize: '20px', fontWeight: 700, color: '#374151' }}>
+                      <div style={{ fontSize: window.innerWidth <= 768 ? '18px' : '20px', fontWeight: 700, color: '#374151' }}>
                         {formatTime(totalWorkMinutes)}
                       </div>
                     </div>
