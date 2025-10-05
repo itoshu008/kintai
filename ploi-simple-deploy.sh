@@ -5,12 +5,18 @@
 
 echo "🚀 Plio Deployment Script for Attendance System"
 
+# 0. 最新コードを取得
+echo "📥 Fetching latest code from Git..."
+git pull origin main
+
 # 1. 依存関係インストール
 npm install
 
 # 2. フロントエンドビルド
 cd frontend
 npm install
+# TypeScriptキャッシュクリア
+rm -f tsconfig.tsbuildinfo
 npm run build
 cd ..
 

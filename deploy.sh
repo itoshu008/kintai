@@ -7,6 +7,10 @@ set -e  # エラー時に停止
 
 echo "🚀 Starting deployment process..."
 
+# 0. 最新コードを取得
+echo "📥 Fetching latest code from Git..."
+git pull origin main
+
 # 1. 依存関係のインストール
 echo "📦 Installing dependencies..."
 npm install
@@ -15,6 +19,8 @@ npm install
 echo "🔨 Building frontend..."
 cd frontend
 npm install
+# TypeScriptキャッシュクリア
+rm -f tsconfig.tsbuildinfo
 npm run build
 cd ..
 
