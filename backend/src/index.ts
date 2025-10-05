@@ -108,10 +108,22 @@ if (existsSync(frontendPath)) {
     app.use(express.static(frontendPath, {
       index: ['index.html'], // index.htmlを自動配信
       dotfiles: 'ignore',
-      etag: true,
-      lastModified: true,
-      maxAge: 0
+      etag: false, // ETagを無効化
+      lastModified: false, // Last-Modifiedを無効化
+      maxAge: 0 // キャッシュを無効化
     }));
+    
+    // キャッシュ無効化ヘッダーを追加
+    app.use((req, res, next) => {
+      if (!req.path.startsWith('/api')) {
+        res.set({
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        });
+      }
+      next();
+    });
     staticFilesEnabled = true;
     logger.info(`Static files enabled from: ${frontendPath}`);
   } else {
