@@ -290,7 +290,7 @@ const ATTENDANCE_FILE = path.join(DATA_DIR, 'attendance.json');
 const REMARKS_FILE = path.join(DATA_DIR, 'remarks.json');
 const PERSONAL_PAGES_FILE = path.join(DATA_DIR, 'personal_pages.json');
 
-// データ保存・読み込み関数
+// データ保存・読み込み関数（強化版）
 const saveData = (file: string, data: any) => {
   try {
     // ディレクトリが存在しない場合は作成
@@ -298,10 +298,28 @@ const saveData = (file: string, data: any) => {
       require('fs').mkdirSync(DATA_DIR, { recursive: true });
       logger.info(`データディレクトリ作成: ${DATA_DIR}`);
     }
-    writeFileSync(file, JSON.stringify(data, null, 2));
-    logger.info(`データ保存: ${path.basename(file)}`);
+    
+    // バックアップファイルを作成
+    const backupFile = file + '.backup';
+    if (existsSync(file)) {
+      const existingData = readFileSync(file, 'utf8');
+      writeFileSync(backupFile, existingData);
+    }
+    
+    // データを保存
+    const jsonData = JSON.stringify(data, null, 2);
+    writeFileSync(file, jsonData);
+    
+    // 保存を確認
+    const savedData = readFileSync(file, 'utf8');
+    if (savedData === jsonData) {
+      logger.info(`✅ データ保存成功: ${path.basename(file)} (${Array.isArray(data) ? data.length : Object.keys(data).length}件)`);
+    } else {
+      logger.error(`❌ データ保存確認失敗: ${path.basename(file)}`);
+      throw new Error('データ保存確認失敗');
+    }
   } catch (error) {
-    logger.error(`データ保存エラー: ${path.basename(file)}`, error);
+    logger.error(`❌ データ保存エラー: ${path.basename(file)}`, error);
     throw error; // エラーを再スローして呼び出し元で処理
   }
 };
