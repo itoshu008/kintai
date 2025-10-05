@@ -114,7 +114,7 @@ const calcIllegalOvertimeFromTimes = (clockIn?: string | null, clockOut?: string
 
 export default function PersonalPage() {
   // 開発環境でのみログ出力
-  if (process.env.NODE_ENV === 'development') {
+  if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
     console.log('🟡 PersonalPage が読み込まれました');
   }
 
@@ -216,7 +216,7 @@ export default function PersonalPage() {
         const employeeData = list.find((emp) => emp.code === employeeCode.trim()) || null;
         setTodayData(employeeData);
 
-        if (process.env.NODE_ENV === 'development') {
+        if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
           console.log('📊 初期データ読み込み:', { 
             employeeData, 
             clock_in: employeeData?.clock_in,
@@ -232,7 +232,7 @@ export default function PersonalPage() {
             department: employeeData.dept || employeeData.department_name || employeeData.department || '未所属',
             dept: employeeData.dept,
           });
-          if (process.env.NODE_ENV === 'development') {
+          if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
             console.log('👤 ユーザー情報設定:', {
               name: employeeData.name,
               dept: employeeData.dept,

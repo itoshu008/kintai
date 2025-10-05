@@ -38,14 +38,14 @@ export default function PersonalLogin({ onLoginSuccess, onLoginError }: Personal
     setError('');
 
     try {
-      if (process.env.NODE_ENV === 'development') {
+      if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
         console.log('PersonalLogin: ログイン処理開始', { employeeCode: employeeCode.trim(), employeeName: employeeName.trim() });
       }
       
       // 今日のデータを取得して社員情報を確認
       const today = new Date().toISOString().slice(0, 10);
       const res = await api.master(today);
-      if (process.env.NODE_ENV === 'development') {
+      if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
         console.log('PersonalLogin: API応答:', res);
       }
       
@@ -53,7 +53,7 @@ export default function PersonalLogin({ onLoginSuccess, onLoginError }: Personal
         emp.code === employeeCode.trim() && emp.name === employeeName.trim()
       );
 
-      if (process.env.NODE_ENV === 'development') {
+      if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
         console.log('PersonalLogin: 該当社員:', employee);
       }
 
@@ -75,7 +75,7 @@ export default function PersonalLogin({ onLoginSuccess, onLoginError }: Personal
           localStorage.setItem('rememberMe', 'false');
         }
 
-        if (process.env.NODE_ENV === 'development') {
+        if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
           console.log('PersonalLogin: ログイン成功', employeeData);
         }
         onLoginSuccess(employeeData);
@@ -83,7 +83,7 @@ export default function PersonalLogin({ onLoginSuccess, onLoginError }: Personal
         const errorMsg = '社員番号または名前が正しくありません';
         setError(errorMsg);
         onLoginError(errorMsg);
-        if (process.env.NODE_ENV === 'development') {
+        if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
           console.log('PersonalLogin: 認証失敗');
         }
       }

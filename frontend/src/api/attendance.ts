@@ -16,7 +16,7 @@ const USE_MOCK = false;
 const mock = null as any;
 
 // 開発環境でのみデバッグログを表示
-if (process.env.NODE_ENV === 'development') {
+if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
   console.log('🔧 API設定:', { 
     BASE, 
     USE_MOCK, 
@@ -46,7 +46,7 @@ export const api = {
     if (department) q.set('department', String(department));
     const url = `${BASE}/admin/master?${q}`;
     
-    if (process.env.NODE_ENV === 'development') {
+    if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
       console.log('API呼び出し: master', { date, sort, department, url });
     }
     return request(url);

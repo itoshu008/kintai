@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 export default function LoginPage() {
   // 開発環境でのみログ出力
-  if (process.env.NODE_ENV === 'development') {
+  if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
     console.log('🔵 LoginPage が読み込まれました');
   }
   const [employeeCode, setEmployeeCode] = useState('');
@@ -32,7 +32,7 @@ export default function LoginPage() {
       const res = await api.master(today);
       if (res.list) {
         setEmployeeList(res.list);
-        if (process.env.NODE_ENV === 'development') {
+        if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
           console.log('社員リスト更新:', res.list.length, '件');
         }
       }
