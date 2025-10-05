@@ -641,6 +641,8 @@ app.get('/api/admin/master', (req, res) => {
   const { date } = req.query as { date?: string };
   const targetDate = date || new Date().toISOString().slice(0, 10);
   
+  logger.info(`📊 マスターAPI呼び出し: ${targetDate}, 社員数: ${employees.length}`);
+  
   // マスターページアクセス時に勤怠データを自動初期化
   let initializedCount = 0;
   employees.forEach(emp => {
@@ -656,6 +658,7 @@ app.get('/api/admin/master', (req, res) => {
         work_minutes: 0
       };
       initializedCount++;
+      logger.info(`🆕 勤怠データ作成: ${emp.name} (${emp.code}) - ${targetDate}`);
     }
   });
   
@@ -696,6 +699,7 @@ app.get('/api/admin/master', (req, res) => {
       };
     });
   
+  logger.info(`📋 マスターAPI応答: ${list.length}名の社員データを返します`);
   res.json({ ok: true, date: targetDate, list });
 });
 
