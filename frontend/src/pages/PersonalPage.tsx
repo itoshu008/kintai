@@ -322,13 +322,13 @@ export default function PersonalPage() {
 
   // リアルタイム更新を有効化（useRealtimeフックを削除したため、手動で実装）
 
-  // 🔄 リアルタイム更新：30秒ごとにデータを再読み込み
+  // 🔄 リアルタイム更新：5秒ごとにデータを再読み込み（より即座に反映）
   useEffect(() => {
     if (!employeeCode) return;
 
     const interval = setInterval(async () => {
       console.log('🔄 定期更新: データを再読み込み中...');
-      
+
       // 今日のデータを更新
       try {
         const todayRes = await api.master(currentDate);
@@ -336,7 +336,7 @@ export default function PersonalPage() {
         const todayEmployee = list.find((emp: MasterRow) => emp.code === employeeCode.trim());
         if (todayEmployee) {
           setTodayData(todayEmployee);
-          
+
           // 月別データも同時更新
           setMonthlyData(prev => ({
             ...prev,
@@ -356,7 +356,7 @@ export default function PersonalPage() {
           console.error('備考更新エラー:', e);
         }
       }
-    }, 30000); // 30秒ごと
+    }, 5000); // 5秒ごと（より即座に反映）
 
     return () => clearInterval(interval);
   }, [employeeCode, selectedMonth, currentDate]);
@@ -445,6 +445,16 @@ export default function PersonalPage() {
         } else {
           console.warn('⚠️ 出勤後に社員データが見つかりません');
         }
+        
+        // 即座に月別データも更新（リアルタイム反映）
+        setTimeout(async () => {
+          try {
+            const currentMonth = new Date().toISOString().slice(0, 7);
+            await loadMonthlyRemarks(currentMonth);
+          } catch (e) {
+            console.error('出勤後の月別データ更新エラー:', e);
+          }
+        }, 100);
       } else {
         setMsg(`❌ 出勤エラー: ${result.message}`);
       }
@@ -519,6 +529,16 @@ export default function PersonalPage() {
         } else {
           console.warn('⚠️ 退勤データが見つかりません:', employeeData);
         }
+        
+        // 即座に月別データも更新（リアルタイム反映）
+        setTimeout(async () => {
+          try {
+            const currentMonth = new Date().toISOString().slice(0, 7);
+            await loadMonthlyRemarks(currentMonth);
+          } catch (e) {
+            console.error('退勤後の月別データ更新エラー:', e);
+          }
+        }, 100);
       } else {
         setMsg(`❌ 退勤エラー: ${result.message}`);
       }
@@ -551,13 +571,22 @@ export default function PersonalPage() {
     try {
       await api.saveRemark(employeeCode, targetDate, remark);
       
-      // ローカルステートも更新
+      // ローカルステートも即座に更新
       const key = `${targetDate}-${employeeCode}`;
       setRemarks(prev => ({ ...prev, [key]: remark }));
       
-      setMsg(`${targetDate}の備考を保存しました`);
+      setMsg(`✅ ${targetDate}の備考を保存しました`);
+      
+      // 即座に最新データを再読み込み（リアルタイム反映）
+      setTimeout(async () => {
+        try {
+          await loadMonthlyRemarks(selectedMonth);
+        } catch (e) {
+          console.error('備考保存後の再読み込みエラー:', e);
+        }
+      }, 100);
     } catch (e: any) {
-      setMsg(`備考保存エラー: ${e?.message ?? e}`);
+      setMsg(`❌ 備考保存エラー: ${e?.message ?? e}`);
     }
   };
 

@@ -176,13 +176,23 @@ export default function MasterPage() {
     try {
       await api.saveRemark(selectedEmployee.code, targetDate, remark);
       
-      // ローカルステートも更新
+      // ローカルステートも即座に更新
       const key = `${targetDate}-${selectedEmployee.code}`;
       setRemarks(prev => ({ ...prev, [key]: remark }));
       
-      setMsg(`${targetDate}の備考を保存しました`);
+      setMsg(`✅ ${targetDate}の備考を保存しました`);
+      
+      // 即座に最新データを再読み込み（リアルタイム反映）
+      setTimeout(async () => {
+        try {
+          const month = date.slice(0, 7);
+          await loadEmployeeMonthlyData(selectedEmployee.code, month);
+        } catch (e) {
+          console.error('備考保存後の再読み込みエラー:', e);
+        }
+      }, 100);
     } catch (e: any) {
-      setMsg(`備考保存エラー: ${e?.message ?? e}`);
+      setMsg(`❌ 備考保存エラー: ${e?.message ?? e}`);
     }
   };
 
@@ -429,13 +439,13 @@ export default function MasterPage() {
     }
   }, [showDropdown]);
 
-  // リアルタイム更新（10秒間隔）
+  // リアルタイム更新（5秒間隔 - より即座に反映）
   useEffect(() => {
     const interval = setInterval(() => {
       if (!loading) {
         loadOnce(loadKey);
       }
-    }, 10000); // 10秒間隔
+    }, 5000); // 5秒間隔（より即座に反映）
 
     return () => clearInterval(interval);
   }, [loading, loadKey, loadOnce]);

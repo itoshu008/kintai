@@ -36,23 +36,23 @@ export default function LoginPage() {
     }
   };
 
-  // リアルタイム更新を有効化（useRealtimeフックを削除したため、手動で実装）
-  useEffect(() => {
-    // 初回読み込み
-    updateEmployeeList();
-    
-    // 10秒間隔で更新
-    const interval = setInterval(updateEmployeeList, 10000);
-    
-    // ウィンドウフォーカス時に更新
-    const handleFocus = () => updateEmployeeList();
-    window.addEventListener('focus', handleFocus);
-    
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, []);
+         // リアルタイム更新を有効化（useRealtimeフックを削除したため、手動で実装）
+         useEffect(() => {
+           // 初回読み込み
+           updateEmployeeList();
+
+           // 5秒間隔で更新（より即座に反映）
+           const interval = setInterval(updateEmployeeList, 5000);
+
+           // ウィンドウフォーカス時に更新
+           const handleFocus = () => updateEmployeeList();
+           window.addEventListener('focus', handleFocus);
+
+           return () => {
+             clearInterval(interval);
+             window.removeEventListener('focus', handleFocus);
+           };
+         }, []);
 
   // 保存された情報を読み込み
   useEffect(() => {
