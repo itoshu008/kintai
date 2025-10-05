@@ -60,10 +60,4 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ code, action })
     }),
-  // 勤怠データ初期化
-  initializeAttendance: async (date?: string) =>
-    request(`${BASE}/initialize-attendance`, {
-      method: 'POST',
-      body: JSON.stringify({ date })
-    }),
 };

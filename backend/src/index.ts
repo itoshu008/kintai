@@ -622,6 +622,29 @@ app.get('/api/admin/master', (req, res) => {
   const { date } = req.query as { date?: string };
   const targetDate = date || new Date().toISOString().slice(0, 10);
   
+  // マスターページアクセス時に勤怠データを自動初期化
+  let initializedCount = 0;
+  employees.forEach(emp => {
+    const key = `${targetDate}-${emp.code}`;
+    if (!attendanceData[key]) {
+      attendanceData[key] = {
+        clock_in: null,
+        clock_out: null,
+        late: 0,
+        early: 0,
+        overtime: 0,
+        night: 0,
+        work_minutes: 0
+      };
+      initializedCount++;
+    }
+  });
+  
+  if (initializedCount > 0) {
+    saveData(ATTENDANCE_FILE, attendanceData);
+    logger.info(`✅ マスターページアクセス時自動初期化: ${initializedCount}名の社員の勤怠データを作成しました (${targetDate})`);
+  }
+  
   // 各社員の勤怠データを生成（社員番号順でソート）
   const list = employees
     .sort((a, b) => a.code.localeCompare(b.code)) // 社員番号順でソート
@@ -657,43 +680,6 @@ app.get('/api/admin/master', (req, res) => {
   res.json({ ok: true, date: targetDate, list });
 });
 
-// 既存ユーザー分の勤怠データ初期化エンドポイント
-app.post('/api/admin/initialize-attendance', (req, res) => {
-  const { date } = req.body;
-  const targetDate = date || new Date().toISOString().slice(0, 10);
-  
-  let initializedCount = 0;
-  
-  // 全社員の勤怠データを初期化
-  employees.forEach(emp => {
-    const key = `${targetDate}-${emp.code}`;
-    if (!attendanceData[key]) {
-      attendanceData[key] = {
-        clock_in: null,
-        clock_out: null,
-        late: 0,
-        early: 0,
-        overtime: 0,
-        night: 0,
-        work_minutes: 0
-      };
-      initializedCount++;
-    }
-  });
-  
-  if (initializedCount > 0) {
-    saveData(ATTENDANCE_FILE, attendanceData);
-    logger.info(`✅ ${initializedCount}名の社員の勤怠データを初期化しました (${targetDate})`);
-  }
-  
-  res.json({ 
-    ok: true, 
-    message: `${initializedCount}名の社員の勤怠データを初期化しました`,
-    date: targetDate,
-    initialized_count: initializedCount,
-    total_employees: employees.length
-  });
-});
 
 // 出勤・退勤API（パブリック用エイリアス追加）
 app.post('/api/public/clock-in', (req, res) => {
@@ -1077,9 +1063,42 @@ app.get('*', (req, res) => {
   }
 });
 
+// 勤怠データ自動初期化関数
+const autoInitializeAttendance = () => {
+  const today = new Date().toISOString().slice(0, 10);
+  let initializedCount = 0;
+  
+  // 全社員の勤怠データを自動初期化
+  employees.forEach(emp => {
+    const key = `${today}-${emp.code}`;
+    if (!attendanceData[key]) {
+      attendanceData[key] = {
+        clock_in: null,
+        clock_out: null,
+        late: 0,
+        early: 0,
+        overtime: 0,
+        night: 0,
+        work_minutes: 0
+      };
+      initializedCount++;
+    }
+  });
+  
+  if (initializedCount > 0) {
+    saveData(ATTENDANCE_FILE, attendanceData);
+    logger.info(`✅ 自動初期化: ${initializedCount}名の社員の勤怠データを作成しました (${today})`);
+  } else {
+    logger.info(`ℹ️ 勤怠データは既に初期化済みです (${today})`);
+  }
+};
+
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
   logger.info(`Backend server running on http://127.0.0.1:${PORT}`);
   logger.info(`Frontend will be served at http://127.0.0.1:${PORT}`);
   logger.info(`Static files from: ${frontendPath}`);
+  
+  // サーバー起動時に勤怠データを自動初期化
+  autoInitializeAttendance();
 });
