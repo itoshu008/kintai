@@ -97,7 +97,7 @@ cat > tsconfig.temp.json << EOF
 {
   "compilerOptions": {
     "target": "ES2020",
-    "module": "commonjs",
+    "module": "ES2020",
     "lib": ["ES2020"],
     "outDir": "$BACKEND_BUILD_DIR",
     "rootDir": "./src",
