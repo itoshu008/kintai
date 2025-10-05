@@ -450,13 +450,13 @@ export default function MasterPage() {
     }
   }, [showDropdown]);
 
-  // リアルタイム更新（5秒間隔 - より即座に反映）
+  // リアルタイム更新（30秒間隔）
   useEffect(() => {
     const interval = setInterval(() => {
       if (!loading) {
         loadOnce(loadKey);
       }
-    }, 5000); // 5秒間隔（より即座に反映）
+    }, 30000); // 30秒間隔
 
     return () => clearInterval(interval);
   }, [loading, loadKey, loadOnce]);
@@ -590,12 +590,12 @@ export default function MasterPage() {
 
   // 部署削除
   const onDeleteDepartment = async (id: number, name: string) => {
-    if (!confirm(`部署「${name}」を削除しますか？\n\n注意: この部署に所属する社員も削除されます。`)) {
+    if (!confirm(`⚠️ 部署削除の確認\n\n部署「${name}」を削除しますか？\n\n🚨 重要な注意:\n• この部署に所属する社員も全て削除されます\n• 削除された社員の勤怠データも失われます\n• この操作は取り消せません\n\n本当に削除しますか？`)) {
       return;
     }
     try {
       await adminApi.deleteDepartment(id);
-      setMsg('✅ 部署を削除しました');
+      setMsg('✅ 部署「' + name + '」を削除しました');
       loadDeps();
     } catch (e: any) {
       setMsg(`❌ 部署削除エラー: ${e.message}`);
@@ -688,7 +688,7 @@ export default function MasterPage() {
         gap: window.innerWidth <= 768 ? '12px' : '0'
       }}>
         <div style={{display:'flex', alignItems:'center', gap: 24}}>
-          <h1 style={{margin:0, fontSize:'28px', fontWeight:'600', color:'#2c3e50'}}>日次マスター</h1>
+          <h1 style={{margin:0, fontSize:'28px', fontWeight:'600', color:'#2c3e50'}}>勤怠管理ページ</h1>
           
           {/* 月選択を大きく移動 */}
           <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
@@ -996,7 +996,10 @@ export default function MasterPage() {
 
           {/* 部署一覧 */}
           <div>
-            <h4 style={{marginBottom:12, color:'#495057', fontSize:'16px', fontWeight:'500'}}>部署一覧</h4>
+            <h4 style={{marginBottom:8, color:'#495057', fontSize:'16px', fontWeight:'500'}}>部署一覧</h4>
+            <p style={{marginBottom:12, color:'#6c757d', fontSize:'13px', fontStyle:'italic'}}>
+              💡 各部署の「編集」ボタンで名前変更、「🗑️ 削除」ボタンで部署削除ができます
+            </p>
             <div style={{display:'grid', gap:8}}>
               {deps.map(dept => (
                 <div key={dept.id} style={{
@@ -1076,19 +1079,31 @@ export default function MasterPage() {
                       <button
                         onClick={() => onDeleteDepartment(dept.id, dept.name)}
                         style={{
-                          padding:'6px 12px',
+                          padding:'8px 16px',
                           background:'#dc3545',
                           color:'white',
-                          border:'none',
-                          borderRadius:6,
-                          fontSize:'12px',
+                          border:'2px solid #dc3545',
+                          borderRadius:8,
+                          fontSize:'13px',
+                          fontWeight:'bold',
                           cursor:'pointer',
-                          transition:'all 0.2s ease'
+                          transition:'all 0.2s ease',
+                          boxShadow:'0 2px 4px rgba(220,53,69,0.3)'
                         }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = '#c82333'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = '#dc3545'}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = '#c82333';
+                          e.currentTarget.style.borderColor = '#c82333';
+                          e.currentTarget.style.transform = 'translateY(-1px)';
+                          e.currentTarget.style.boxShadow = '0 4px 8px rgba(220,53,69,0.4)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = '#dc3545';
+                          e.currentTarget.style.borderColor = '#dc3545';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 2px 4px rgba(220,53,69,0.3)';
+                        }}
                       >
-                        削除
+                        🗑️ 削除
                       </button>
                     </>
                   )}
