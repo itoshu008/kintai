@@ -288,6 +288,7 @@ const DEPARTMENTS_FILE = path.join(DATA_DIR, 'departments.json');
 const EMPLOYEES_FILE = path.join(DATA_DIR, 'employees.json');
 const ATTENDANCE_FILE = path.join(DATA_DIR, 'attendance.json');
 const REMARKS_FILE = path.join(DATA_DIR, 'remarks.json');
+const PERSONAL_PAGES_FILE = path.join(DATA_DIR, 'personal_pages.json');
 
 // データ保存・読み込み関数
 const saveData = (file: string, data: any) => {
@@ -414,11 +415,14 @@ app.post('/api/admin/employees', (req, res) => {
   employees.push(newEmployee);
   saveData(EMPLOYEES_FILE, employees);
   
-  // 新規社員の個人ページ用勤怠データを初期化
+  // 新規社員の個人ページ用勤怠データを初期化（今日と明日分を作成）
   const today = new Date().toISOString().split('T')[0];
-  const attendanceKey = `${today}-${code}`;
-  if (!attendanceData[attendanceKey]) {
-    attendanceData[attendanceKey] = {
+  const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  
+  // 今日の勤怠データを作成
+  const todayKey = `${today}-${code}`;
+  if (!attendanceData[todayKey]) {
+    attendanceData[todayKey] = {
       clock_in: null,
       clock_out: null,
       late: 0,
@@ -427,9 +431,24 @@ app.post('/api/admin/employees', (req, res) => {
       night: 0,
       work_minutes: 0
     };
-    saveData(ATTENDANCE_FILE, attendanceData);
-    logger.info(`✅ 新規社員の個人ページ用勤怠データを初期化: ${name} (${code})`);
   }
+  
+  // 明日の勤怠データも作成（翌日から使えるように）
+  const tomorrowKey = `${tomorrow}-${code}`;
+  if (!attendanceData[tomorrowKey]) {
+    attendanceData[tomorrowKey] = {
+      clock_in: null,
+      clock_out: null,
+      late: 0,
+      early: 0,
+      overtime: 0,
+      night: 0,
+      work_minutes: 0
+    };
+  }
+  
+  saveData(ATTENDANCE_FILE, attendanceData);
+  logger.info(`✅ 新規社員のパーソナルページを作成: ${name} (${code}) - 今日と明日の勤怠データを初期化`);
   
   res.json({ list: employees });
 });
@@ -642,7 +661,7 @@ app.get('/api/admin/master', (req, res) => {
   
   if (initializedCount > 0) {
     saveData(ATTENDANCE_FILE, attendanceData);
-    logger.info(`✅ マスターページアクセス時自動初期化: ${initializedCount}名の社員の勤怠データを作成しました (${targetDate})`);
+    logger.info(`✅ マスターページアクセス時自動初期化: ${initializedCount}名の社員のパーソナルページを作成しました (${targetDate})`);
   }
   
   // 各社員の勤怠データを生成（社員番号順でソート）
@@ -1063,16 +1082,33 @@ app.get('*', (req, res) => {
   }
 });
 
-// 勤怠データ自動初期化関数
+// 勤怠データ自動初期化関数（今日と明日分を作成）
 const autoInitializeAttendance = () => {
   const today = new Date().toISOString().slice(0, 10);
+  const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   let initializedCount = 0;
   
-  // 全社員の勤怠データを自動初期化
+  // 全社員の勤怠データを自動初期化（今日と明日分）
   employees.forEach(emp => {
-    const key = `${today}-${emp.code}`;
-    if (!attendanceData[key]) {
-      attendanceData[key] = {
+    // 今日の勤怠データ
+    const todayKey = `${today}-${emp.code}`;
+    if (!attendanceData[todayKey]) {
+      attendanceData[todayKey] = {
+        clock_in: null,
+        clock_out: null,
+        late: 0,
+        early: 0,
+        overtime: 0,
+        night: 0,
+        work_minutes: 0
+      };
+      initializedCount++;
+    }
+    
+    // 明日の勤怠データ
+    const tomorrowKey = `${tomorrow}-${emp.code}`;
+    if (!attendanceData[tomorrowKey]) {
+      attendanceData[tomorrowKey] = {
         clock_in: null,
         clock_out: null,
         late: 0,
@@ -1087,9 +1123,9 @@ const autoInitializeAttendance = () => {
   
   if (initializedCount > 0) {
     saveData(ATTENDANCE_FILE, attendanceData);
-    logger.info(`✅ 自動初期化: ${initializedCount}名の社員の勤怠データを作成しました (${today})`);
+    logger.info(`✅ 自動初期化: ${initializedCount}件の勤怠データを作成しました (${today} & ${tomorrow})`);
   } else {
-    logger.info(`ℹ️ 勤怠データは既に初期化済みです (${today})`);
+    logger.info(`ℹ️ 勤怠データは既に初期化済みです (${today} & ${tomorrow})`);
   }
 };
 
