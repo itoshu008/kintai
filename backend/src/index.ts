@@ -11,9 +11,19 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
-// CORS設定を明示的に設定
+// CORS設定を環境変数から動的に設定
 app.use((req, res, next) => {
-  const allowedOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:4001', 'http://127.0.0.1:4001'];
+  // 環境変数から許可されたオリジンを取得
+  const corsOrigin = process.env.CORS_ORIGIN;
+  const allowedOrigins = corsOrigin 
+    ? corsOrigin.split(',').map(origin => origin.trim())
+    : [
+        'http://localhost:3000', 
+        'http://127.0.0.1:3000', 
+        'http://localhost:8000', 
+        'http://127.0.0.1:8000'
+      ];
+  
   const origin = req.headers.origin;
   
   // 同一オリジン（originがnull）または許可されたオリジンの場合
