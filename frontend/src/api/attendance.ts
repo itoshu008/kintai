@@ -79,135 +79,112 @@ export const api = {
     });
   },
 
-      // ★追加：社員一覧・登録・更新（バックエンドに下のパッチを当てる）
-      listEmployees: async () => {
-        if (USE_MOCK && mock) return mock.employees();
-        return request(`${BASE}/admin/employees`);
-      },
-      createEmployee: async (code: string, name: string, department_id?: number) => {
-        if (USE_MOCK && mock) return mock.createEmployee(code, name, department_id);
-        return request(`${BASE}/admin/employees`, {
-          method: 'POST',
-          body: JSON.stringify({ code, name, department_id })
-        });
-      },
-      updateEmployee: async (originalCode: string, data: {code: string, name: string, department_id: number}) => {
-        if (USE_MOCK && mock) return mock.updateEmployee(originalCode, data);
-        console.log('API呼び出し: updateEmployee', { originalCode, data, url: `${BASE}/admin/employees/${originalCode}` });
-        return request(`${BASE}/admin/employees/${originalCode}`, {
-          method: 'PUT',
-          body: JSON.stringify(data)
-        });
-      },
-      deleteEmployee: async (id: number) => {
-        if (USE_MOCK && mock) return mock.deleteEmployee(id);
-        console.log('API呼び出し: deleteEmployee', { id, url: `${BASE}/admin/employees/${id}` });
-        return request(`${BASE}/admin/employees/${id}`, {
-          method: 'DELETE'
-        });
-      },
-      // 部署管理
-      listDepartments: async () => {
-        if (USE_MOCK && mock) return mock.departments();
-        console.log('API呼び出し: listDepartments', { url: `${BASE}/admin/departments` });
-        return request(`${BASE}/admin/departments`);
-      },
-      createDepartment: async (name: string) => {
-        if (USE_MOCK && mock) return mock.createDepartment(name);
-        return request(`${BASE}/admin/departments`, {
-          method: 'POST',
-          body: JSON.stringify({name})
-        });
-      },
-      updateDepartment: async (id: number, name: string) => {
-        if (USE_MOCK && mock) return mock.updateDepartment(id, name);
-        return request(`${BASE}/admin/departments/${id}`, {
-          method: 'PUT',
-          body: JSON.stringify({name})
-        });
-      },
-      deleteDepartment: async (id: number) => {
-        if (USE_MOCK && mock) return mock.deleteDepartment(id);
-        return request(`${BASE}/admin/departments/${id}`, {
-          method: 'DELETE'
-        });
-      },
-      updateDepartmentOrder: async (id: number, sort_order: number) => 
-        request(`${BASE}/admin/departments/${id}/order`, {
-          method: 'PUT',
-          body: JSON.stringify({sort_order})
-        }),
-      listDeptMembers: async (id: number) => 
-        request(`${BASE}/admin/departments/${id}/employees`),
-      bulkAssign: async (id: number, employee_ids: number[]) => 
-        request(`${BASE}/admin/departments/${id}/assign`, {
-          method: 'POST',
-          body: JSON.stringify({employee_ids})
-        }),
-      bulkUnassign: async (id: number, employee_ids: number[]) => 
-        request(`${BASE}/admin/departments/${id}/unassign`, {
-          method: 'POST',
-          body: JSON.stringify({employee_ids})
-        }),
+  // 社員一覧・登録・更新
+  listEmployees: async () => {
+    if (USE_MOCK && mock) return mock.employees();
+    return request(`${BASE}/admin/employees`);
+  },
+  
+  createEmployee: async (code: string, name: string, department_id?: number) => {
+    if (USE_MOCK && mock) return mock.createEmployee(code, name, department_id);
+    return request(`${BASE}/admin/employees`, {
+      method: 'POST',
+      body: JSON.stringify({ code, name, department_id })
+    });
+  },
+  
+  updateEmployee: async (originalCode: string, data: {code: string, name: string, department_id: number}) => {
+    if (USE_MOCK && mock) return mock.updateEmployee(originalCode, data);
+    console.log('API呼び出し: updateEmployee', { originalCode, data, url: `${BASE}/admin/employees/${originalCode}` });
+    return request(`${BASE}/admin/employees/${originalCode}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  },
+  
+  deleteEmployee: async (id: number) => {
+    if (USE_MOCK && mock) return mock.deleteEmployee(id);
+    console.log('API呼び出し: deleteEmployee', { id, url: `${BASE}/admin/employees/${id}` });
+    return request(`${BASE}/admin/employees/${id}`, {
+      method: 'DELETE'
+    });
+  },
+  
+  // 部署管理
+  listDepartments: async () => {
+    if (USE_MOCK && mock) return mock.departments();
+    console.log('API呼び出し: listDepartments', { url: `${BASE}/admin/departments` });
+    return request(`${BASE}/admin/departments`);
+  },
+  
+  createDepartment: async (name: string) => {
+    if (USE_MOCK && mock) return mock.createDepartment(name);
+    return request(`${BASE}/admin/departments`, {
+      method: 'POST',
+      body: JSON.stringify({name})
+    });
+  },
+  
+  updateDepartment: async (id: number, name: string) => {
+    if (USE_MOCK && mock) return mock.updateDepartment(id, name);
+    return request(`${BASE}/admin/departments/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({name})
+    });
+  },
+  
+  deleteDepartment: async (id: number) => {
+    if (USE_MOCK && mock) return mock.deleteDepartment(id);
+    return request(`${BASE}/admin/departments/${id}`, {
+      method: 'DELETE'
+    });
+  },
+  
+  // 備考関連API
+  saveRemark: async (employeeCode: string, date: string, remark: string) =>
+    request(`${BASE}/admin/remarks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ employeeCode, date, remark })
+    }),
 
-      setEmployeeDepartment: async (id: number, department_id: number | null) =>
-        request(`${BASE}/admin/employees/${id}`, {
-          method: 'PUT',
-          body: JSON.stringify({department_id})
-        }),
-      
-      // 社員の部署割当（PATCH）
-      assignEmployeeDepartment: async (employeeId: number, departmentId: number|null) =>
-        request(`${BASE}/admin/employees/${employeeId}/department`, {
-          method: 'PATCH',
-          body: JSON.stringify({department_id: departmentId})
-        }),
+  getRemark: async (employeeCode: string, date: string) =>
+    request(`${BASE}/admin/remarks/${employeeCode}/${date}`),
 
-      // 備考関連API
-      saveRemark: async (employeeCode: string, date: string, remark: string) =>
-        request(`${BASE}/admin/remarks`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ employeeCode, date, remark })
-        }),
+  getRemarks: async (employeeCode: string, month?: string) => {
+    const query = month ? `?month=${month}` : '';
+    return request(`${BASE}/admin/remarks/${employeeCode}${query}`);
+  },
 
-      getRemark: async (employeeCode: string, date: string) =>
-        request(`${BASE}/admin/remarks/${employeeCode}/${date}`),
+  // 祝日関連API
+  getHolidays: async () => {
+    if (USE_MOCK && mock) return mock.getHolidays();
+    return request(`${BASE}/admin/holidays`);
+  },
 
-      getRemarks: async (employeeCode: string, month?: string) => {
-        const query = month ? `?month=${month}` : '';
-        return request(`${BASE}/admin/remarks/${employeeCode}${query}`);
-      },
+  checkHoliday: async (date: string) => {
+    if (USE_MOCK && mock) return mock.checkHoliday(date);
+    return request(`${BASE}/admin/holidays/${date}`);
+  },
 
-      // 祝日関連API
-      getHolidays: async () => {
-        if (USE_MOCK && mock) return mock.getHolidays();
-        return request(`${BASE}/admin/holidays`);
-      },
+  // セッション管理
+  saveSession: async (userData: { code: string; name: string; department: string; rememberMe?: boolean }) => {
+    console.log('API呼び出し: saveSession', userData);
+    return request(`${BASE}/admin/sessions`, {
+      method: 'POST',
+      body: JSON.stringify(userData)
+    });
+  },
 
-      checkHoliday: async (date: string) => {
-        if (USE_MOCK && mock) return mock.checkHoliday(date);
-        return request(`${BASE}/admin/holidays/${date}`);
-      },
+  getSession: async (sessionId: string) => {
+    console.log('API呼び出し: getSession', { sessionId });
+    return request(`${BASE}/admin/sessions/${sessionId}`);
+  },
 
-      // セッション管理
-      saveSession: async (userData: { code: string; name: string; department: string; rememberMe?: boolean }) => {
-        console.log('API呼び出し: saveSession', userData);
-        return request(`${BASE}/admin/sessions`, {
-          method: 'POST',
-          body: JSON.stringify(userData)
-        });
-      },
-
-      getSession: async (sessionId: string) => {
-        console.log('API呼び出し: getSession', { sessionId });
-        return request(`${BASE}/admin/sessions/${sessionId}`);
-      },
-
-      deleteSession: async (sessionId: string) => {
-        console.log('API呼び出し: deleteSession', { sessionId });
-        return request(`${BASE}/admin/sessions/${sessionId}`, {
-          method: 'DELETE'
-        });
-      }
-    };
+  deleteSession: async (sessionId: string) => {
+    console.log('API呼び出し: deleteSession', { sessionId });
+    return request(`${BASE}/admin/sessions/${sessionId}`, {
+      method: 'DELETE'
+    });
+  }
+};
