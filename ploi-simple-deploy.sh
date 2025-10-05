@@ -68,7 +68,7 @@ rm -rf dist tsconfig.tsbuildinfo 2>/dev/null || true
 echo "📦 Verifying backend dependencies..."
 if [ ! -d "node_modules" ]; then
   echo "⚠️  node_modules not found, installing dependencies..."
-  npm install --prefer-offline --production
+  npm install --prefer-offline
 fi
 
 echo "🏗️ Building backend for production..."
