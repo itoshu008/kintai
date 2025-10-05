@@ -994,6 +994,47 @@ export default function MasterPage() {
             </button>
           </div>
 
+          {/* 勤怠データ初期化ボタン */}
+          <div style={{marginBottom:20, padding:16, background:'#fff3cd', border:'1px solid #ffeaa7', borderRadius:8}}>
+            <h4 style={{marginBottom:8, color:'#856404', fontSize:'16px', fontWeight:'500'}}>📊 勤怠データ管理</h4>
+            <p style={{marginBottom:12, color:'#856404', fontSize:'13px'}}>
+              💡 登録済み社員の勤怠データを初期化して、個人ページを有効にします
+            </p>
+            <button
+              onClick={async () => {
+                try {
+                  const response = await adminApi.initializeAttendance();
+                  setMsg(`✅ ${response.message}`);
+                  // データを再読み込み
+                  setTimeout(() => {
+                    loadMaster();
+                    loadDeps();
+                  }, 1000);
+                } catch (e: any) {
+                  setMsg(`❌ 勤怠データ初期化エラー: ${e.message}`);
+                }
+              }}
+              style={{
+                background:'#ffc107',
+                color:'#212529',
+                border:'none',
+                borderRadius:8,
+                padding:'10px 20px',
+                fontSize:'14px',
+                fontWeight:'500',
+                cursor:'pointer',
+                transition:'all 0.2s ease',
+                display:'flex',
+                alignItems:'center',
+                gap:8
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#e0a800'}
+              onMouseLeave={(e) => e.currentTarget.style.background = '#ffc107'}
+            >
+              🔄 勤怠データ初期化
+            </button>
+          </div>
+
           {/* 部署一覧 */}
           <div>
             <h4 style={{marginBottom:8, color:'#495057', fontSize:'16px', fontWeight:'500'}}>部署一覧</h4>

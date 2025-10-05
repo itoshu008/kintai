@@ -414,6 +414,23 @@ app.post('/api/admin/employees', (req, res) => {
   employees.push(newEmployee);
   saveData(EMPLOYEES_FILE, employees);
   
+  // 新規社員の個人ページ用勤怠データを初期化
+  const today = new Date().toISOString().split('T')[0];
+  const attendanceKey = `${today}-${code}`;
+  if (!attendanceData[attendanceKey]) {
+    attendanceData[attendanceKey] = {
+      clock_in: null,
+      clock_out: null,
+      late: 0,
+      early: 0,
+      overtime: 0,
+      night: 0,
+      work_minutes: 0
+    };
+    saveData(ATTENDANCE_FILE, attendanceData);
+    logger.info(`✅ 新規社員の個人ページ用勤怠データを初期化: ${name} (${code})`);
+  }
+  
   res.json({ list: employees });
 });
 
@@ -638,6 +655,44 @@ app.get('/api/admin/master', (req, res) => {
     });
   
   res.json({ ok: true, date: targetDate, list });
+});
+
+// 既存ユーザー分の勤怠データ初期化エンドポイント
+app.post('/api/admin/initialize-attendance', (req, res) => {
+  const { date } = req.body;
+  const targetDate = date || new Date().toISOString().slice(0, 10);
+  
+  let initializedCount = 0;
+  
+  // 全社員の勤怠データを初期化
+  employees.forEach(emp => {
+    const key = `${targetDate}-${emp.code}`;
+    if (!attendanceData[key]) {
+      attendanceData[key] = {
+        clock_in: null,
+        clock_out: null,
+        late: 0,
+        early: 0,
+        overtime: 0,
+        night: 0,
+        work_minutes: 0
+      };
+      initializedCount++;
+    }
+  });
+  
+  if (initializedCount > 0) {
+    saveData(ATTENDANCE_FILE, attendanceData);
+    logger.info(`✅ ${initializedCount}名の社員の勤怠データを初期化しました (${targetDate})`);
+  }
+  
+  res.json({ 
+    ok: true, 
+    message: `${initializedCount}名の社員の勤怠データを初期化しました`,
+    date: targetDate,
+    initialized_count: initializedCount,
+    total_employees: employees.length
+  });
 });
 
 // 出勤・退勤API（パブリック用エイリアス追加）
