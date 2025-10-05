@@ -539,7 +539,7 @@ export default function MasterPage() {
   const loadDeps = async () => {
     try {
       const r = await adminApi.listDepartments();
-      setDeps(r.list || []);
+      setDeps(r?.list || []);
     } catch(e:any){
       console.warn('Failed to load departments:', e);
       setDeps([]);
