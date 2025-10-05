@@ -588,6 +588,20 @@ export default function MasterPage() {
     }
   };
 
+  // 部署削除
+  const onDeleteDepartment = async (id: number, name: string) => {
+    if (!confirm(`部署「${name}」を削除しますか？\n\n注意: この部署に所属する社員も削除されます。`)) {
+      return;
+    }
+    try {
+      await adminApi.deleteDepartment(id);
+      setMsg('✅ 部署を削除しました');
+      loadDeps();
+    } catch (e: any) {
+      setMsg(`❌ 部署削除エラー: ${e.message}`);
+    }
+  };
+
   // 社員を選択して詳細データを取得（高速化）
   const selectEmployee = async (employee: MasterRow) => {
     setSelectedEmployee(employee);
@@ -1034,6 +1048,23 @@ export default function MasterPage() {
                         onMouseLeave={(e) => e.currentTarget.style.background = '#ffc107'}
                       >
                         編集
+                      </button>
+                      <button
+                        onClick={() => onDeleteDepartment(dept.id, dept.name)}
+                        style={{
+                          padding:'6px 12px',
+                          background:'#dc3545',
+                          color:'white',
+                          border:'none',
+                          borderRadius:6,
+                          fontSize:'12px',
+                          cursor:'pointer',
+                          transition:'all 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#c82333'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = '#dc3545'}
+                      >
+                        削除
                       </button>
                     </>
                   )}

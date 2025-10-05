@@ -34,6 +34,10 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ name })
     }),
+  deleteDepartment: async (id: number) =>
+    request(`${BASE}/departments/${id}`, {
+      method: 'DELETE'
+    }),
   // 社員管理
   listEmployees: async () => request(`${BASE}/employees`),
   createEmployee: async (code: string, name: string, department_id?: number) =>
