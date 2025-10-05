@@ -1,126 +1,135 @@
-# 勤怠アプリ
+# 🕐 勤怠管理システム (Kintai Management System)
 
-50名規模の勤怠管理システム
+## 📋 **概要**
+社員の出退勤管理、勤怠記録、備考管理を行うWebアプリケーションです。
 
-## 構成
+## 🚀 **クイックスタート**
 
-- **Backend**: Node.js + Express + TypeScript + MySQL
-- **Frontend**: React + Vite + TypeScript
-- **DB**: MySQL/MariaDB
-- **開発環境**: モック機能付きでバックエンド不要でのUI開発が可能
-
-## 機能
-
-### 1. 個別打刻ページ (`/p/:token`)
-- 出勤・退勤ボタン（スマホ想定、QRで開ける）
-- 最新の打刻状態表示
-
-### 2. 管理画面
-- `/admin/master?date=YYYY-MM-DD`: 全員の日次一覧
-- `/admin/weekly?start=YYYY-MM-DD`: 週次合算
-
-## セットアップ
-
-### 前提条件
-- Node.js 18+
-- MySQL 8.0+
-- npm または yarn
-
-### インストール
-
+### **1. 依存関係のインストール**
 ```bash
-# 依存関係のインストール
 npm install
-
-# セットアップスクリプト実行
-npm run setup
 ```
 
-### 環境変数設定
-
-#### Backend (.env)
-```env
-# データベース設定
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_USER=attendance_user
-DB_PASSWORD=strongpass
-DB_NAME=attendance
-
-# サーバー設定
-PORT=4021
-NODE_ENV=development
-
-# ログ設定
-LOG_LEVEL=DEBUG
-
-# タイムゾーン
-TZ=Asia/Tokyo
+### **2. 開発サーバー起動**
+```bash
+npm run dev
 ```
 
-#### Frontend (.env)
-```env
-# API設定
-VITE_ATTENDANCE_API_BASE=http://127.0.0.1:4021/api/admin
-VITE_SCHEDULE_API_BASE=http://127.0.0.1:4001/api
+### **3. アクセス**
+- **フロントエンド**: http://localhost:3000
+- **バックエンド**: http://localhost:8000
 
-# 開発設定（モック機能）
-VITE_USE_MOCK=1
-NODE_ENV=development
+## 🎯 **主要機能**
+
+### **👤 個人ページ** (`/personal`)
+- ✅ 出勤/退勤打刻
+- 📊 月別勤怠表示
+- 📝 備考入力・編集
+- 🔄 リアルタイム更新
+
+### **👨‍💼 管理者ページ** (`/admin-dashboard-2024`)
+- 👥 全社員勤怠管理
+- 🏢 部署管理
+- ➕ 社員登録
+- ⏰ 勤怠打刻代行
+- 📈 勤怠レポート
+
+## 🛠️ **技術スタック**
+
+### **フロントエンド**
+- ⚛️ React 18
+- 📘 TypeScript
+- ⚡ Vite
+- 🎨 Tailwind CSS
+- 🧭 React Router DOM
+
+### **バックエンド**
+- 🟢 Node.js
+- 🚀 Express
+- 📘 TypeScript
+- 📄 JSONファイル（データベース）
+
+## 📁 **プロジェクト構成**
+
+```
+kintai/
+├── 📁 frontend/          # React フロントエンド
+├── 📁 backend/           # Node.js バックエンド
+├── 📁 docs/              # ドキュメント
+├── 📁 data/              # データファイル
+└── 📄 package.json       # ルート設定
 ```
 
-### 起動
+## 🔧 **開発コマンド**
 
 ```bash
-# 開発環境（両方同時起動）
+# 開発サーバー起動（フロントエンド + バックエンド）
 npm run dev
 
-# 個別起動
-npm run dev:backend   # Backend: http://localhost:4021
-npm run dev:frontend  # Frontend: http://localhost:5173
-```
+# フロントエンドのみ
+npm run dev:frontend
 
-### 本番ビルド
+# バックエンドのみ
+npm run dev:backend
 
-```bash
+# ビルド
 npm run build
-npm start
 ```
 
-## API仕様
+## 📡 **API エンドポイント**
 
-### ヘルスチェック
-- `GET /api/health` → `{ok: true}`
+### **認証**
+- `POST /api/auth/login` - ログイン
 
-### 社員管理
-- `GET /api/employees` → 社員一覧
+### **勤怠管理**
+- `GET /api/admin/master` - 勤怠一覧
+- `POST /api/clock/in` - 出勤打刻
+- `POST /api/clock/out` - 退勤打刻
 
-### 打刻（公開）
-- `GET /api/public/profile/:token` → 社員情報
-- `POST /api/public/clock-in` → 出勤打刻
-- `POST /api/public/clock-out` → 退勤打刻
+### **マスタ管理**
+- `GET /api/admin/departments` - 部署一覧
+- `POST /api/admin/departments` - 部署作成
+- `GET /api/admin/employees` - 社員一覧
+- `POST /api/admin/employees` - 社員作成
 
-### レポート
-- `GET /api/reports/daily?date=YYYY-MM-DD` → 日次レポート
-- `GET /api/reports/weekly?start=YYYY-MM-DD` → 週次レポート
+## 🎨 **UI/UX特徴**
+- 📱 レスポンシブデザイン
+- 🔄 リアルタイム更新（5秒間隔）
+- 🎯 直感的な操作
+- 🇯🇵 日本語対応
+- ⚡ 高速レスポンス
 
-## サンプルデータ
+## 📚 **ドキュメント**
+- [📁 プロジェクト構成](PROJECT_STRUCTURE.md)
+- [🔧 開発手順](docs/DEVELOPMENT.md)
+- [🚀 デプロイ手順](docs/DEPLOYMENT.md)
+- [📡 API仕様](docs/API_ENDPOINTS.md)
 
-初期データとして5名のサンプル社員が投入されます：
+## 🔄 **リアルタイム機能**
+- ⚡ 自動データ更新（5秒間隔）
+- 🎯 即座の反映
+- 👁️ ウィンドウフォーカス時更新
+- 💾 ローカルステート同期
 
-| 社員コード | 氏名 | 部署 | 個別打刻URL |
-|-----------|------|------|-------------|
-| EMP001 | 田中太郎 | 営業部 | `/p/EMP001` |
-| EMP002 | 佐藤花子 | 営業部 | `/p/EMP002` |
-| EMP003 | 鈴木一郎 | 開発部 | `/p/EMP003` |
-| EMP004 | 高橋美咲 | 開発部 | `/p/EMP004` |
-| EMP005 | 山田次郎 | 総務部 | `/p/EMP005` |
+## 🎯 **URL構成**
+- **ログイン**: `/` または `/login`
+- **個人ページ**: `/personal`
+- **管理者ページ**: `/admin-dashboard-2024`
 
-各社員の `code` がトークンとして使用できます。
+## 📊 **データ管理**
+- 📄 JSONファイルベース
+- 🔄 リアルタイム同期
+- 💾 自動バックアップ
+- 📈 履歴管理
 
-## 拡張予定
+## 🚀 **デプロイ**
+本番環境へのデプロイ手順は [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) を参照してください。
 
-- リアルタイム更新（Socket.IO）
-- CSVエクスポート
-- PWA対応
-- 仮想スクロール
+## 🤝 **貢献**
+1. このリポジトリをフォーク
+2. フィーチャーブランチを作成
+3. 変更をコミット
+4. プルリクエストを作成
+
+## 📄 **ライセンス**
+このプロジェクトはMITライセンスの下で公開されています。
