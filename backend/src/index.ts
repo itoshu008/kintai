@@ -381,12 +381,18 @@ app.put('/api/admin/departments/:id', (req, res) => {
   const id = parseInt(req.params.id);
   const { name } = req.body;
   
+  if (!name) {
+    return res.status(400).json({ error: 'Department name is required' });
+  }
+  
   const department = departments.find(d => d.id === id);
   if (!department) {
     return res.status(404).json({ error: 'Department not found' });
   }
   
   department.name = name;
+  saveData(DEPARTMENTS_FILE, departments);
+  
   res.json({ list: departments });
 });
 

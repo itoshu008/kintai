@@ -161,6 +161,10 @@ export default function MasterPage() {
   // 備考管理
   const [remarks, setRemarks] = useState<{ [key: string]: string }>({});
 
+  // 部署編集用の状態
+  const [editingDepartment, setEditingDepartment] = useState<{ id: number; name: string } | null>(null);
+  const [editDeptName, setEditDeptName] = useState('');
+
   // 勤怠時間修正用の状態
   const [showTimeEditModal, setShowTimeEditModal] = useState(false);
   const [editingTimeData, setEditingTimeData] = useState<{
@@ -535,6 +539,48 @@ export default function MasterPage() {
     }
   };
 
+  // 部署編集開始
+  const onStartEditDepartment = (dept: { id: number; name: string }) => {
+    setEditingDepartment(dept);
+    setEditDeptName(dept.name);
+  };
+
+  // 部署編集キャンセル
+  const onCancelEditDepartment = () => {
+    setEditingDepartment(null);
+    setEditDeptName('');
+  };
+
+  // 部署名更新
+  const onUpdateDepartment = async () => {
+    if (!editingDepartment || !editDeptName.trim()) {
+      setMsg('部署名を入力してください');
+      return;
+    }
+    try {
+      await api.updateDepartment(editingDepartment.id, editDeptName.trim());
+      setMsg('✅ 部署名を更新しました');
+      
+      // 即座に部署リストを更新（リアルタイム反映）
+      await loadDeps();
+      
+      // さらに即座に最新データを再読み込み
+      setTimeout(async () => {
+        try {
+          await loadDeps();
+        } catch (e) {
+          console.error('部署更新後の再読み込みエラー:', e);
+        }
+      }, 100);
+      
+      // 編集状態をリセット
+      setEditingDepartment(null);
+      setEditDeptName('');
+    } catch(e:any){
+      setMsg(`❌ 部署更新エラー: ${e.message}`);
+    }
+  };
+
   // 社員を選択して詳細データを取得（高速化）
   const selectEmployee = async (employee: MasterRow) => {
     setSelectedEmployee(employee);
@@ -863,7 +909,7 @@ export default function MasterPage() {
           <h3 style={{marginTop:0, marginBottom:16, color:'#007bff', fontSize:'18px', fontWeight:'600'}}>部署管理</h3>
           
           {/* 部署登録 */}
-          <div style={{display:'flex', gap:12, alignItems:'flex-end'}}>
+          <div style={{display:'flex', gap:12, alignItems:'flex-end', marginBottom:20}}>
             <div style={{flex:1}}>
               <label style={{display:'block', marginBottom:6, fontWeight:'500', color:'#495057', fontSize:'14px'}}>部署名</label>
               <input 
@@ -901,6 +947,105 @@ export default function MasterPage() {
             >
               部署を追加
             </button>
+          </div>
+
+          {/* 部署一覧 */}
+          <div>
+            <h4 style={{marginBottom:12, color:'#495057', fontSize:'16px', fontWeight:'500'}}>部署一覧</h4>
+            <div style={{display:'grid', gap:8}}>
+              {deps.map(dept => (
+                <div key={dept.id} style={{
+                  display:'flex',
+                  alignItems:'center',
+                  gap:12,
+                  padding:'12px 16px',
+                  background:'white',
+                  border:'1px solid #e9ecef',
+                  borderRadius:8,
+                  transition:'all 0.2s ease'
+                }}>
+                  {editingDepartment?.id === dept.id ? (
+                    <>
+                      <input
+                        value={editDeptName}
+                        onChange={e => setEditDeptName(e.target.value)}
+                        style={{
+                          flex:1,
+                          padding:'8px 12px',
+                          border:'1px solid #007bff',
+                          borderRadius:6,
+                          fontSize:'14px'
+                        }}
+                        onKeyPress={e => e.key === 'Enter' && onUpdateDepartment()}
+                        autoFocus
+                      />
+                      <button
+                        onClick={onUpdateDepartment}
+                        style={{
+                          padding:'6px 12px',
+                          background:'#28a745',
+                          color:'white',
+                          border:'none',
+                          borderRadius:6,
+                          fontSize:'12px',
+                          cursor:'pointer'
+                        }}
+                      >
+                        保存
+                      </button>
+                      <button
+                        onClick={onCancelEditDepartment}
+                        style={{
+                          padding:'6px 12px',
+                          background:'#6c757d',
+                          color:'white',
+                          border:'none',
+                          borderRadius:6,
+                          fontSize:'12px',
+                          cursor:'pointer'
+                        }}
+                      >
+                        キャンセル
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span style={{flex:1, fontSize:'14px', color:'#495057'}}>{dept.name}</span>
+                      <button
+                        onClick={() => onStartEditDepartment(dept)}
+                        style={{
+                          padding:'6px 12px',
+                          background:'#ffc107',
+                          color:'#212529',
+                          border:'none',
+                          borderRadius:6,
+                          fontSize:'12px',
+                          cursor:'pointer',
+                          transition:'all 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#e0a800'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = '#ffc107'}
+                      >
+                        編集
+                      </button>
+                    </>
+                  )}
+                </div>
+              ))}
+              {deps.length === 0 && (
+                <div style={{
+                  padding:'20px',
+                  textAlign:'center',
+                  color:'#6c757d',
+                  fontSize:'14px',
+                  background:'#f8f9fa',
+                  borderRadius:8,
+                  border:'1px dashed #dee2e6'
+                }}>
+                  部署が登録されていません
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
