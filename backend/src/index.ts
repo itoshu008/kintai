@@ -92,8 +92,6 @@ app.use((req, res, next) => {
 
 // 静的ファイル配信（フロントエンド）
 const frontendPath = process.env.FRONTEND_PATH || path.join(__dirname, '../../frontend/dist');
-console.log(`📁 Frontend path: ${frontendPath}`);
-
 // 静的ファイルが存在するかチェック
 let staticFilesEnabled = false;
 if (existsSync(frontendPath)) {
@@ -108,13 +106,13 @@ if (existsSync(frontendPath)) {
       maxAge: 0
     }));
     staticFilesEnabled = true;
-    console.log(`✅ Static files enabled from: ${frontendPath}`);
+    logger.info(`Static files enabled from: ${frontendPath}`);
   } else {
-    console.log(`⚠️  index.html not found at: ${indexPath}`);
+    logger.warn(`index.html not found at: ${indexPath}`);
   }
 } else {
-  console.log(`⚠️  Static files directory not found at: ${frontendPath}`);
-  console.log(`   Set FRONTEND_PATH environment variable to specify custom path`);
+  logger.warn(`Static files directory not found at: ${frontendPath}`);
+  logger.warn(`Set FRONTEND_PATH environment variable to specify custom path`);
 }
 
 // ヘルスチェック
@@ -122,78 +120,9 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true, ts: new Date().toISOString() });
 });
 
-// データ状況確認（デバッグ用）
-app.get('/api/debug/status', (_req, res) => {
-  res.json({
-    ok: true,
-    data: {
-      departments: departments.length,
-      employees: employees.length,
-      attendanceRecords: Object.keys(attendanceData).length,
-      remarks: Object.keys(remarksData).length,
-      holidays: Object.keys(holidays).length
-    },
-    samples: {
-      departments: departments.slice(0, 2),
-      employees: employees.slice(0, 2),
-      attendanceKeys: Object.keys(attendanceData).slice(0, 3),
-      remarkKeys: Object.keys(remarksData).slice(0, 3)
-    }
-  });
-});
+// デバッグ用エンドポイントは本番環境でセキュリティリスクのため削除
 
-// 全データクリア（デバッグ用）
-app.post('/api/debug/clear-all', (_req, res) => {
-  // 勤怠データをクリア
-  Object.keys(attendanceData).forEach(key => delete attendanceData[key]);
-  // 備考データをクリア
-  Object.keys(remarksData).forEach(key => delete remarksData[key]);
-  
-  // ファイルに保存
-  saveData(ATTENDANCE_FILE, attendanceData);
-  saveData(REMARKS_FILE, remarksData);
-  
-  console.log('🗑️ 全勤怠・備考データをクリアしました');
-  
-  res.json({
-    ok: true,
-    message: 'All attendance and remarks data cleared',
-    cleared: {
-      attendance: true,
-      remarks: true
-    }
-  });
-});
-
-// 全データ初期化（部署・社員・勤怠・備考）
-app.post('/api/admin/clear-all', (_req, res) => {
-  // 部署・社員データをクリア
-  departments.splice(0, departments.length);
-  employees.splice(0, employees.length);
-  // 勤怠・備考データをクリア
-  Object.keys(attendanceData).forEach(key => delete attendanceData[key]);
-  Object.keys(remarksData).forEach(key => delete remarksData[key]);
-
-  // ファイルへ保存
-  saveData(DEPARTMENTS_FILE, departments);
-  saveData(EMPLOYEES_FILE, employees);
-  saveData(ATTENDANCE_FILE, attendanceData);
-  saveData(REMARKS_FILE, remarksData);
-
-  console.log('🗑️ 全データクリア: 部署・社員・勤怠・備考');
-  res.json({
-    ok: true,
-    message: 'All data cleared (departments, employees, attendance, remarks)',
-    cleared: {
-      departments: true,
-      employees: true,
-      attendance: true,
-      remarks: true
-    }
-  });
-});
-
-// セッション管理用のデータストレージ
+// セッション管理用のデータストレージ（本番環境では外部ストレージ推奨）
 const userSessions: {[sessionId: string]: {
   code: string;
   name: string;
@@ -201,6 +130,24 @@ const userSessions: {[sessionId: string]: {
   isAdmin: boolean;
   lastAccess: Date;
 }} = {};
+
+// セッションタイムアウト（24時間）
+const SESSION_TIMEOUT = 24 * 60 * 60 * 1000;
+
+// 古いセッションをクリーンアップする関数
+const cleanupExpiredSessions = () => {
+  const now = new Date();
+  Object.keys(userSessions).forEach(sessionId => {
+    const session = userSessions[sessionId];
+    if (now.getTime() - session.lastAccess.getTime() > SESSION_TIMEOUT) {
+      logger.info(`セッションタイムアウト: ${session.name} (${session.code})`);
+      delete userSessions[sessionId];
+    }
+  });
+};
+
+// 定期的にセッションクリーンアップ（1時間ごと）
+setInterval(cleanupExpiredSessions, 60 * 60 * 1000);
 
 // セッション保存API
 app.post('/api/admin/sessions', (req, res) => {
@@ -240,7 +187,7 @@ app.post('/api/admin/sessions', (req, res) => {
     lastAccess: new Date()
   };
   
-  console.log(`💾 セッション保存: ${name} (${code}) - Dept: ${departmentName} - Session: ${sessionId}`);
+  logger.info(`セッション保存: ${name} (${code}) - Dept: ${departmentName}`);
   
   res.json({
     ok: true,
@@ -283,7 +230,7 @@ app.delete('/api/admin/sessions/:sessionId', (req, res) => {
   const { sessionId } = req.params;
   
   if (userSessions[sessionId]) {
-    console.log(`🗑️ セッション削除: ${userSessions[sessionId].name} (${userSessions[sessionId].code})`);
+    logger.info(`セッション削除: ${userSessions[sessionId].name} (${userSessions[sessionId].code})`);
     delete userSessions[sessionId];
   }
   
@@ -494,7 +441,7 @@ app.delete('/api/admin/employees/:id', (req, res) => {
   // ファイルに保存
   try {
     saveData(EMPLOYEES_FILE, employees);
-    console.log(`✅ 社員削除: ${deletedEmployee.name} (ID: ${id})`);
+    logger.info(`社員削除: ${deletedEmployee.name} (ID: ${id})`);
     res.json({ ok: true, message: `社員を削除しました: ${deletedEmployee.name}`, list: employees });
   } catch (error) {
     console.error('❌ 社員削除ファイル保存エラー:', error);
@@ -510,8 +457,9 @@ const attendanceData: { [key: string]: any } = loadData(ATTENDANCE_FILE, {});
 // 備考データ（永続化対応）
 const remarksData: { [key: string]: string } = loadData(REMARKS_FILE, {});
 
-// 祝日データ（2025年）
-const holidays: { [key: string]: string } = {
+// 祝日データ（環境変数で外部化可能）
+const HOLIDAYS_FILE = path.join(DATA_DIR, 'holidays.json');
+const defaultHolidays: { [key: string]: string } = {
   '2025-01-01': '元日',
   '2025-01-13': '成人の日',
   '2025-02-11': '建国記念の日',
@@ -529,6 +477,7 @@ const holidays: { [key: string]: string } = {
   '2025-11-03': '文化の日',
   '2025-11-23': '勤労感謝の日'
 };
+const holidays: { [key: string]: string } = loadData(HOLIDAYS_FILE, defaultHolidays);
 
 // 日付ユーティリティ関数
 const isWeekend = (dateStr: string): boolean => {
@@ -638,7 +587,7 @@ app.post('/api/public/clock-in', (req, res) => {
   
   // 既に出勤済みかチェック
   if (attendanceData[key]?.clock_in) {
-    console.log(`⚠️ 重複出勤: ${employee.name} (${code}) - 既に出勤済み`);
+    logger.warn(`重複出勤: ${employee.name} (${code}) - 既に出勤済み`);
     return res.json({
       ok: true,
       message: `${employee.name}さんは既に出勤済みです`,
@@ -666,7 +615,7 @@ app.post('/api/public/clock-in', (req, res) => {
   saveData(ATTENDANCE_FILE, attendanceData);
   
   const lateMessage = lateMinutes > 0 ? ` (${lateMinutes}分遅刻)` : '';
-  console.log(`✅ 出勤打刻: ${employee.name} (${code}) ${lateMessage}`);
+  logger.info(`出勤打刻: ${employee.name} (${code}) ${lateMessage}`);
   
   res.json({
     ok: true,
@@ -694,7 +643,7 @@ app.post('/api/attendance/checkin', (req, res) => {
   
   // 既に出勤済みかチェック
   if (attendanceData[key]?.clock_in) {
-    console.log(`⚠️ 重複出勤: ${employee.name} (${code}) - 既に出勤済み`);
+    logger.warn(`重複出勤: ${employee.name} (${code}) - 既に出勤済み`);
     return res.json({
       ok: true,
       message: `${employee.name}さんは既に出勤済みです`,
@@ -722,7 +671,7 @@ app.post('/api/attendance/checkin', (req, res) => {
   saveData(ATTENDANCE_FILE, attendanceData);
   
   const lateMessage = lateMinutes > 0 ? ` (${lateMinutes}分遅刻)` : '';
-  console.log(`✅ 出勤打刻: ${employee.name} (${code}) ${lateMessage}`);
+  logger.info(`出勤打刻: ${employee.name} (${code}) ${lateMessage}`);
   
   res.json({
     ok: true,
@@ -749,7 +698,7 @@ app.post('/api/public/clock-out', (req, res) => {
   
   // 出勤記録がない場合
   if (!attendanceData[key]?.clock_in) {
-    console.log(`⚠️ 退勤エラー: ${employee.name} (${code}) - 出勤記録なし`);
+    logger.warn(`退勤エラー: ${employee.name} (${code}) - 出勤記録なし`);
     return res.status(400).json({ 
       error: '出勤記録がありません。先に出勤打刻を行ってください。' 
     });
@@ -977,29 +926,19 @@ app.get('/api/admin/remarks/:employeeCode', (req, res) => {
   });
 });
 
-// デバッグ用エンドポイント
-app.get('/api/debug/data', (req, res) => {
-  res.json({
-    DATA_DIR,
-    __dirname,
-    employees: employees.length,
-    departments: departments.length,
-    employeesList: employees,
-    departmentsList: departments
-  });
-});
+// デバッグ用エンドポイントは本番環境でセキュリティリスクのため削除
 
 // SPAのルーティング対応（API以外のリクエストをindex.htmlに転送）
 app.get('*', (req, res) => {
-  console.log(`🔍 Wildcard route hit: ${req.path}, staticFilesEnabled: ${staticFilesEnabled}`);
+  logger.debug(`Wildcard route hit: ${req.path}, staticFilesEnabled: ${staticFilesEnabled}`);
   
   if (!req.path.startsWith('/api')) {
     if (staticFilesEnabled) {
       const indexPath = path.join(frontendPath, 'index.html');
-      console.log(`📄 Serving index.html from: ${indexPath}`);
+      logger.debug(`Serving index.html from: ${indexPath}`);
       res.sendFile(indexPath);
     } else {
-      console.log(`❌ Static files not enabled`);
+      logger.warn(`Static files not enabled`);
       res.status(503).json({ 
         error: 'Frontend not available', 
         message: 'Static files not found. Please check FRONTEND_PATH configuration.',
@@ -1007,14 +946,14 @@ app.get('*', (req, res) => {
       });
     }
   } else {
-    console.log(`❌ API endpoint not found: ${req.path}`);
+    logger.warn(`API endpoint not found: ${req.path}`);
     res.status(404).json({ error: 'API endpoint not found' });
   }
 });
 
-const PORT = process.env.PORT || 4001;
+const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
-  console.log(`🚀 Backend server running on http://127.0.0.1:${PORT}`);
-  console.log(`📊 Frontend will be served at http://127.0.0.1:${PORT}`);
-  console.log(`📁 Static files from: ${frontendPath}`);
+  logger.info(`Backend server running on http://127.0.0.1:${PORT}`);
+  logger.info(`Frontend will be served at http://127.0.0.1:${PORT}`);
+  logger.info(`Static files from: ${frontendPath}`);
 });
