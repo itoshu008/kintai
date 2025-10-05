@@ -1,0 +1,138 @@
+# Plio Deploy Configuration for Attendance Management System
+# 勤怠管理システム用Plioデプロイ設定
+
+# プロジェクト設定
+project_name: "attendance-management"
+repository: "https://github.com/itoshu008/kintai.git"
+branch: "main"
+
+# サーバー設定
+server:
+  php_version: "8.2"  # Plioのデフォルト
+  node_version: "18"  # Node.js 18以上推奨
+  nginx: true
+
+# ビルド設定
+build:
+  # 依存関係インストール
+  install_dependencies: true
+  
+  # フロントエンドビルド
+  frontend_build:
+    command: "cd frontend && npm install && npm run build"
+    output_directory: "frontend/dist"
+  
+  # バックエンドビルド
+  backend_build:
+    command: "cd backend && npm install && npm run build"
+    output_directory: "backend/dist"
+
+# デプロイ設定
+deploy:
+  # デプロイ先ディレクトリ
+  deploy_path: "/var/www/attendance"
+  
+  # ファイル配置
+  copy_files:
+    - source: "frontend/dist"
+      destination: "/var/www/attendance/frontend"
+    - source: "backend/dist"
+      destination: "/var/www/attendance/backend"
+    - source: "backend/package.json"
+      destination: "/var/www/attendance/backend"
+  
+  # 環境変数設定
+  environment:
+    NODE_ENV: "production"
+    PORT: "8000"
+    LOG_LEVEL: "warn"
+    DATA_DIR: "/var/lib/attendance/data"
+    FRONTEND_PATH: "/var/www/attendance/frontend"
+    CORS_ORIGIN: "https://your-domain.com"
+    SESSION_SECRET: "your-secure-session-secret"
+    SESSION_TIMEOUT: "3600000"
+    TZ: "Asia/Tokyo"
+
+# プロセス管理
+process_manager:
+  type: "pm2"
+  config:
+    name: "attendance-app"
+    script: "/var/www/attendance/backend/dist/index.js"
+    instances: 1
+    exec_mode: "fork"
+    env:
+      NODE_ENV: "production"
+
+# データベース設定（オプション）
+database:
+  # JSONファイルベース（デフォルト）
+  type: "file"
+  data_directory: "/var/lib/attendance/data"
+  
+  # MySQL使用の場合（コメントアウトを解除）
+  # type: "mysql"
+  # host: "localhost"
+  # port: 3306
+  # database: "attendance_prod"
+  # username: "attendance_user"
+  # password: "your_secure_password"
+
+# ログ設定
+logging:
+  log_directory: "/var/log/attendance"
+  log_level: "warn"
+  max_log_files: 10
+  max_log_size: "10MB"
+
+# バックアップ設定
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # 毎日午前2時
+  retention_days: 30
+  backup_directory: "/var/backups/attendance"
+
+# 監視設定
+monitoring:
+  health_check:
+    endpoint: "/api/health"
+    interval: 60  # 秒
+    timeout: 10   # 秒
+  
+  alerts:
+    email: "admin@your-domain.com"
+    slack_webhook: ""  # オプション
+
+# SSL設定
+ssl:
+  enabled: true
+  certificate_path: "/etc/ssl/certs/your-domain.crt"
+  private_key_path: "/etc/ssl/private/your-domain.key"
+
+# セキュリティ設定
+security:
+  firewall:
+    allowed_ports: [22, 80, 443, 8000]
+  
+  file_permissions:
+    web_directory: "755"
+    data_directory: "750"
+    log_directory: "755"
+
+# デプロイフック
+hooks:
+  before_deploy:
+    - "echo 'Starting deployment...'"
+    - "mkdir -p /var/lib/attendance/data"
+    - "mkdir -p /var/log/attendance"
+  
+  after_deploy:
+    - "chown -R www-data:www-data /var/www/attendance"
+    - "chown -R www-data:www-data /var/lib/attendance"
+    - "chown -R www-data:www-data /var/log/attendance"
+    - "systemctl reload nginx"
+    - "pm2 restart attendance-app"
+  
+  on_failure:
+    - "echo 'Deployment failed, rolling back...'"
+    - "pm2 restart attendance-app"

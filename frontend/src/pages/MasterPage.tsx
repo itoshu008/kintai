@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { api } from '../api/attendance';
+import { api as adminApi } from '../lib/api';
 import { MasterRow, Department } from '../types/attendance';
 import { isHolidaySync, getHolidayNameSync, isSunday, isSaturday } from '../utils/holidays';
 
@@ -364,7 +365,7 @@ export default function MasterPage() {
       const newName = editEmployeeName.trim();
       const newDeptId = editEmployeeDept || null;
 
-      const res = await api.updateEmployee(editingEmployee.id, newCode, newName, newDeptId);
+      const res = await adminApi.updateEmployee(editingEmployee.id, newCode, newName, newDeptId);
       
       if (res.ok) {
         setMsg(`✅ 社員「${editEmployeeName}」を更新しました`);
@@ -468,7 +469,7 @@ export default function MasterPage() {
     try {
       // 部署IDを取得
       const deptId = deps.find(d => d.name === newDepartment.trim())?.id;
-      await api.createEmployee(newCode.trim(), newName.trim(), deptId);
+      await adminApi.createEmployee(newCode.trim(), newName.trim(), deptId);
       setNewCode(''); setNewName(''); setNewDepartment('');
       setMsg('✅ 社員を登録しました');
       
@@ -515,7 +516,7 @@ export default function MasterPage() {
       return; 
     }
     try {
-      await api.createDepartment(newDeptName.trim());
+      await adminApi.createDepartment(newDeptName.trim());
       setNewDeptName('');
       setMsg('✅ 部署を登録しました');
       
@@ -537,7 +538,7 @@ export default function MasterPage() {
 
   const loadDeps = async () => {
     try {
-      const r = await api.listDepartments();
+      const r = await adminApi.listDepartments();
       setDeps(r.list || []);
     } catch(e:any){
       console.warn('Failed to load departments:', e);
@@ -564,7 +565,7 @@ export default function MasterPage() {
       return;
     }
     try {
-      await api.updateDepartment(editingDepartment.id, editDeptName.trim());
+      await adminApi.updateDepartment(editingDepartment.id, editDeptName.trim());
       setMsg('✅ 部署名を更新しました');
       
       // 即座に部署リストを更新（リアルタイム反映）
