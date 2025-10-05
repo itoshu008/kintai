@@ -554,27 +554,29 @@ app.get('/api/admin/attendance', (req, res) => {
   const { date } = req.query as { date?: string };
   const targetDate = date || new Date().toISOString().slice(0, 10);
   
-  const list = employees.map(emp => {
-    const attendanceKey = `${targetDate}-${emp.code}`;
-    const attendance = attendanceData[attendanceKey];
-    const remarkKey = `${targetDate}-${emp.code}`;
-    const remark = remarksData[remarkKey] || '';
-    const department = emp.department_id ? departments.find(d => d.id === emp.department_id) : undefined;
-    const deptName = department?.name || emp.dept || '未所属';
-    
-    return {
-      id: emp.id,
-      code: emp.code,
-      name: emp.name,
-      dept: deptName,
-      department_id: emp.department_id,
-      clock_in: attendance?.clock_in || null,
-      clock_out: attendance?.clock_out || null,
-      status: attendance?.clock_in && attendance?.clock_out ? '退勤' : 
-              attendance?.clock_in ? '出勤中' : '未出勤',
-      remark
-    };
-  });
+  const list = employees
+    .sort((a, b) => a.code.localeCompare(b.code)) // 社員番号順でソート
+    .map(emp => {
+      const attendanceKey = `${targetDate}-${emp.code}`;
+      const attendance = attendanceData[attendanceKey];
+      const remarkKey = `${targetDate}-${emp.code}`;
+      const remark = remarksData[remarkKey] || '';
+      const department = emp.department_id ? departments.find(d => d.id === emp.department_id) : undefined;
+      const deptName = department?.name || emp.dept || '未所属';
+      
+      return {
+        id: emp.id,
+        code: emp.code,
+        name: emp.name,
+        dept: deptName,
+        department_id: emp.department_id,
+        clock_in: attendance?.clock_in || null,
+        clock_out: attendance?.clock_out || null,
+        status: attendance?.clock_in && attendance?.clock_out ? '退勤' : 
+                attendance?.clock_in ? '出勤中' : '未出勤',
+        remark
+      };
+    });
   
   res.json({ ok: true, date: targetDate, list });
 });
@@ -583,35 +585,37 @@ app.get('/api/admin/master', (req, res) => {
   const { date } = req.query as { date?: string };
   const targetDate = date || new Date().toISOString().slice(0, 10);
   
-  // 各社員の勤怠データを生成
-  const list = employees.map(emp => {
-    const key = `${targetDate}-${emp.code}`;
-    const attendance = attendanceData[key] || {};
-    
-    // 部署名は常にdepartment_idから算出（emp.deptは参照しない/フォールバックのみに使用）
-    const department = emp.department_id ? departments.find(d => d.id === emp.department_id) : undefined;
-    const deptName = department?.name || emp.dept || '未所属';
-    
-    return {
-      id: emp.id,
-      code: emp.code,
-      name: emp.name,
-      dept: deptName,
-      department_id: emp.department_id,
-      clock_in: attendance.clock_in || null,
-      clock_out: attendance.clock_out || null,
-      status: attendance.clock_in ? (attendance.clock_out ? "退勤済み" : "出勤中") : "未出勤",
-      late: attendance.late || 0,
-      early: attendance.early || 0,
-      overtime: attendance.overtime || 0,
-      night: attendance.night || 0,
-      // 土日祝日情報を追加
-      isWeekend: isWeekend(targetDate),
-      isHoliday: isHoliday(targetDate),
-      holidayName: getHolidayName(targetDate),
-      isWorkingDay: isWorkingDay(targetDate)
-    };
-  });
+  // 各社員の勤怠データを生成（社員番号順でソート）
+  const list = employees
+    .sort((a, b) => a.code.localeCompare(b.code)) // 社員番号順でソート
+    .map(emp => {
+      const key = `${targetDate}-${emp.code}`;
+      const attendance = attendanceData[key] || {};
+      
+      // 部署名は常にdepartment_idから算出（emp.deptは参照しない/フォールバックのみに使用）
+      const department = emp.department_id ? departments.find(d => d.id === emp.department_id) : undefined;
+      const deptName = department?.name || emp.dept || '未所属';
+      
+      return {
+        id: emp.id,
+        code: emp.code,
+        name: emp.name,
+        dept: deptName,
+        department_id: emp.department_id,
+        clock_in: attendance.clock_in || null,
+        clock_out: attendance.clock_out || null,
+        status: attendance.clock_in ? (attendance.clock_out ? "退勤済み" : "出勤中") : "未出勤",
+        late: attendance.late || 0,
+        early: attendance.early || 0,
+        overtime: attendance.overtime || 0,
+        night: attendance.night || 0,
+        // 土日祝日情報を追加
+        isWeekend: isWeekend(targetDate),
+        isHoliday: isHoliday(targetDate),
+        holidayName: getHolidayName(targetDate),
+        isWorkingDay: isWorkingDay(targetDate)
+      };
+    });
   
   res.json({ ok: true, date: targetDate, list });
 });
