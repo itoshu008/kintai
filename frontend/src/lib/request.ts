@@ -7,16 +7,19 @@ export async function request(input: string, init?: RequestInit) {
   });
 
   const text = await res.text();
-  let data: any = null;
-  try { data = text ? JSON.parse(text) : null; } catch (_) {}
-
+  
   if (!res.ok) {
-    // ここで詳細ログを出して原因特定を楽に
     console.error("[API ERROR]", {
       url: input, status: res.status, statusText: res.statusText,
       body: init?.body, responseText: text
     });
-    throw new Error(`[${res.status}] ${input} → ${res.statusText}`);
+    throw new Error(`${res.status} ${res.statusText || ''} for ${input}`);
   }
-  return data;
+  
+  try {
+    return text ? JSON.parse(text) : null;
+  } catch {
+    console.error('[API PARSE ERROR]', text.slice(0, 200));
+    throw new Error(`Invalid JSON from ${input}`);
+  }
 }
