@@ -460,10 +460,21 @@ export default function MasterPage() {
       const deptId = deps.find(d => d.name === newDepartment.trim())?.id;
       await api.createEmployee(newCode.trim(), newName.trim(), deptId);
       setNewCode(''); setNewName(''); setNewDepartment('');
-      setMsg('社員を登録しました');
+      setMsg('✅ 社員を登録しました');
+      
+      // 即座にデータを更新（リアルタイム反映）
       await loadOnce(loadKey);
+      
+      // さらに即座に最新データを再読み込み
+      setTimeout(async () => {
+        try {
+          await loadOnce(loadKey);
+        } catch (e) {
+          console.error('社員作成後の再読み込みエラー:', e);
+        }
+      }, 100);
     } catch(e:any){
-      setMsg(String(e.message));
+      setMsg(`❌ 社員登録エラー: ${e.message}`);
     }
   };
 
@@ -471,8 +482,21 @@ export default function MasterPage() {
     try {
       if (kind==='in') await api.clockIn(code);
       else await api.clockOut(code);
-      await loadOnce(loadKey); // 反映
-    } catch(e:any){ setMsg(String(e.message)); }
+      
+      // 即座にデータを更新（リアルタイム反映）
+      await loadOnce(loadKey);
+      
+      // さらに即座に最新データを再読み込み
+      setTimeout(async () => {
+        try {
+          await loadOnce(loadKey);
+        } catch (e) {
+          console.error('打刻後の再読み込みエラー:', e);
+        }
+      }, 100);
+    } catch(e:any){ 
+      setMsg(`❌ 打刻エラー: ${e.message}`); 
+    }
   };
 
   const onCreateDepartment = async () => {
@@ -483,10 +507,21 @@ export default function MasterPage() {
     try {
       await api.createDepartment(newDeptName.trim());
       setNewDeptName('');
-      setMsg('部署を登録しました');
+      setMsg('✅ 部署を登録しました');
+      
+      // 即座に部署リストを更新（リアルタイム反映）
       await loadDeps();
+      
+      // さらに即座に最新データを再読み込み
+      setTimeout(async () => {
+        try {
+          await loadDeps();
+        } catch (e) {
+          console.error('部署作成後の再読み込みエラー:', e);
+        }
+      }, 100);
     } catch(e:any){
-      setMsg(String(e.message));
+      setMsg(`❌ 部署登録エラー: ${e.message}`);
     }
   };
 
