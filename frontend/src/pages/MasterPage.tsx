@@ -340,6 +340,7 @@ export default function MasterPage() {
     setEditEmployeeCode(employee.code);
     setEditEmployeeName(employee.name);
     setEditEmployeeDept((employee as any).department_id || 0);
+    setShowEmployeeEditModal(true);
   };
 
   const cancelEditEmployee = () => {
@@ -350,14 +351,6 @@ export default function MasterPage() {
     setShowEmployeeEditModal(false);
   };
 
-  // 社員編集開始
-  const startEditEmployee = (employee: MasterRow) => {
-    setEditingEmployee(employee);
-    setEditEmployeeCode(employee.code);
-    setEditEmployeeName(employee.name);
-    setEditEmployeeDept((employee as any).department_id || 0);
-    setShowEmployeeEditModal(true);
-  };
 
   const saveEmployeeEdit = async () => {
     if (!editingEmployee || !editEmployeeCode.trim() || !editEmployeeName.trim()) {
