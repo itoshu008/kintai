@@ -1,6 +1,6 @@
 const BASE =
   (typeof import.meta !== "undefined" && import.meta.env?.VITE_ATTENDANCE_API_BASE) ||
-  "http://127.0.0.1:8000/api/admin";
+  (typeof window !== "undefined" && window.location.hostname === "zatint1991.com" ? "/api/admin" : "http://127.0.0.1:8000/api/admin");
 
 import { request } from "./request";
 
