@@ -451,6 +451,58 @@ app.delete('/api/admin/employees/:id', (req, res) => {
   }
 });
 
+// 社員情報更新API
+app.put('/api/admin/employees/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const { code, name, department_id } = req.body;
+  
+  if (!code || !name) {
+    return res.status(400).json({ error: '社員番号と名前は必須です' });
+  }
+  
+  const employeeIndex = employees.findIndex(emp => emp.id === id);
+  if (employeeIndex === -1) {
+    return res.status(404).json({ error: '社員が見つかりません' });
+  }
+  
+  // 社員番号の重複チェック（自分以外）
+  const existingEmployee = employees.find(emp => emp.code === code && emp.id !== id);
+  if (existingEmployee) {
+    return res.status(400).json({ error: 'この社員番号は既に使用されています' });
+  }
+  
+  // 部署IDの存在チェック
+  if (department_id && !departments.find(d => d.id === department_id)) {
+    return res.status(400).json({ error: '指定された部署が存在しません' });
+  }
+  
+  // 社員情報を更新
+  const oldEmployee = { ...employees[employeeIndex] };
+  employees[employeeIndex] = {
+    ...employees[employeeIndex],
+    code: code.trim(),
+    name: name.trim(),
+    department_id: department_id || null
+  };
+  
+  // ファイルに保存
+  try {
+    saveData(EMPLOYEES_FILE, employees);
+    logger.info(`社員情報更新: ${oldEmployee.name} -> ${name} (ID: ${id})`);
+    res.json({ 
+      ok: true, 
+      message: `社員情報を更新しました: ${name}`, 
+      employee: employees[employeeIndex],
+      list: employees 
+    });
+  } catch (error) {
+    logger.error('社員更新ファイル保存エラー:', error);
+    // 更新を元に戻す
+    employees[employeeIndex] = oldEmployee;
+    res.status(500).json({ ok: false, error: 'ファイル保存に失敗しました' });
+  }
+});
+
 // 勤怠データ（永続化対応）
 const attendanceData: { [key: string]: any } = loadData(ATTENDANCE_FILE, {});
 

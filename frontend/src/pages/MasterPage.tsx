@@ -153,6 +153,7 @@ export default function MasterPage() {
   const [editEmployeeCode, setEditEmployeeCode] = useState('');
   const [editEmployeeName, setEditEmployeeName] = useState('');
   const [editEmployeeDept, setEditEmployeeDept] = useState<number>(0);
+  const [showEmployeeEditModal, setShowEmployeeEditModal] = useState(false);
 
   // 社員削除用の状態
   const [showEmployeeDeleteMenu, setShowEmployeeDeleteMenu] = useState(false);
@@ -346,11 +347,21 @@ export default function MasterPage() {
     setEditEmployeeCode('');
     setEditEmployeeName('');
     setEditEmployeeDept(0);
+    setShowEmployeeEditModal(false);
+  };
+
+  // 社員編集開始
+  const startEditEmployee = (employee: MasterRow) => {
+    setEditingEmployee(employee);
+    setEditEmployeeCode(employee.code);
+    setEditEmployeeName(employee.name);
+    setEditEmployeeDept((employee as any).department_id || 0);
+    setShowEmployeeEditModal(true);
   };
 
   const saveEmployeeEdit = async () => {
-    if (!editingEmployee || !editEmployeeCode.trim() || !editEmployeeName.trim() || !editEmployeeDept) {
-      setMsg('社員コード、名前、部署をすべて入力してください');
+    if (!editingEmployee || !editEmployeeCode.trim() || !editEmployeeName.trim()) {
+      setMsg('社員コードと名前を入力してください');
       return;
     }
 
@@ -358,30 +369,32 @@ export default function MasterPage() {
       setLoading(true);
       const newCode = editEmployeeCode.trim();
       const newName = editEmployeeName.trim();
-      const currentDeptId = (editingEmployee as any).department_id || 0;
+      const newDeptId = editEmployeeDept || null;
 
-      const payload: any = {};
-      if (editingEmployee.code !== newCode) payload.code = newCode;
-      if (editingEmployee.name !== newName) payload.name = newName;
-      if (currentDeptId !== editEmployeeDept) payload.department_id = editEmployeeDept;
-
-      if (Object.keys(payload).length === 0) {
-        setMsg('変更がありません');
-        return;
-      }
-
-      const res = await api.updateEmployee(editingEmployee.code, payload);
+      const res = await api.updateEmployee(editingEmployee.id, newCode, newName, newDeptId);
       
       if (res.ok) {
-        setMsg(`社員「${editEmployeeName}」を更新しました`);
+        setMsg(`✅ 社員「${editEmployeeName}」を更新しました`);
         cancelEditEmployee();
-        loadOnce(loadKey); // データを再読み込み
+        setShowEmployeeEditModal(false);
+        
+        // 即座にデータを再読み込み（リアルタイム反映）
+        await loadOnce(loadKey);
+        
+        // さらに即座に最新データを再読み込み
+        setTimeout(async () => {
+          try {
+            await loadOnce(loadKey);
+          } catch (e) {
+            console.error('社員更新後の再読み込みエラー:', e);
+          }
+        }, 100);
       } else {
-        setMsg(res.error || '社員の更新に失敗しました');
+        setMsg(`❌ 社員更新エラー: ${res.error || '不明なエラー'}`);
       }
     } catch (error: any) {
       console.error('社員更新エラー:', error);
-      setMsg('社員の更新に失敗しました');
+      setMsg(`❌ 社員更新エラー: ${error.message || '不明なエラー'}`);
     } finally {
       setLoading(false);
     }
@@ -1376,40 +1389,64 @@ export default function MasterPage() {
           <div style={{maxHeight:'400px', overflowY:'auto'}}>
             <div style={{display:'flex', flexWrap:'wrap', gap:12}}>
               {sorted?.map(r => (
-                <button
+                <div
                   key={r.id}
-                  onClick={() => selectEmployee(r)}
-                  title={`社員名: ${r.name}\n社員番号: ${r.code}\n部署: ${r.dept || (r as any).department_name || '未所属'}`}
                   style={{
-                    padding: '12px 20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '12px 16px',
                     border: '1px solid #e9ecef',
                     borderRadius: '8px',
                     background: selectedEmployee?.code === r.code ? 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)' : 'white',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    color: selectedEmployee?.code === r.code ? '#1976d2' : '#495057',
                     boxShadow: selectedEmployee?.code === r.code ? '0 4px 12px rgba(25,118,210,0.2)' : '0 2px 4px rgba(0,0,0,0.1)',
                     transition: 'all 0.2s ease',
                     borderColor: selectedEmployee?.code === r.code ? '#1976d2' : '#e9ecef'
                   }}
-                  onMouseEnter={(e) => {
-                    if (selectedEmployee?.code !== r.code) {
-                      e.currentTarget.style.background = '#f8f9fa';
-                      e.currentTarget.style.borderColor = '#007bff';
-                      e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,123,255,0.2)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (selectedEmployee?.code !== r.code) {
-                      e.currentTarget.style.background = 'white';
-                      e.currentTarget.style.borderColor = '#e9ecef';
-                      e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
-                    }
-                  }}
                 >
-                  {r.name} ({r.code})
-                </button>
+                  <button
+                    onClick={() => selectEmployee(r)}
+                    title={`社員名: ${r.name}\n社員番号: ${r.code}\n部署: ${r.dept || (r as any).department_name || '未所属'}`}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: selectedEmployee?.code === r.code ? '#1976d2' : '#495057',
+                      padding: 0,
+                      flex: 1,
+                      textAlign: 'left'
+                    }}
+                  >
+                    {r.name} ({r.code})
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      startEditEmployee(r);
+                    }}
+                    title="社員情報を編集"
+                    style={{
+                      background: '#ffc107',
+                      border: 'none',
+                      borderRadius: '4px',
+                      padding: '4px 8px',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      color: '#212529',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#e0a800';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#ffc107';
+                    }}
+                  >
+                    編集
+                  </button>
+                </div>
               ))}
             </div>
             {!sorted?.length && (
@@ -2228,6 +2265,155 @@ export default function MasterPage() {
                     borderRadius: '6px',
                     cursor: loading ? 'not-allowed' : 'pointer',
                     fontSize: '14px'
+                  }}
+                >
+                  {loading ? '保存中...' : '保存'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 社員編集モーダル */}
+        {showEmployeeEditModal && editingEmployee && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}>
+            <div style={{
+              backgroundColor: 'white',
+              padding: '30px',
+              borderRadius: '12px',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+              width: '90%',
+              maxWidth: '500px',
+              maxHeight: '90vh',
+              overflowY: 'auto'
+            }}>
+              <h3 style={{ marginTop: 0, marginBottom: '25px', fontSize: '20px', fontWeight: '600', color: '#2c3e50' }}>
+                社員情報編集
+              </h3>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057' }}>
+                  社員番号:
+                </label>
+                <input
+                  type="text"
+                  value={editEmployeeCode}
+                  onChange={(e) => setEditEmployeeCode(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    border: '1px solid #ced4da',
+                    borderRadius: '6px',
+                    fontSize: '16px',
+                    boxSizing: 'border-box'
+                  }}
+                  placeholder="社員番号を入力"
+                />
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057' }}>
+                  社員名:
+                </label>
+                <input
+                  type="text"
+                  value={editEmployeeName}
+                  onChange={(e) => setEditEmployeeName(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    border: '1px solid #ced4da',
+                    borderRadius: '6px',
+                    fontSize: '16px',
+                    boxSizing: 'border-box'
+                  }}
+                  placeholder="社員名を入力"
+                />
+              </div>
+
+              <div style={{ marginBottom: '25px' }}>
+                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057' }}>
+                  部署:
+                </label>
+                <select
+                  value={editEmployeeDept}
+                  onChange={(e) => setEditEmployeeDept(parseInt(e.target.value))}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    border: '1px solid #ced4da',
+                    borderRadius: '6px',
+                    fontSize: '16px',
+                    boxSizing: 'border-box',
+                    backgroundColor: 'white'
+                  }}
+                >
+                  <option value={0}>未所属</option>
+                  {deps.map(dept => (
+                    <option key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                <button
+                  onClick={cancelEditEmployee}
+                  style={{
+                    padding: '12px 24px',
+                    backgroundColor: '#6c757d',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#5a6268';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#6c757d';
+                  }}
+                >
+                  キャンセル
+                </button>
+                <button
+                  onClick={saveEmployeeEdit}
+                  disabled={loading}
+                  style={{
+                    padding: '12px 24px',
+                    backgroundColor: loading ? '#6c757d' : '#28a745',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!loading) {
+                      e.currentTarget.style.backgroundColor = '#218838';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!loading) {
+                      e.currentTarget.style.backgroundColor = '#28a745';
+                    }
                   }}
                 >
                   {loading ? '保存中...' : '保存'}
