@@ -927,7 +927,31 @@ export default function MasterPage() {
       {/* 部署管理・フィルター */}
       {showDeptManagement && (
         <div style={{marginBottom:24, padding:24, border:'1px solid #007bff', borderRadius:12, background:'linear-gradient(135deg, #f8f9ff 0%, #e3f2fd 100%)', boxShadow:'0 4px 12px rgba(0,123,255,0.1)'}}>
-          <h3 style={{marginTop:0, marginBottom:16, color:'#007bff', fontSize:'18px', fontWeight:'600'}}>部署管理</h3>
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16}}>
+            <h3 style={{margin:0, color:'#007bff', fontSize:'18px', fontWeight:'600'}}>部署管理</h3>
+            <button
+              onClick={() => setShowDeptManagement(false)}
+              style={{
+                background:'#dc3545',
+                color:'white',
+                border:'none',
+                borderRadius:'50%',
+                width:'32px',
+                height:'32px',
+                display:'flex',
+                alignItems:'center',
+                justifyContent:'center',
+                cursor:'pointer',
+                fontSize:'16px',
+                fontWeight:'bold',
+                transition:'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#c82333'}
+              onMouseLeave={(e) => e.currentTarget.style.background = '#dc3545'}
+            >
+              ×
+            </button>
+          </div>
           
           {/* 部署登録 */}
           <div style={{display:'flex', gap:12, alignItems:'flex-end', marginBottom:20}}>
@@ -1091,7 +1115,31 @@ export default function MasterPage() {
       {/* 社員登録フォーム */}
       {showEmployeeRegistration && (
         <div style={{marginBottom:24, padding:24, border:'1px solid #28a745', borderRadius:12, background:'linear-gradient(135deg, #f8fff9 0%, #e8f5e8 100%)', boxShadow:'0 4px 12px rgba(40,167,69,0.1)'}}>
-          <h3 style={{marginTop:0, marginBottom:20, color:'#28a745', fontSize:'18px', fontWeight:'600'}}>社員登録</h3>
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20}}>
+            <h3 style={{margin:0, color:'#28a745', fontSize:'18px', fontWeight:'600'}}>社員登録</h3>
+            <button
+              onClick={() => setShowEmployeeRegistration(false)}
+              style={{
+                background:'#dc3545',
+                color:'white',
+                border:'none',
+                borderRadius:'50%',
+                width:'32px',
+                height:'32px',
+                display:'flex',
+                alignItems:'center',
+                justifyContent:'center',
+                cursor:'pointer',
+                fontSize:'16px',
+                fontWeight:'bold',
+                transition:'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#c82333'}
+              onMouseLeave={(e) => e.currentTarget.style.background = '#dc3545'}
+            >
+              ×
+            </button>
+          </div>
           
           <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))', gap:16, alignItems:'flex-end'}}>
             <div>
@@ -1194,7 +1242,31 @@ export default function MasterPage() {
       {/* 社員情報変更メニュー */}
       {showEmployeeEditMenu && (
         <div style={{marginBottom:24, padding:24, border:'1px solid #ffc107', borderRadius:12, background:'linear-gradient(135deg, #fffdf0 0%, #fff3cd 100%)', boxShadow:'0 4px 12px rgba(255,193,7,0.1)'}}>
-          <h3 style={{marginTop:0, marginBottom:20, color:'#856404', fontSize:'18px', fontWeight:'600'}}>✏️ 社員情報変更</h3>
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20}}>
+            <h3 style={{margin:0, color:'#856404', fontSize:'18px', fontWeight:'600'}}>✏️ 社員情報変更</h3>
+            <button
+              onClick={() => setShowEmployeeEditMenu(false)}
+              style={{
+                background:'#dc3545',
+                color:'white',
+                border:'none',
+                borderRadius:'50%',
+                width:'32px',
+                height:'32px',
+                display:'flex',
+                alignItems:'center',
+                justifyContent:'center',
+                cursor:'pointer',
+                fontSize:'16px',
+                fontWeight:'bold',
+                transition:'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#c82333'}
+              onMouseLeave={(e) => e.currentTarget.style.background = '#dc3545'}
+            >
+              ×
+            </button>
+          </div>
           
           <div style={{marginBottom:20}}>
             <label style={{display:'block', marginBottom:8, fontWeight:'500', color:'#495057', fontSize:'14px'}}>変更する社員を選択</label>
@@ -1918,7 +1990,31 @@ export default function MasterPage() {
         {/* 社員削除メニュー */}
         {showEmployeeDeleteMenu && (
           <div style={{marginBottom:24, padding:24, border:'2px solid #dc3545', borderRadius:12, background:'linear-gradient(135deg, #fff5f5 0%, #f8d7da 100%)', boxShadow:'0 4px 12px rgba(220,53,69,0.1)'}}>
-            <h3 style={{marginTop:0, marginBottom:20, color:'#721c24', fontSize:'18px', fontWeight:'600'}}>🗑️ 社員削除</h3>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20}}>
+              <h3 style={{margin:0, color:'#721c24', fontSize:'18px', fontWeight:'600'}}>🗑️ 社員削除</h3>
+              <button
+                onClick={() => setShowEmployeeDeleteMenu(false)}
+                style={{
+                  background:'#dc3545',
+                  color:'white',
+                  border:'none',
+                  borderRadius:'50%',
+                  width:'32px',
+                  height:'32px',
+                  display:'flex',
+                  alignItems:'center',
+                  justifyContent:'center',
+                  cursor:'pointer',
+                  fontSize:'16px',
+                  fontWeight:'bold',
+                  transition:'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#c82333'}
+                onMouseLeave={(e) => e.currentTarget.style.background = '#dc3545'}
+              >
+                ×
+              </button>
+            </div>
             
             <div style={{marginBottom:20}}>
               <label style={{display:'block', marginBottom:8, fontWeight:'500', color:'#495057', fontSize:'14px'}}>削除する社員を選択</label>
