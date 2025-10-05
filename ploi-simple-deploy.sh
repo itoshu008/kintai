@@ -1,51 +1,68 @@
 #!/bin/bash
 
-# Plio Simple Deploy Script
-# シンプルなPlioデプロイスクリプト
+# Exit immediately if a command exits with a non-zero status.
+set -e
 
-echo "🚀 Plio Deployment Script for Attendance System"
+echo "🚀 Starting Plio Simple Deployment (No node_modules operations)..."
 
-# 0. 最新コードを取得
+# Define deployment directories
+APP_DIR="/home/zatint1991-hvt55/zatint1991.com"
+FRONTEND_DIR="$APP_DIR/frontend"
+BACKEND_DIR="$APP_DIR/backend"
+DATA_DIR="$APP_DIR/data"
+
+# Ensure the application directory exists
+echo "📍 Current directory: $(pwd)"
+if [ ! -d "$APP_DIR" ]; then
+  echo "Application directory $APP_DIR not found. Please ensure the repository is cloned there."
+  exit 1
+fi
+
+cd "$APP_DIR"
+
+# Fetch the latest code from Git
 echo "📥 Fetching latest code from Git..."
 git pull origin main
 
-# 1. 依存関係インストール
-npm install
+# --- Frontend Deployment ---
+echo "🌐 Deploying Frontend..."
+cd "$FRONTEND_DIR"
 
-# 2. フロントエンドビルド
-cd frontend
-npm install
-# TypeScriptキャッシュクリア
-rm -f tsconfig.tsbuildinfo
+echo "🧹 Cleaning up old frontend build artifacts (NO node_modules touch)..."
+rm -rf dist .vite-temp tsconfig.tsbuildinfo
+
+echo "🏗️ Building frontend for production..."
 npm run build
-cd ..
 
-# 3. バックエンドビルド
-cd backend
-npm install
+# Copy frontend build to the public directory expected by Nginx
+echo "📋 Copying frontend build to Nginx public directory..."
+PUBLIC_HTML_DIR="/home/zatint1991-hvt55/zatint1991.com/public"
+mkdir -p "$PUBLIC_HTML_DIR"
+rm -rf "$PUBLIC_HTML_DIR/*" # Clear existing public files
+cp -r dist/* "$PUBLIC_HTML_DIR/"
+
+echo "✅ Frontend deployment complete."
+
+# --- Backend Deployment ---
+echo "⚙️ Deploying Backend..."
+cd "$BACKEND_DIR"
+
+echo "🧹 Cleaning up old backend build artifacts (NO node_modules touch)..."
+rm -rf dist tsconfig.tsbuildinfo
+
+echo "🏗️ Building backend for production..."
 npm run build
-cd ..
 
-# 4. データディレクトリ作成
-mkdir -p /var/lib/attendance/data
+# Ensure data directory exists and is writable
+echo "📂 Ensuring data directory exists: $DATA_DIR"
+mkdir -p "$DATA_DIR"
+chmod -R 775 "$DATA_DIR"
 
-# 5. フロントエンド配置
-mkdir -p /var/www/attendance/frontend
-cp -r frontend/dist/* /var/www/attendance/frontend/
+# Restart PM2 process
+echo "🔄 Restarting backend application with PM2..."
+pm2 restart attendance-app || pm2 start dist/index.js --name "attendance-app" --env production --watch --ignore-watch="data/*"
 
-# 6. バックエンド配置
-mkdir -p /var/www/attendance/backend
-cp -r backend/dist/* /var/www/attendance/backend/
-cp backend/package.json /var/www/attendance/backend/
+echo "✅ Backend deployment complete."
 
-# 7. 本番依存関係インストール
-cd /var/www/attendance/backend
-npm install --production
-
-# 8. PM2でプロセス開始
-pm2 stop attendance-app 2>/dev/null || true
-pm2 start dist/index.js --name "attendance-app"
-pm2 save
-
-echo "✅ Deployment completed!"
-echo "🌐 Application running at: http://localhost:8000"
+echo "🎉 Simple deployment finished successfully!"
+echo "🌐 Check your application at: https://zatint1991.com"
