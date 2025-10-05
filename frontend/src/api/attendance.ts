@@ -9,9 +9,7 @@ import {
   HealthResponse 
 } from "../types/attendance";
 
-const BASE =
-  (typeof import.meta !== "undefined" && import.meta.env?.VITE_ATTENDANCE_API_BASE) ||
-  (typeof window !== "undefined" && window.location.hostname === "zatint1991.com" ? "/api" : "http://127.0.0.1:8000/api");
+const BASE = "/api";
 
 // モック機能を完全に無効化
 const USE_MOCK = false;
