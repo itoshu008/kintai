@@ -1139,6 +1139,202 @@ const autoInitializeAttendance = () => {
   }
 };
 
+// ==================== バックアップシステム ====================
+// バックアップ設定（軽量版）
+const BACKUP_INTERVAL = 60 * 1000; // 1分 = 60秒
+const BACKUP_COUNT = 5; // 5個のバックアップのみ保持
+const BACKUP_DIR = path.join(DATA_DIR, '..', 'backups');
+
+// ファイルのハッシュを取得（変更検出用）
+const getFileHash = (filePath: string): string | null => {
+  try {
+    if (!existsSync(filePath)) return null;
+    const content = readFileSync(filePath);
+    const crypto = require('crypto');
+    return crypto.createHash('md5').update(content).digest('hex');
+  } catch (error) {
+    return null;
+  }
+};
+
+// 上書きバックアップ関数（ディスク節約版）
+const createOverwriteBackup = () => {
+  try {
+    // バックアップディレクトリを作成
+    if (!existsSync(BACKUP_DIR)) {
+      require('fs').mkdirSync(BACKUP_DIR, { recursive: true });
+    }
+    
+    // 既存のバックアップをローテーション（古いものを削除）
+    const existingBackups = require('fs').readdirSync(BACKUP_DIR)
+      .filter((file: string) => file.startsWith('backup_'))
+      .sort();
+    
+    // 古いバックアップを削除（最新5個のみ保持）
+    if (existingBackups.length >= BACKUP_COUNT) {
+      const toDelete = existingBackups.slice(0, existingBackups.length - BACKUP_COUNT + 1);
+      toDelete.forEach((file: string) => {
+        require('fs').rmSync(path.join(BACKUP_DIR, file), { recursive: true, force: true });
+        logger.debug(`🗑️ 古いバックアップを削除: ${file}`);
+      });
+    }
+    
+    // 新しいバックアップを作成
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const backupPath = path.join(BACKUP_DIR, `backup_${timestamp}`);
+    require('fs').mkdirSync(backupPath, { recursive: true });
+    
+    // データファイルをコピー（差分チェック付き）
+    const files = ['employees.json', 'departments.json', 'attendance.json', 'holidays.json', 'personal_pages.json'];
+    let hasChanges = false;
+    let backupSize = 0;
+    
+    files.forEach(file => {
+      const sourcePath = path.join(DATA_DIR, file);
+      const destPath = path.join(backupPath, file);
+      
+      if (existsSync(sourcePath)) {
+        // ファイルが変更されているかチェック
+        const sourceHash = getFileHash(sourcePath);
+        const destHash = existsSync(destPath) ? getFileHash(destPath) : null;
+        
+        if (sourceHash && sourceHash !== destHash) {
+          require('fs').copyFileSync(sourcePath, destPath);
+          hasChanges = true;
+          const fileSize = require('fs').statSync(sourcePath).size;
+          backupSize += fileSize;
+          logger.debug(`📁 バックアップ更新: ${file} (${(fileSize / 1024).toFixed(1)}KB)`);
+        }
+      }
+    });
+    
+    if (hasChanges) {
+      logger.info(`✅ バックアップ更新: ${timestamp} (${(backupSize / 1024).toFixed(1)}KB)`);
+    } else {
+      logger.debug(`ℹ️ 変更なし、バックアップスキップ: ${timestamp}`);
+    }
+    
+  } catch (error) {
+    logger.error('❌ バックアップエラー:', error);
+  }
+};
+
+// バックアップ復元関数
+const restoreBackup = (backupName: string): boolean => {
+  try {
+    const backupPath = path.join(BACKUP_DIR, backupName);
+    
+    if (!existsSync(backupPath)) {
+      logger.error(`❌ バックアップが見つかりません: ${backupName}`);
+      return false;
+    }
+    
+    // 現在のデータをバックアップ
+    const currentBackup = `${DATA_DIR}.backup_${Date.now()}`;
+    require('fs').cpSync(DATA_DIR, currentBackup, { recursive: true });
+    logger.info(`💾 現在のデータをバックアップ: ${currentBackup}`);
+    
+    // バックアップを復元
+    const files = ['employees.json', 'departments.json', 'attendance.json', 'holidays.json', 'personal_pages.json'];
+    files.forEach(file => {
+      const sourcePath = path.join(backupPath, file);
+      const destPath = path.join(DATA_DIR, file);
+      
+      if (existsSync(sourcePath)) {
+        require('fs').copyFileSync(sourcePath, destPath);
+        logger.info(`🔄 復元: ${file}`);
+      }
+    });
+    
+    logger.info(`✅ バックアップ復元成功: ${backupName}`);
+    return true;
+    
+  } catch (error) {
+    logger.error('❌ バックアップ復元エラー:', error);
+    return false;
+  }
+};
+
+// バックアップ一覧取得関数
+const getBackupList = () => {
+  try {
+    if (!existsSync(BACKUP_DIR)) return [];
+    
+    return require('fs').readdirSync(BACKUP_DIR)
+      .filter((file: string) => file.startsWith('backup_'))
+      .map((file: string) => {
+        const filePath = path.join(BACKUP_DIR, file);
+        const stats = require('fs').statSync(filePath);
+        const size = require('fs').readdirSync(filePath)
+          .reduce((total: number, f: string) => {
+            const fileStats = require('fs').statSync(path.join(filePath, f));
+            return total + fileStats.size;
+          }, 0);
+        
+        return {
+          name: file,
+          date: stats.mtime.toISOString(),
+          size: Math.round(size / 1024 * 100) / 100 // KB
+        };
+      })
+      .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  } catch (error) {
+    logger.error('❌ バックアップ一覧取得エラー:', error);
+    return [];
+  }
+};
+
+// バックアップAPI エンドポイント
+app.get('/api/admin/backups', (req, res) => {
+  try {
+    const backups = getBackupList();
+    res.json({ ok: true, backups });
+  } catch (error) {
+    logger.error('❌ バックアップ一覧API エラー:', error);
+    res.status(500).json({ ok: false, error: 'バックアップ一覧の取得に失敗しました' });
+  }
+});
+
+app.post('/api/admin/backups/restore', (req, res) => {
+  try {
+    const { backupName } = req.body;
+    
+    if (!backupName) {
+      return res.status(400).json({ ok: false, error: 'バックアップ名が必要です' });
+    }
+    
+    if (restoreBackup(backupName)) {
+      res.json({ ok: true, message: `バックアップを復元しました: ${backupName}` });
+    } else {
+      res.status(500).json({ ok: false, error: 'バックアップの復元に失敗しました' });
+    }
+  } catch (error) {
+    logger.error('❌ バックアップ復元API エラー:', error);
+    res.status(500).json({ ok: false, error: 'バックアップの復元に失敗しました' });
+  }
+});
+
+// 自動バックアップを開始
+let backupInterval: NodeJS.Timeout | null = null;
+
+const startBackupSystem = () => {
+  if (backupInterval) {
+    clearInterval(backupInterval);
+  }
+  
+  backupInterval = setInterval(createOverwriteBackup, BACKUP_INTERVAL);
+  logger.info(`🔄 上書きバックアップ開始: ${BACKUP_INTERVAL/1000}秒間隔、最大${BACKUP_COUNT}個保持`);
+};
+
+const stopBackupSystem = () => {
+  if (backupInterval) {
+    clearInterval(backupInterval);
+    backupInterval = null;
+    logger.info('⏹️ バックアップシステム停止');
+  }
+};
+
+// ==================== サーバー起動 ====================
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
   logger.info(`Backend server running on http://127.0.0.1:${PORT}`);
@@ -1147,4 +1343,20 @@ app.listen(PORT, () => {
   
   // サーバー起動時に勤怠データを自動初期化
   autoInitializeAttendance();
+  
+  // バックアップシステムを開始
+  startBackupSystem();
+});
+
+// プロセス終了時のクリーンアップ
+process.on('SIGINT', () => {
+  logger.info('🛑 サーバー終了中...');
+  stopBackupSystem();
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  logger.info('🛑 サーバー終了中...');
+  stopBackupSystem();
+  process.exit(0);
 });
