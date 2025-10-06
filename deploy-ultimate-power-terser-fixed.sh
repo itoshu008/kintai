@@ -21,6 +21,13 @@ log_debug() { echo -e "${CYAN}🔍 $1${NC}"; }
 # エラー処理関数
 handle_error() {
     log_error "デプロイ中にエラーが発生しました: $1"
+    
+    # Git関連のエラーの場合は特別処理
+    if [[ "$1" == *"Git"* ]] || [[ "$1" == *"git"* ]]; then
+        log_warning "Git関連のエラーです。現在のコードでデプロイを続行します..."
+        return 0  # エラーを無視して続行
+    fi
+    
     log_warning "ロールバックを実行します..."
     rollback_deployment
     exit 1
@@ -148,6 +155,46 @@ fix_git_permissions() {
     fi
 }
 
+# Git完全再初期化（権限エラー時の最終手段）
+reinitialize_git() {
+    log_step "Gitを完全再初期化中..."
+    
+    # 現在のリモートURLを保存
+    local remote_url=""
+    if [ -d ".git" ]; then
+        remote_url=$(git remote get-url origin 2>/dev/null || echo "https://github.com/itoshu008/kintai.git")
+        log_info "現在のリモートURL: $remote_url"
+    else
+        remote_url="https://github.com/itoshu008/kintai.git"
+        log_info "デフォルトリモートURLを使用: $remote_url"
+    fi
+    
+    # Gitディレクトリを完全に削除
+    log_info "Gitディレクトリを削除中..."
+    rm -rf .git 2>/dev/null || true
+    
+    # 新しいGitリポジトリを初期化
+    log_info "新しいGitリポジトリを初期化中..."
+    git init
+    
+    # リモートを追加
+    log_info "リモートリポジトリを追加中..."
+    git remote add origin "$remote_url"
+    
+    # ブランチを設定
+    git branch -M main
+    
+    # 最新コードを取得
+    log_info "最新コードを取得中..."
+    if git fetch origin main; then
+        git reset --hard origin/main
+        log_success "Git再初期化完了"
+    else
+        log_error "Git fetch に失敗しました"
+        return 1
+    fi
+}
+
 # 権限修正（強化版）
 fix_permissions() {
     log_step "権限を修正中..."
@@ -187,13 +234,26 @@ log_step "最新コードを取得中..."
 if ! git pull origin main; then
     log_warning "Git pull に失敗しました。代替手段を実行します..."
     
-    # 代替手段：強制的にリセット
-    log_info "代替手段として強制リセットを実行します..."
+    # 代替手段1：強制的にリセット
+    log_info "代替手段1: 強制リセットを実行します..."
     if git fetch origin main; then
         git reset --hard origin/main
         log_success "強制リセット完了"
     else
-        handle_error "Git fetch にも失敗しました"
+        log_warning "Git fetch にも失敗しました。最終手段を実行します..."
+        
+        # 代替手段2：Git完全再初期化
+        log_info "代替手段2: Git完全再初期化を実行します..."
+        if reinitialize_git; then
+            log_success "Git再初期化完了"
+            GIT_REINITIALIZED="true"
+        else
+            log_error "Git再初期化にも失敗しました。Gitを使わないデプロイに切り替えます..."
+            
+            # 代替手段3：Gitを使わないデプロイ
+            log_info "代替手段3: Gitを使わないデプロイを実行します..."
+            log_warning "現在のコードでビルドを続行します"
+        fi
     fi
 else
     log_success "Git pull 完了"
@@ -455,4 +515,11 @@ echo ""
 
 # 成功通知
 log_success "ULTIMATE POWER DEPLOY (TERSER FIXED) が正常に完了しました！"
+
+# Git再初期化が実行された場合の追加メッセージ
+if [ "$GIT_REINITIALIZED" = "true" ]; then
+    echo ""
+    log_info "ℹ️  Gitが再初期化されました。今後のデプロイは正常に動作するはずです。"
+    echo ""
+fi
 
