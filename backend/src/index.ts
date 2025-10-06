@@ -471,34 +471,7 @@ app.post('/api/admin/employees', (req, res) => {
   res.json({ list: employees });
 });
 
-app.put('/api/admin/employees/:code', (req, res) => {
-  const originalCode = req.params.code;
-  const { code, name, department_id } = req.body;
-  
-  const employee = employees.find(e => e.code === originalCode);
-  if (!employee) {
-    return res.status(404).json({ ok: false, error: 'Employee not found' });
-  }
-  
-  // コードの重複チェック（自分以外）
-  if (code && code !== originalCode && employees.some(e => e.code === code)) {
-    return res.status(400).json({ ok: false, error: 'Employee code already exists' });
-  }
-  
-  if (code !== undefined) employee.code = code;
-  if (name !== undefined) employee.name = name;
-  if (department_id !== undefined) {
-    const department = departments.find(d => d.id === Number(department_id));
-    if (!department) {
-      return res.status(400).json({ ok: false, error: 'Department not found' });
-    }
-    employee.department_id = department.id;
-    employee.dept = department.name;
-  }
-  
-  saveData(EMPLOYEES_FILE, employees);
-  res.json({ ok: true, list: employees });
-});
+// 重複エンドポイントを削除（IDベースのエンドポイントを使用）
 
 app.delete('/api/admin/employees/:id', (req, res) => {
   const id = parseInt(req.params.id);
@@ -524,10 +497,12 @@ app.delete('/api/admin/employees/:id', (req, res) => {
   }
 });
 
-// 社員情報更新API
+// 社員情報更新API（IDベース）
 app.put('/api/admin/employees/:id', (req, res) => {
   const id = parseInt(req.params.id);
   const { code, name, department_id } = req.body;
+  
+  logger.info(`社員更新API呼び出し: ID=${id}, code=${code}, name=${name}, department_id=${department_id}`);
   
   if (!code || !name) {
     return res.status(400).json({ error: '社員番号と名前は必須です' });
@@ -535,17 +510,20 @@ app.put('/api/admin/employees/:id', (req, res) => {
   
   const employeeIndex = employees.findIndex(emp => emp.id === id);
   if (employeeIndex === -1) {
+    logger.warn(`社員が見つかりません: ID=${id}`);
     return res.status(404).json({ error: '社員が見つかりません' });
   }
   
   // 社員番号の重複チェック（自分以外）
   const existingEmployee = employees.find(emp => emp.code === code && emp.id !== id);
   if (existingEmployee) {
+    logger.warn(`社員番号重複: ${code} (既存ID: ${existingEmployee.id})`);
     return res.status(400).json({ error: 'この社員番号は既に使用されています' });
   }
   
   // 部署IDの存在チェック
   if (department_id && !departments.find(d => d.id === department_id)) {
+    logger.warn(`部署が見つかりません: department_id=${department_id}`);
     return res.status(400).json({ error: '指定された部署が存在しません' });
   }
   
@@ -558,10 +536,20 @@ app.put('/api/admin/employees/:id', (req, res) => {
     department_id: department_id || null
   };
   
+  // 部署名を更新
+  if (department_id) {
+    const department = departments.find(d => d.id === department_id);
+    if (department) {
+      employees[employeeIndex].dept = department.name;
+    }
+  } else {
+    employees[employeeIndex].dept = '未所属';
+  }
+  
   // ファイルに保存
   try {
     saveData(EMPLOYEES_FILE, employees);
-    logger.info(`社員情報更新: ${oldEmployee.name} -> ${name} (ID: ${id})`);
+    logger.info(`✅ 社員情報更新成功: ${oldEmployee.name} -> ${name} (ID: ${id})`);
     res.json({ 
       ok: true, 
       message: `社員情報を更新しました: ${name}`, 
@@ -569,7 +557,7 @@ app.put('/api/admin/employees/:id', (req, res) => {
       list: employees 
     });
   } catch (error) {
-    logger.error('社員更新ファイル保存エラー:', error);
+    logger.error('❌ 社員更新ファイル保存エラー:', error);
     // 更新を元に戻す
     employees[employeeIndex] = oldEmployee;
     res.status(500).json({ ok: false, error: 'ファイル保存に失敗しました' });
