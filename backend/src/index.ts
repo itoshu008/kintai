@@ -4,7 +4,8 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, rmSync, copyFileSync, statSync, cpSync } from 'fs';
+import { createHash } from 'crypto';
 
 // ログレベル設定
 const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
@@ -295,7 +296,7 @@ const saveData = (file: string, data: any) => {
   try {
     // ディレクトリが存在しない場合は作成
     if (!existsSync(DATA_DIR)) {
-      require('fs').mkdirSync(DATA_DIR, { recursive: true });
+      mkdirSync(DATA_DIR, { recursive: true });
       logger.info(`データディレクトリ作成: ${DATA_DIR}`);
     }
     
@@ -1150,8 +1151,7 @@ const getFileHash = (filePath: string): string | null => {
   try {
     if (!existsSync(filePath)) return null;
     const content = readFileSync(filePath);
-    const crypto = require('crypto');
-    return crypto.createHash('md5').update(content).digest('hex');
+    return createHash('md5').update(content).digest('hex');
   } catch (error) {
     return null;
   }
@@ -1162,11 +1162,11 @@ const createOverwriteBackup = () => {
   try {
     // バックアップディレクトリを作成
     if (!existsSync(BACKUP_DIR)) {
-      require('fs').mkdirSync(BACKUP_DIR, { recursive: true });
+      mkdirSync(BACKUP_DIR, { recursive: true });
     }
     
     // 既存のバックアップをローテーション（古いものを削除）
-    const existingBackups = require('fs').readdirSync(BACKUP_DIR)
+    const existingBackups = readdirSync(BACKUP_DIR)
       .filter((file: string) => file.startsWith('backup_'))
       .sort();
     
@@ -1174,7 +1174,7 @@ const createOverwriteBackup = () => {
     if (existingBackups.length >= BACKUP_COUNT) {
       const toDelete = existingBackups.slice(0, existingBackups.length - BACKUP_COUNT + 1);
       toDelete.forEach((file: string) => {
-        require('fs').rmSync(path.join(BACKUP_DIR, file), { recursive: true, force: true });
+        rmSync(path.join(BACKUP_DIR, file), { recursive: true, force: true });
         logger.debug(`🗑️ 古いバックアップを削除: ${file}`);
       });
     }
@@ -1182,7 +1182,7 @@ const createOverwriteBackup = () => {
     // 新しいバックアップを作成
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const backupPath = path.join(BACKUP_DIR, `backup_${timestamp}`);
-    require('fs').mkdirSync(backupPath, { recursive: true });
+    mkdirSync(backupPath, { recursive: true });
     
     // データファイルをコピー（差分チェック付き）
     const files = ['employees.json', 'departments.json', 'attendance.json', 'holidays.json', 'personal_pages.json'];
@@ -1199,9 +1199,9 @@ const createOverwriteBackup = () => {
         const destHash = existsSync(destPath) ? getFileHash(destPath) : null;
         
         if (sourceHash && sourceHash !== destHash) {
-          require('fs').copyFileSync(sourcePath, destPath);
+          copyFileSync(sourcePath, destPath);
           hasChanges = true;
-          const fileSize = require('fs').statSync(sourcePath).size;
+          const fileSize = statSync(sourcePath).size;
           backupSize += fileSize;
           logger.debug(`📁 バックアップ更新: ${file} (${(fileSize / 1024).toFixed(1)}KB)`);
         }
@@ -1231,7 +1231,7 @@ const restoreBackup = (backupName: string): boolean => {
     
     // 現在のデータをバックアップ
     const currentBackup = `${DATA_DIR}.backup_${Date.now()}`;
-    require('fs').cpSync(DATA_DIR, currentBackup, { recursive: true });
+    cpSync(DATA_DIR, currentBackup, { recursive: true });
     logger.info(`💾 現在のデータをバックアップ: ${currentBackup}`);
     
     // バックアップを復元
@@ -1241,7 +1241,7 @@ const restoreBackup = (backupName: string): boolean => {
       const destPath = path.join(DATA_DIR, file);
       
       if (existsSync(sourcePath)) {
-        require('fs').copyFileSync(sourcePath, destPath);
+        copyFileSync(sourcePath, destPath);
         logger.info(`🔄 復元: ${file}`);
       }
     });
@@ -1260,14 +1260,14 @@ const getBackupList = () => {
   try {
     if (!existsSync(BACKUP_DIR)) return [];
     
-    return require('fs').readdirSync(BACKUP_DIR)
+    return readdirSync(BACKUP_DIR)
       .filter((file: string) => file.startsWith('backup_'))
       .map((file: string) => {
         const filePath = path.join(BACKUP_DIR, file);
-        const stats = require('fs').statSync(filePath);
-        const size = require('fs').readdirSync(filePath)
+        const stats = statSync(filePath);
+        const size = readdirSync(filePath)
           .reduce((total: number, f: string) => {
-            const fileStats = require('fs').statSync(path.join(filePath, f));
+            const fileStats = statSync(path.join(filePath, f));
             return total + fileStats.size;
           }, 0);
         
