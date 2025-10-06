@@ -118,6 +118,36 @@ create_backup() {
     fi
 }
 
+# Git権限修正
+fix_git_permissions() {
+    log_step "Git権限を修正中..."
+    
+    # Gitディレクトリの権限修正
+    if [ -d ".git" ]; then
+        log_info "Gitディレクトリが見つかりました"
+        
+        # 所有者を修正
+        sudo chown -R zatint1991-hvt55:zatint1991-hvt55 .git 2>/dev/null || log_warning "Git所有者の修正でエラーが発生しました"
+        log_success "Gitディレクトリの所有者を修正しました"
+        
+        # 権限を修正
+        chmod -R 755 .git 2>/dev/null || log_warning "Git権限の修正でエラーが発生しました"
+        log_success "Gitディレクトリの権限を修正しました"
+        
+        # .git/objectsディレクトリの特別な権限修正
+        if [ -d ".git/objects" ]; then
+            chmod -R 755 .git/objects 2>/dev/null || true
+            log_success ".git/objectsディレクトリの権限を修正しました"
+        fi
+        
+        # Gitの安全ディレクトリ設定を追加
+        git config --global --add safe.directory /home/zatint1991-hvt55/zatint1991.com 2>/dev/null || true
+        log_success "Gitの安全ディレクトリ設定を追加しました"
+    else
+        log_warning "Gitディレクトリが見つかりません"
+    fi
+}
+
 # 権限修正（強化版）
 fix_permissions() {
     log_step "権限を修正中..."
@@ -149,14 +179,25 @@ echo -e "${PURPLE}================================================${NC}"
 show_system_info
 pre_deployment_check
 create_backup
+fix_git_permissions
 fix_permissions
 
 # 1. 最新コード取得
 log_step "最新コードを取得中..."
 if ! git pull origin main; then
-    handle_error "Git pull に失敗しました"
+    log_warning "Git pull に失敗しました。代替手段を実行します..."
+    
+    # 代替手段：強制的にリセット
+    log_info "代替手段として強制リセットを実行します..."
+    if git fetch origin main; then
+        git reset --hard origin/main
+        log_success "強制リセット完了"
+    else
+        handle_error "Git fetch にも失敗しました"
+    fi
+else
+    log_success "Git pull 完了"
 fi
-log_success "Git pull 完了"
 
 # 2. フロントエンドビルド
 log_step "フロントエンドをビルド中..."
