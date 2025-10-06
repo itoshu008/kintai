@@ -1314,6 +1314,75 @@ app.post('/api/admin/backups/restore', (req, res) => {
   }
 });
 
+// 手動バックアップ作成API
+app.post('/api/admin/backups/create', (req, res) => {
+  try {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const backupName = `manual_backup_${timestamp}`;
+    const backupPath = path.join(BACKUP_DIR, backupName);
+    
+    // バックアップディレクトリを作成
+    if (!existsSync(BACKUP_DIR)) {
+      mkdirSync(BACKUP_DIR, { recursive: true });
+    }
+    
+    // 手動バックアップディレクトリを作成
+    mkdirSync(backupPath, { recursive: true });
+    
+    // データファイルをコピー
+    const files = ['employees.json', 'departments.json', 'attendance.json', 'holidays.json', 'personal_pages.json'];
+    let backupSize = 0;
+    
+    files.forEach(file => {
+      const sourcePath = path.join(DATA_DIR, file);
+      const destPath = path.join(backupPath, file);
+      
+      if (existsSync(sourcePath)) {
+        copyFileSync(sourcePath, destPath);
+        const fileSize = statSync(sourcePath).size;
+        backupSize += fileSize;
+      }
+    });
+    
+    logger.info(`✅ 手動バックアップ作成: ${backupName} (${(backupSize / 1024).toFixed(1)}KB)`);
+    res.json({ 
+      ok: true, 
+      message: `手動バックアップを作成しました: ${backupName}`,
+      backupName,
+      size: Math.round(backupSize / 1024 * 100) / 100
+    });
+  } catch (error) {
+    logger.error('❌ 手動バックアップ作成API エラー:', error);
+    res.status(500).json({ ok: false, error: '手動バックアップの作成に失敗しました' });
+  }
+});
+
+// バックアップ削除API
+app.delete('/api/admin/backups/delete', (req, res) => {
+  try {
+    const { backupName } = req.body;
+    
+    if (!backupName) {
+      return res.status(400).json({ ok: false, error: 'バックアップ名が必要です' });
+    }
+    
+    const backupPath = path.join(BACKUP_DIR, backupName);
+    
+    if (!existsSync(backupPath)) {
+      return res.status(404).json({ ok: false, error: 'バックアップが見つかりません' });
+    }
+    
+    // バックアップディレクトリを削除
+    rmSync(backupPath, { recursive: true, force: true });
+    
+    logger.info(`✅ バックアップ削除: ${backupName}`);
+    res.json({ ok: true, message: `バックアップを削除しました: ${backupName}` });
+  } catch (error) {
+    logger.error('❌ バックアップ削除API エラー:', error);
+    res.status(500).json({ ok: false, error: 'バックアップの削除に失敗しました' });
+  }
+});
+
 // 自動バックアップを開始
 let backupInterval: NodeJS.Timeout | null = null;
 

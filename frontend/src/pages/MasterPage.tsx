@@ -4,6 +4,13 @@ import { api as adminApi } from '../lib/api';
 import { MasterRow, Department } from '../types/attendance';
 import { isHolidaySync, getHolidayNameSync, isSunday, isSaturday } from '../utils/holidays';
 
+// バックアップ関連の型定義
+interface BackupItem {
+  name: string;
+  date: string;
+  size: number;
+}
+
 const fmtHM = (s?: string|null) => {
   if (!s) return '—';
   const d = new Date(s);
@@ -175,6 +182,11 @@ export default function MasterPage() {
     clockIn: string;
     clockOut: string;
   } | null>(null);
+
+  // バックアップ管理用の状態
+  const [showBackupManagement, setShowBackupManagement] = useState(false);
+  const [backups, setBackups] = useState<BackupItem[]>([]);
+  const [backupLoading, setBackupLoading] = useState(false);
 
   // 備考保存（サーバーに保存）
   const onSaveRemark = async (targetDate: string, remark: string) => {
@@ -435,6 +447,13 @@ export default function MasterPage() {
     loadDeps();
   }, []);
 
+  // バックアップ管理画面を開いた時にバックアップ一覧を読み込み
+  useEffect(() => {
+    if (showBackupManagement) {
+      loadBackups();
+    }
+  }, [showBackupManagement]);
+
   // クリック外部でドロップダウンを閉じる
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -543,6 +562,101 @@ export default function MasterPage() {
     } catch(e:any){
       console.warn('Failed to load departments:', e);
       setDeps([]);
+    }
+  };
+
+  // バックアップ一覧を読み込み
+  const loadBackups = async () => {
+    try {
+      setBackupLoading(true);
+      const response = await fetch('/api/admin/backups');
+      const result = await response.json();
+      if (result.ok) {
+        setBackups(result.backups || []);
+      } else {
+        setMsg(`❌ バックアップ一覧取得エラー: ${result.error}`);
+      }
+    } catch (e: any) {
+      setMsg(`❌ バックアップ一覧取得エラー: ${e.message}`);
+    } finally {
+      setBackupLoading(false);
+    }
+  };
+
+  // 手動バックアップ作成
+  const createManualBackup = async () => {
+    try {
+      setBackupLoading(true);
+      const response = await fetch('/api/admin/backups/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const result = await response.json();
+      if (result.ok) {
+        setMsg(`✅ バックアップを作成しました: ${result.backupName}`);
+        loadBackups(); // 一覧を更新
+      } else {
+        setMsg(`❌ バックアップ作成エラー: ${result.error}`);
+      }
+    } catch (e: any) {
+      setMsg(`❌ バックアップ作成エラー: ${e.message}`);
+    } finally {
+      setBackupLoading(false);
+    }
+  };
+
+  // バックアップ復元
+  const restoreBackup = async (backupName: string) => {
+    if (!confirm(`バックアップ「${backupName}」を復元しますか？\n現在のデータは上書きされます。`)) {
+      return;
+    }
+    
+    try {
+      setBackupLoading(true);
+      const response = await fetch('/api/admin/backups/restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ backupName })
+      });
+      const result = await response.json();
+      if (result.ok) {
+        setMsg(`✅ バックアップを復元しました: ${backupName}`);
+        loadBackups(); // 一覧を更新
+        loadOnce(loadKey); // データを再読み込み
+      } else {
+        setMsg(`❌ バックアップ復元エラー: ${result.error}`);
+      }
+    } catch (e: any) {
+      setMsg(`❌ バックアップ復元エラー: ${e.message}`);
+    } finally {
+      setBackupLoading(false);
+    }
+  };
+
+  // バックアップ削除
+  const deleteBackup = async (backupName: string) => {
+    if (!confirm(`バックアップ「${backupName}」を削除しますか？\nこの操作は元に戻せません。`)) {
+      return;
+    }
+    
+    try {
+      setBackupLoading(true);
+      const response = await fetch('/api/admin/backups/delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ backupName })
+      });
+      const result = await response.json();
+      if (result.ok) {
+        setMsg(`✅ バックアップを削除しました: ${backupName}`);
+        loadBackups(); // 一覧を更新
+      } else {
+        setMsg(`❌ バックアップ削除エラー: ${result.error}`);
+      }
+    } catch (e: any) {
+      setMsg(`❌ バックアップ削除エラー: ${e.message}`);
+    } finally {
+      setBackupLoading(false);
     }
   };
 
@@ -889,6 +1003,32 @@ export default function MasterPage() {
                 >
                   <span style={{fontSize:'16px'}}>🗑️</span>
                   社員削除
+                </button>
+                <button 
+                  onClick={() => {
+                    setShowDropdown(false);
+                    setShowBackupManagement(true);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px 20px',
+                    border: 'none',
+                    background: 'transparent',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: '#17a2b8',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#e6f7ff'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                >
+                  <span style={{fontSize:'16px'}}>💾</span>
+                  バックアップ管理
                 </button>
                 <button 
                   onClick={() => {
@@ -2109,6 +2249,165 @@ export default function MasterPage() {
                 }}
               >
                 {loading ? '削除中...' : '🗑️ 削除実行'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* バックアップ管理メニュー */}
+        {showBackupManagement && (
+          <div style={{marginBottom:24, padding:24, border:'2px solid #17a2b8', borderRadius:12, background:'linear-gradient(135deg, #e6f7ff 0%, #b3e5fc 100%)', boxShadow:'0 4px 12px rgba(23,162,184,0.1)'}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20}}>
+              <h3 style={{margin:0, color:'#0c5460', fontSize:'18px', fontWeight:'600'}}>💾 バックアップ管理</h3>
+              <button
+                onClick={() => setShowBackupManagement(false)}
+                style={{
+                  background:'#17a2b8',
+                  color:'white',
+                  border:'none',
+                  borderRadius:'50%',
+                  width:'32px',
+                  height:'32px',
+                  display:'flex',
+                  alignItems:'center',
+                  justifyContent:'center',
+                  cursor:'pointer',
+                  fontSize:'16px',
+                  fontWeight:'bold',
+                  transition:'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#138496'}
+                onMouseLeave={(e) => e.currentTarget.style.background = '#17a2b8'}
+              >
+                ×
+              </button>
+            </div>
+            
+            {/* 手動バックアップ作成ボタン */}
+            <div style={{marginBottom:20, padding:16, background:'#fff', border:'1px solid #bee5eb', borderRadius:8}}>
+              <h4 style={{margin:'0 0 12px 0', color:'#0c5460', fontSize:'16px'}}>📸 手動バックアップ作成</h4>
+              <p style={{margin:'0 0 16px 0', fontSize:'14px', color:'#6c757d'}}>
+                現在のデータの状態を手動でバックアップします。重要な作業前の保存にご利用ください。
+              </p>
+              <button
+                onClick={createManualBackup}
+                disabled={backupLoading}
+                style={{
+                  padding:'12px 24px',
+                  background: backupLoading ? '#6c757d' : '#17a2b8',
+                  color:'white',
+                  border:'none',
+                  borderRadius:6,
+                  cursor: backupLoading ? 'not-allowed' : 'pointer',
+                  fontWeight:'500',
+                  fontSize:'14px',
+                  transition:'all 0.2s ease',
+                  display:'flex',
+                  alignItems:'center',
+                  gap:8
+                }}
+              >
+                {backupLoading ? '⏳ 作成中...' : '📸 バックアップ作成'}
+              </button>
+            </div>
+
+            {/* バックアップ一覧 */}
+            <div style={{marginBottom:20}}>
+              <h4 style={{margin:'0 0 12px 0', color:'#0c5460', fontSize:'16px'}}>📋 バックアップ一覧</h4>
+              {backupLoading ? (
+                <div style={{padding:20, textAlign:'center', color:'#6c757d'}}>
+                  ⏳ バックアップ一覧を読み込み中...
+                </div>
+              ) : backups.length === 0 ? (
+                <div style={{padding:20, textAlign:'center', color:'#6c757d', background:'#f8f9fa', borderRadius:8}}>
+                  バックアップがありません
+                </div>
+              ) : (
+                <div style={{maxHeight:'300px', overflowY:'auto', border:'1px solid #bee5eb', borderRadius:8}}>
+                  {backups.map((backup, index) => (
+                    <div key={backup.name} style={{
+                      padding:'12px 16px',
+                      borderBottom: index < backups.length - 1 ? '1px solid #e9ecef' : 'none',
+                      background: index % 2 === 0 ? '#fff' : '#f8f9fa',
+                      display:'flex',
+                      justifyContent:'space-between',
+                      alignItems:'center'
+                    }}>
+                      <div style={{flex:1}}>
+                        <div style={{fontWeight:'500', color:'#495057', fontSize:'14px'}}>
+                          {backup.name}
+                        </div>
+                        <div style={{fontSize:'12px', color:'#6c757d', marginTop:2}}>
+                          📅 {new Date(backup.date).toLocaleString('ja-JP')} | 
+                          💾 {backup.size}KB
+                        </div>
+                      </div>
+                      <div style={{display:'flex', gap:8}}>
+                        <button
+                          onClick={() => restoreBackup(backup.name)}
+                          disabled={backupLoading}
+                          style={{
+                            padding:'6px 12px',
+                            background: backupLoading ? '#6c757d' : '#28a745',
+                            color:'white',
+                            border:'none',
+                            borderRadius:4,
+                            cursor: backupLoading ? 'not-allowed' : 'pointer',
+                            fontSize:'12px',
+                            fontWeight:'500',
+                            transition:'all 0.2s ease'
+                          }}
+                        >
+                          🔄 復元
+                        </button>
+                        <button
+                          onClick={() => deleteBackup(backup.name)}
+                          disabled={backupLoading}
+                          style={{
+                            padding:'6px 12px',
+                            background: backupLoading ? '#6c757d' : '#dc3545',
+                            color:'white',
+                            border:'none',
+                            borderRadius:4,
+                            cursor: backupLoading ? 'not-allowed' : 'pointer',
+                            fontSize:'12px',
+                            fontWeight:'500',
+                            transition:'all 0.2s ease'
+                          }}
+                        >
+                          🗑️ 削除
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* リアルタイム更新ボタン */}
+            <div style={{display:'flex', gap:12, justifyContent:'center'}}>
+              <button
+                onClick={() => {
+                  loadBackups();
+                  loadOnce(loadKey);
+                }}
+                disabled={backupLoading}
+                style={{
+                  padding:'10px 20px',
+                  background: backupLoading ? '#6c757d' : '#6f42c1',
+                  color:'white',
+                  border:'none',
+                  borderRadius:6,
+                  cursor: backupLoading ? 'not-allowed' : 'pointer',
+                  fontWeight:'500',
+                  fontSize:'14px',
+                  transition:'all 0.2s ease',
+                  display:'flex',
+                  alignItems:'center',
+                  gap:8
+                }}
+              >
+                🔄 リアルタイム更新
               </button>
             </div>
           </div>
