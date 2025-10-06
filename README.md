@@ -1,135 +1,92 @@
-# 🕐 勤怠管理システム (Kintai Management System)
+# 勤怠管理システム
 
-## 📋 **概要**
-社員の出退勤管理、勤怠記録、備考管理を行うWebアプリケーションです。
+## 概要
+スマートフォン・PC対応の勤怠管理システムです。
 
-## 🚀 **クイックスタート**
+## 主要機能
+- 社員の出退勤管理
+- 部署管理
+- 勤怠データの集計・表示
+- 60分間隔の自動バックアップ
 
-### **1. 依存関係のインストール**
-```bash
-npm install
-```
+## 技術スタック
+- **フロントエンド**: React + TypeScript + Vite
+- **バックエンド**: Node.js + Express + TypeScript
+- **データ保存**: JSON ファイル
+- **プロセス管理**: PM2
 
-### **2. 開発サーバー起動**
-```bash
-npm run dev
-```
-
-### **3. アクセス**
-- **フロントエンド**: http://localhost:3000
-- **バックエンド**: http://localhost:8000
-
-## 🎯 **主要機能**
-
-### **👤 個人ページ** (`/personal`)
-- ✅ 出勤/退勤打刻
-- 📊 月別勤怠表示
-- 📝 備考入力・編集
-- 🔄 リアルタイム更新
-
-### **👨‍💼 管理者ページ** (`/admin-dashboard-2024`)
-- 👥 全社員勤怠管理
-- 🏢 部署管理
-- ➕ 社員登録
-- ⏰ 勤怠打刻代行
-- 📈 勤怠レポート
-
-## 🛠️ **技術スタック**
-
-### **フロントエンド**
-- ⚛️ React 18
-- 📘 TypeScript
-- ⚡ Vite
-- 🎨 Tailwind CSS
-- 🧭 React Router DOM
-
-### **バックエンド**
-- 🟢 Node.js
-- 🚀 Express
-- 📘 TypeScript
-- 📄 JSONファイル（データベース）
-
-## 📁 **プロジェクト構成**
-
+## ディレクトリ構成
 ```
 kintai/
-├── 📁 frontend/          # React フロントエンド
-├── 📁 backend/           # Node.js バックエンド
-├── 📁 docs/              # ドキュメント
-├── 📁 data/              # データファイル
-└── 📄 package.json       # ルート設定
+├── frontend/          # フロントエンド（React）
+├── backend/           # バックエンド（Node.js）
+├── public/            # 静的ファイル（ビルド後）
+├── data/              # データファイル（JSON）
+└── backups/           # バックアップファイル
 ```
 
-## 🔧 **開発コマンド**
+## デプロイ方法
 
+### 1. 最新コード取得
 ```bash
-# 開発サーバー起動（フロントエンド + バックエンド）
-npm run dev
-
-# フロントエンドのみ
-npm run dev:frontend
-
-# バックエンドのみ
-npm run dev:backend
-
-# ビルド
-npm run build
+git pull origin main
 ```
 
-## 📡 **API エンドポイント**
+### 2. フロントエンドビルド
+```bash
+cd frontend
+npm install
+npm run build
+cd ..
+```
 
-### **認証**
-- `POST /api/auth/login` - ログイン
+### 3. バックエンドビルド
+```bash
+cd backend
+npm install
+npm run build
+cd ..
+```
 
-### **勤怠管理**
-- `GET /api/admin/master` - 勤怠一覧
-- `POST /api/clock/in` - 出勤打刻
-- `POST /api/clock/out` - 退勤打刻
+### 4. 静的ファイルコピー
+```bash
+mkdir -p public
+cp -r frontend/dist/* public/
+```
 
-### **マスタ管理**
-- `GET /api/admin/departments` - 部署一覧
-- `POST /api/admin/departments` - 部署作成
-- `GET /api/admin/employees` - 社員一覧
-- `POST /api/admin/employees` - 社員作成
+### 5. PM2で起動
+```bash
+cd backend
+pm2 start dist/index.js --name "attendance-app" --env production \
+  --env PORT=8000 \
+  --env NODE_ENV=production \
+  --env DATA_DIR="/home/zatint1991-hvt55/zatint1991.com/data" \
+  --env FRONTEND_PATH="/home/zatint1991-hvt55/zatint1991.com/public" \
+  --env LOG_LEVEL=info \
+  --env CORS_ORIGIN="https://zatint1991.com,https://www.zatint1991.com"
+pm2 save
+```
 
-## 🎨 **UI/UX特徴**
-- 📱 レスポンシブデザイン
-- 🔄 リアルタイム更新（5秒間隔）
-- 🎯 直感的な操作
-- 🇯🇵 日本語対応
-- ⚡ 高速レスポンス
+## 環境変数
+- `PORT`: サーバーポート（デフォルト: 8000）
+- `NODE_ENV`: 環境（production/development）
+- `DATA_DIR`: データディレクトリパス
+- `FRONTEND_PATH`: フロントエンドファイルパス
+- `LOG_LEVEL`: ログレベル（info/debug/warn/error）
+- `CORS_ORIGIN`: CORS許可オリジン
 
-## 📚 **ドキュメント**
-- [📁 プロジェクト構成](PROJECT_STRUCTURE.md)
-- [🔧 開発手順](docs/DEVELOPMENT.md)
-- [🚀 デプロイ手順](docs/DEPLOYMENT.md)
-- [📡 API仕様](docs/API_ENDPOINTS.md)
+## バックアップシステム
+- バックアップ間隔: 60分（1時間）
+- 最大バックアップ数: 24個（24時間分）
+- バックアップディレクトリ: `backups/`
+- 変更時のみバックアップ実行（ディスク節約）
 
-## 🔄 **リアルタイム機能**
-- ⚡ 自動データ更新（5秒間隔）
-- 🎯 即座の反映
-- 👁️ ウィンドウフォーカス時更新
-- 💾 ローカルステート同期
+## アクセス
+- アプリケーション: https://zatint1991.com
+- マスターページ: https://zatint1991.com/admin-dashboard-2024
+- パーソナルページ: https://zatint1991.com/personal
 
-## 🎯 **URL構成**
-- **ログイン**: `/` または `/login`
-- **個人ページ**: `/personal`
-- **管理者ページ**: `/admin-dashboard-2024`
-
-## 📊 **データ管理**
-- 📄 JSONファイルベース
-- 🔄 リアルタイム同期
-- 💾 自動バックアップ
-- 📈 履歴管理
-
-## 🚀 **デプロイ**
-本番環境へのデプロイ手順は [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) を参照してください。
-
-## 🤝 **貢献**
-1. このリポジトリをフォーク
-2. フィーチャーブランチを作成
-3. 変更をコミット
-4. プルリクエストを作成
-
-## 📄 **ライセンス**
-このプロジェクトはMITライセンスの下で公開されています。
+## メンテナンス
+- PM2ステータス確認: `pm2 status`
+- ログ確認: `pm2 logs attendance-app`
+- プロセス再起動: `pm2 restart attendance-app`
