@@ -345,6 +345,20 @@ const loadData = (file: string, defaultData: any) => {
 // 部署管理API（永続化対応）
 const departments: { id: number; name: string }[] = loadData(DEPARTMENTS_FILE, []);
 
+// 部署データのインデックスを作成（パフォーマンス向上）
+const departmentIndex = new Map<number, { id: number; name: string }>(); // id -> department
+
+// インデックスを初期化
+const initializeDepartmentIndex = () => {
+  departmentIndex.clear();
+  departments.forEach(dept => {
+    departmentIndex.set(dept.id, dept);
+  });
+  logger.info(`📊 部署インデックス初期化完了: ${departments.length}部署`);
+};
+
+initializeDepartmentIndex();
+
 app.get('/api/admin/departments', (_req, res) => {
   res.json({ list: departments });
 });
@@ -360,6 +374,9 @@ app.post('/api/admin/departments', (req, res) => {
   departments.push(newDepartment);
   saveData(DEPARTMENTS_FILE, departments);
   
+  // インデックスを更新
+  departmentIndex.set(newId, newDepartment);
+  
   res.json({ list: departments });
 });
 
@@ -371,7 +388,7 @@ app.put('/api/admin/departments/:id', (req, res) => {
     return res.status(400).json({ error: 'Department name is required' });
   }
   
-  const department = departments.find(d => d.id === id);
+  const department = departmentIndex.get(id);
   if (!department) {
     return res.status(404).json({ error: 'Department not found' });
   }
@@ -379,30 +396,59 @@ app.put('/api/admin/departments/:id', (req, res) => {
   department.name = name;
   saveData(DEPARTMENTS_FILE, departments);
   
+  // インデックスを更新
+  departmentIndex.set(id, department);
+  
   res.json({ list: departments });
 });
 
 app.delete('/api/admin/departments/:id', (req, res) => {
   const id = parseInt(req.params.id);
-  const index = departments.findIndex(d => d.id === id);
+  const department = departmentIndex.get(id);
   
-  if (index === -1) {
+  if (!department) {
     return res.status(404).json({ error: 'Department not found' });
   }
   
+  const index = departments.findIndex(d => d.id === id);
   departments.splice(index, 1);
+  
+  // インデックスを更新
+  departmentIndex.delete(id);
+  
+  // ファイルに保存
+  saveData(DEPARTMENTS_FILE, departments);
+  
   res.json({ list: departments });
 });
 
 // 社員管理API（永続化対応）
 const employees: { id: number; code: string; name: string; department_id: number | null; dept: string }[] = loadData(EMPLOYEES_FILE, []);
 
+// 社員データのインデックスを作成（パフォーマンス向上）
+const employeeIndex = new Map<string, number>(); // code -> index
+const employeeIdIndex = new Map<number, number>(); // id -> index
+
+// インデックスを初期化
+const initializeEmployeeIndexes = () => {
+  employeeIndex.clear();
+  employeeIdIndex.clear();
+  employees.forEach((emp, index) => {
+    employeeIndex.set(emp.code, index);
+    employeeIdIndex.set(emp.id, index);
+  });
+  logger.info(`📊 社員インデックス初期化完了: ${employees.length}名`);
+};
+
+initializeEmployeeIndexes();
+
 // 初期社員データは作成しない（ダミーデータ削除）
 
 app.get('/api/admin/employees', (_req, res) => {
   // 部署名は常に部署テーブルから算出（emp.deptは信用しない）
+  // インデックスを使用してパフォーマンスを向上
   const employeesWithDept = employees.map(emp => {
-    const department = emp.department_id ? departments.find(d => d.id === emp.department_id) : undefined;
+    const department = emp.department_id ? departmentIndex.get(emp.department_id) : undefined;
     const deptName = department?.name || '未所属';
     return { ...emp, dept: deptName };
   });
@@ -419,7 +465,7 @@ app.post('/api/admin/employees', (req, res) => {
   const newId = Math.max(...employees.map(e => e.id), 0) + 1;
   let department = undefined as { id: number; name: string } | undefined;
   if (department_id !== undefined && department_id !== null) {
-    department = departments.find(d => d.id === Number(department_id));
+    department = departmentIndex.get(Number(department_id));
     if (!department) {
       return res.status(400).json({ error: 'Department not found' });
     }
@@ -433,6 +479,10 @@ app.post('/api/admin/employees', (req, res) => {
   };
   employees.push(newEmployee);
   saveData(EMPLOYEES_FILE, employees);
+  
+  // インデックスを更新
+  employeeIndex.set(newEmployee.code, employees.length - 1);
+  employeeIdIndex.set(newEmployee.id, employees.length - 1);
   
   // 新規社員の個人ページ用勤怠データを初期化（今日と明日分を作成）
   const today = new Date().toISOString().split('T')[0];
@@ -476,14 +526,17 @@ app.post('/api/admin/employees', (req, res) => {
 
 app.delete('/api/admin/employees/:id', (req, res) => {
   const id = parseInt(req.params.id);
-  const index = employees.findIndex(e => e.id === id);
+  const index = employeeIdIndex.get(id);
   
-  if (index === -1) {
+  if (index === undefined) {
     return res.status(404).json({ ok: false, error: 'Employee not found' });
   }
   
   const deletedEmployee = employees[index];
   employees.splice(index, 1);
+  
+  // インデックスを再構築（削除された要素のインデックスが変わったため）
+  initializeEmployeeIndexes();
   
   // ファイルに保存
   try {
@@ -494,6 +547,7 @@ app.delete('/api/admin/employees/:id', (req, res) => {
     console.error('❌ 社員削除ファイル保存エラー:', error);
     // 削除を元に戻す
     employees.splice(index, 0, deletedEmployee);
+    initializeEmployeeIndexes();
     res.status(500).json({ ok: false, error: 'ファイル保存に失敗しました' });
   }
 });
@@ -509,21 +563,21 @@ app.put('/api/admin/employees/:id', (req, res) => {
     return res.status(400).json({ error: '社員番号と名前は必須です' });
   }
   
-  const employeeIndex = employees.findIndex(emp => emp.id === id);
-  if (employeeIndex === -1) {
+  const employeeIndex = employeeIdIndex.get(id);
+  if (employeeIndex === undefined) {
     logger.warn(`社員が見つかりません: ID=${id}`);
     return res.status(404).json({ error: '社員が見つかりません' });
   }
   
   // 社員番号の重複チェック（自分以外）
-  const existingEmployee = employees.find(emp => emp.code === code && emp.id !== id);
-  if (existingEmployee) {
-    logger.warn(`社員番号重複: ${code} (既存ID: ${existingEmployee.id})`);
+  const existingEmployeeIndex = employeeIndex.get(code);
+  if (existingEmployeeIndex !== undefined && existingEmployeeIndex !== employeeIndex) {
+    logger.warn(`社員番号重複: ${code} (既存ID: ${employees[existingEmployeeIndex].id})`);
     return res.status(400).json({ error: 'この社員番号は既に使用されています' });
   }
   
   // 部署IDの存在チェック
-  if (department_id && !departments.find(d => d.id === department_id)) {
+  if (department_id && !departmentIndex.has(department_id)) {
     logger.warn(`部署が見つかりません: department_id=${department_id}`);
     return res.status(400).json({ error: '指定された部署が存在しません' });
   }
@@ -539,12 +593,18 @@ app.put('/api/admin/employees/:id', (req, res) => {
   
   // 部署名を更新
   if (department_id) {
-    const department = departments.find(d => d.id === department_id);
+    const department = departmentIndex.get(department_id);
     if (department) {
       employees[employeeIndex].dept = department.name;
     }
   } else {
     employees[employeeIndex].dept = '未所属';
+  }
+  
+  // インデックスを更新（社員番号が変更された場合）
+  if (oldEmployee.code !== code) {
+    employeeIndex.delete(oldEmployee.code);
+    employeeIndex.set(code, employeeIndex);
   }
   
   // ファイルに保存
@@ -665,7 +725,10 @@ app.get('/api/admin/master', (req, res) => {
         work_minutes: 0
       };
       initializedCount++;
-      logger.info(`🆕 勤怠データ作成: ${emp.name} (${emp.code}) - ${targetDate}`);
+      // 大量の社員がいる場合は個別ログを出力しない（パフォーマンス向上）
+      if (employees.length <= 50) {
+        logger.info(`🆕 勤怠データ作成: ${emp.name} (${emp.code}) - ${targetDate}`);
+      }
     }
   });
   
@@ -675,36 +738,37 @@ app.get('/api/admin/master', (req, res) => {
   }
   
   // 各社員の勤怠データを生成（社員番号順でソート）
-  const list = employees
-    .sort((a, b) => a.code.localeCompare(b.code)) // 社員番号順でソート
-    .map(emp => {
-      const key = `${targetDate}-${emp.code}`;
-      const attendance = attendanceData[key] || {};
-      
-      // 部署名は常にdepartment_idから算出（emp.deptは参照しない/フォールバックのみに使用）
-      const department = emp.department_id ? departments.find(d => d.id === emp.department_id) : undefined;
-      const deptName = department?.name || emp.dept || '未所属';
-      
-      return {
-        id: emp.id,
-        code: emp.code,
-        name: emp.name,
-        dept: deptName,
-        department_id: emp.department_id,
-        clock_in: attendance.clock_in || null,
-        clock_out: attendance.clock_out || null,
-        status: attendance.clock_in ? (attendance.clock_out ? "退勤済み" : "出勤中") : "未出勤",
-        late: attendance.late || 0,
-        early: attendance.early || 0,
-        overtime: attendance.overtime || 0,
-        night: attendance.night || 0,
-        // 土日祝日情報を追加
-        isWeekend: isWeekend(targetDate),
-        isHoliday: isHoliday(targetDate),
-        holidayName: getHolidayName(targetDate),
-        isWorkingDay: isWorkingDay(targetDate)
-      };
-    });
+  // パフォーマンス向上のため、事前にソート済みの配列を作成
+  const sortedEmployees = [...employees].sort((a, b) => a.code.localeCompare(b.code));
+  
+  const list = sortedEmployees.map(emp => {
+    const key = `${targetDate}-${emp.code}`;
+    const attendance = attendanceData[key] || {};
+    
+    // 部署名は常にdepartment_idから算出（インデックスを使用してパフォーマンス向上）
+    const department = emp.department_id ? departmentIndex.get(emp.department_id) : undefined;
+    const deptName = department?.name || emp.dept || '未所属';
+    
+    return {
+      id: emp.id,
+      code: emp.code,
+      name: emp.name,
+      dept: deptName,
+      department_id: emp.department_id,
+      clock_in: attendance.clock_in || null,
+      clock_out: attendance.clock_out || null,
+      status: attendance.clock_in ? (attendance.clock_out ? "退勤済み" : "出勤中") : "未出勤",
+      late: attendance.late || 0,
+      early: attendance.early || 0,
+      overtime: attendance.overtime || 0,
+      night: attendance.night || 0,
+      // 土日祝日情報を追加
+      isWeekend: isWeekend(targetDate),
+      isHoliday: isHoliday(targetDate),
+      holidayName: getHolidayName(targetDate),
+      isWorkingDay: isWorkingDay(targetDate)
+    };
+  });
   
   logger.info(`📋 マスターAPI応答: ${list.length}名の社員データを返します`);
   res.json({ ok: true, date: targetDate, list });
