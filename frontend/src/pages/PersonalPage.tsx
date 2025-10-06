@@ -812,39 +812,6 @@ export default function PersonalPage() {
                 </>
               )}
             </div>
-            {user && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
-                {/* ログアウトボタン */}
-                <button
-                  onClick={() => {
-                    logout();
-                    navigate('/login');
-                  }}
-                  style={{
-                    padding: '8px 16px',
-                    background: 'rgba(220, 38, 38, 0.8)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    transition: 'background 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(220, 38, 38, 1)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(220, 38, 38, 0.8)';
-                  }}
-                >
-                  🚪 ログアウト
-                </button>
-              </div>
-            )}
           </div>
 
           {/* 出勤・退勤ボタン */}
