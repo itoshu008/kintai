@@ -1109,13 +1109,23 @@ app.post('/api/admin/backups/create', (req, res) => {
     const backupName = `manual_backup_${timestamp}`;
     const backupPath = path.join(BACKUP_DIR, backupName);
     
+    logger.debug(`📁 バックアップ作成開始: ${backupName}`);
+    logger.debug(`📁 BACKUP_DIR: ${BACKUP_DIR}`);
+    logger.debug(`📁 backupPath: ${backupPath}`);
+    
     // バックアップディレクトリを作成
     if (!existsSync(BACKUP_DIR)) {
+      logger.debug(`📁 BACKUP_DIRを作成中: ${BACKUP_DIR}`);
       mkdirSync(BACKUP_DIR, { recursive: true });
+      logger.debug(`📁 BACKUP_DIR作成完了: ${existsSync(BACKUP_DIR)}`);
+    } else {
+      logger.debug(`📁 BACKUP_DIRは既に存在します: ${BACKUP_DIR}`);
     }
     
     // 手動バックアップディレクトリを作成
+    logger.debug(`📁 バックアップディレクトリを作成中: ${backupPath}`);
     mkdirSync(backupPath, { recursive: true });
+    logger.debug(`📁 バックアップディレクトリ作成完了: ${existsSync(backupPath)}`);
     
     // データファイルをコピー
     const files = ['employees.json', 'departments.json', 'attendance.json', 'holidays.json', 'personal_pages.json'];
@@ -1126,13 +1136,19 @@ app.post('/api/admin/backups/create', (req, res) => {
       const destPath = path.join(backupPath, file);
       
       if (existsSync(sourcePath)) {
+        logger.debug(`📄 ファイルコピー中: ${file} -> ${destPath}`);
         copyFileSync(sourcePath, destPath);
         const fileSize = statSync(sourcePath).size;
         backupSize += fileSize;
+        logger.debug(`📄 ファイルコピー完了: ${file} (${(fileSize / 1024).toFixed(1)}KB)`);
+      } else {
+        logger.debug(`⚠️ ファイルが存在しません: ${sourcePath}`);
       }
     });
     
     logger.info(`✅ 手動バックアップ作成: ${backupName} (${(backupSize / 1024).toFixed(1)}KB)`);
+    logger.debug(`📁 最終確認 - バックアップディレクトリ存在: ${existsSync(backupPath)}`);
+    
     res.json({ 
       ok: true, 
       message: `手動バックアップを作成しました: ${backupName}`,
@@ -1362,7 +1378,7 @@ const getBackupList = () => {
     if (!existsSync(BACKUP_DIR)) return [];
     
     return readdirSync(BACKUP_DIR)
-      .filter((file: string) => file.startsWith('backup_'))
+      .filter((file: string) => file.startsWith('backup_') || file.startsWith('manual_backup_'))
       .map((file: string) => {
         const filePath = path.join(BACKUP_DIR, file);
         const stats = statSync(filePath);
