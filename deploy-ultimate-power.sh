@@ -388,3 +388,4 @@ echo ""
 
 # 成功通知
 log_success "ULTIMATE POWER DEPLOY が正常に完了しました！"
+

@@ -153,3 +153,4 @@ echo "   View logs:    pm2 logs attendance-app"
 echo "   Check status: pm2 status"
 echo "   Restart:      pm2 restart attendance-app"
 echo "   Stop:         pm2 stop attendance-app"
+

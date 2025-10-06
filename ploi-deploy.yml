@@ -136,3 +136,4 @@ hooks:
   on_failure:
     - "echo 'Deployment failed, rolling back...'"
     - "pm2 restart attendance-app"
+

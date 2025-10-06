@@ -26,3 +26,4 @@ chmod -R 755 "$APP_DIR"
 echo "✅ Permissions fixed successfully!"
 echo ""
 echo "Now you can run: ./ploi-final-deploy.sh"
+

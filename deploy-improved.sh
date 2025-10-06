@@ -90,3 +90,4 @@ echo "🎉 Deploy Complete!"
 echo "🌐 https://zatint1991.com"
 echo "📊 PM2 Status:"
 pm2 status
+

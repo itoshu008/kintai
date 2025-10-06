@@ -410,3 +410,4 @@ echo ""
 
 # 成功通知
 log_success "ULTIMATE POWER DEPLOY (FIXED) が正常に完了しました！"
+

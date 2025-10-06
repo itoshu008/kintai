@@ -142,3 +142,4 @@ sudo netstat -tlnp | grep :8000
 **最終更新日**: 2025-10-05  
 **ステータス**: ✅ 完全解決策提供  
 **推奨**: `ploi-final-deploy.sh` を使用
+

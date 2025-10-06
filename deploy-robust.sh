@@ -72,3 +72,4 @@ echo "🌐 https://zatint1991.com"
 echo "📊 PM2 Status:"
 pm2 status
 echo "📅 Deploy completed at: $(date)"
+

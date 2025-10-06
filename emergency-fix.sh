@@ -58,3 +58,4 @@ cd backend
 echo "📋 Starting: node dist/index.js"
 echo "📋 Press Ctrl+C to stop"
 node dist/index.js
+

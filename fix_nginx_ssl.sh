@@ -89,3 +89,4 @@ curl -I --max-time 5 https://${ALT_DOMAIN}/ | sed -n '1,10p'
 set -e
 echo
 echo "✅ 完了：ブラウザで https://${DOMAIN} を確認してください。"
+

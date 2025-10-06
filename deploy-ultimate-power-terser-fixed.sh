@@ -414,3 +414,4 @@ echo ""
 
 # 成功通知
 log_success "ULTIMATE POWER DEPLOY (TERSER FIXED) が正常に完了しました！"
+

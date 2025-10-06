@@ -194,3 +194,4 @@ sudo systemctl status nginx
 **バージョン**: 1.0  
 **ステータス**: ✅ 本番デプロイ準備完了
 
+

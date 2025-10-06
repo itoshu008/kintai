@@ -72,3 +72,4 @@ netstat -tlnp | grep :8000 || echo "⚠️ Port 8000 not in use"
 
 echo "✅ SIMPLE TEST DEPLOY Complete!"
 echo "🌐 https://zatint1991.com"
+
