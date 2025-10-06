@@ -1141,8 +1141,8 @@ const autoInitializeAttendance = () => {
 
 // ==================== バックアップシステム ====================
 // バックアップ設定（軽量版）
-const BACKUP_INTERVAL = 60 * 1000; // 1分 = 60秒
-const BACKUP_COUNT = 5; // 5個のバックアップのみ保持
+const BACKUP_INTERVAL = 60 * 60 * 1000; // 60分 = 3600秒
+const BACKUP_COUNT = 24; // 24個のバックアップのみ保持（24時間分）
 const BACKUP_DIR = path.join(DATA_DIR, '..', 'backups');
 
 // ファイルのハッシュを取得（変更検出用）
@@ -1323,7 +1323,7 @@ const startBackupSystem = () => {
   }
   
   backupInterval = setInterval(createOverwriteBackup, BACKUP_INTERVAL);
-  logger.info(`🔄 上書きバックアップ開始: ${BACKUP_INTERVAL/1000}秒間隔、最大${BACKUP_COUNT}個保持`);
+  logger.info(`🔄 上書きバックアップ開始: ${BACKUP_INTERVAL/60000}分間隔、最大${BACKUP_COUNT}個保持`);
 };
 
 const stopBackupSystem = () => {
