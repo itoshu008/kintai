@@ -433,6 +433,25 @@ export default function PersonalPage() {
     return { canClock: true, reason: '' };
   };
 
+  // 退勤制限チェック関数
+  const canClockOut = () => {
+    if (!employeeCode.trim()) {
+      return { canClock: false, reason: '❌ 社員番号を入力してください' };
+    }
+    
+    // 出勤していない場合は退勤できない
+    if (!todayData?.clock_in) {
+      return { canClock: false, reason: '⚠️ 出勤していないため退勤できません。' };
+    }
+    
+    // 既に退勤済みの場合は処理を停止
+    if (todayData?.clock_out) {
+      return { canClock: false, reason: '⚠️ 本日は既に退勤済みです。1日1回のみ退勤できます。' };
+    }
+    
+    return { canClock: true, reason: '' };
+  };
+
   // 出勤
   const handleClockIn = async () => {
     console.log('🕐 出勤ボタン押下:', { employeeCode, todayData });
@@ -522,20 +541,11 @@ export default function PersonalPage() {
   const handleClockOut = async () => {
     console.log('🕕 退勤ボタン押下:', { employeeCode, todayData });
     
-    if (!employeeCode.trim()) {
-      setMsg('❌ 社員番号を入力してください');
-      return;
-    }
-    
-    // 出勤していない場合は退勤できない
-    if (!todayData?.clock_in) {
-      setMsg('⚠️ 出勤していないため退勤できません。');
-      return;
-    }
-    
-    // 既に退勤済みの場合は処理を停止
-    if (todayData?.clock_out) {
-      setMsg('⚠️ 本日は既に退勤済みです。1日1回のみ退勤できます。');
+    // 退勤制限チェック
+    const clockOutCheck = canClockOut();
+    if (!clockOutCheck.canClock) {
+      setMsg(clockOutCheck.reason);
+      console.log('退勤制限のため処理停止:', clockOutCheck.reason);
       return;
     }
     
@@ -915,44 +925,52 @@ export default function PersonalPage() {
                   );
                 })()}
 
-                <button
-                  onClick={() => {
-                    console.log('🕕 退勤ボタン状態確認:', {
-                      loading,
-                      'todayData?.clock_in': todayData?.clock_in,
-                      'todayData?.clock_out': todayData?.clock_out,
-                      disabled: loading || !todayData?.clock_in || !!todayData?.clock_out,
-                      todayData
-                    });
-                    handleClockOut();
-                  }}
-                  disabled={loading || !todayData?.clock_in || !!todayData?.clock_out}
-                  style={{
-                    padding: window.innerWidth <= 768 ? '16px 20px' : '14px 20px',
-                    border: '3px solid #dc2626',
-                    borderRadius: window.innerWidth <= 768 ? '12px' : '12px',
-                    background: todayData?.clock_out ? '#f3f4f6' : 
-                               !todayData?.clock_in ? '#e5e7eb' : '#dc2626',
-                    color: (todayData?.clock_out || !todayData?.clock_in) ? '#9ca3af' : 'white',
-                    cursor: (loading || todayData?.clock_out || !todayData?.clock_in) ? 'not-allowed' : 'pointer',
-                    fontSize: window.innerWidth <= 768 ? '18px' : '16px',
-                    fontWeight: 700,
-                    transition: 'all 0.3s ease',
-                    opacity: loading ? 0.6 : 1,
-                    flex: 1,
-                    minHeight: window.innerWidth <= 768 ? '60px' : '50px',
-                    boxShadow: window.innerWidth <= 768 ? '0 4px 8px rgba(220,38,38,0.3)' : 'none',
-                  }}
-                  title={
-                    todayData?.clock_out ? '本日は既に退勤済みです（1日1回限り）' :
-                    !todayData?.clock_in ? '出勤してから退勤してください' :
-                    '退勤を記録します'
-                  }
-                >
-                  {loading ? '⏳' : 
-                   todayData?.clock_out ? '✅ 退勤済み' : 
-                   !todayData?.clock_in ? '🚫 要出勤' : '🕕 退勤'}
-                </button>
+                {(() => {
+                  const clockOutCheck = canClockOut();
+                  const isDisabled = loading || !clockOutCheck.canClock;
+                  const isClockOutRestricted = !todayData?.clock_in && !clockOutCheck.canClock;
+                  
+                  return (
+                    <button
+                      onClick={() => {
+                        console.log('🕕 退勤ボタン状態確認:', {
+                          loading,
+                          'todayData?.clock_in': todayData?.clock_in,
+                          'todayData?.clock_out': todayData?.clock_out,
+                          disabled: isDisabled,
+                          clockOutCheck,
+                          todayData
+                        });
+                        handleClockOut();
+                      }}
+                      disabled={isDisabled}
+                      style={{
+                        padding: window.innerWidth <= 768 ? '16px 20px' : '14px 20px',
+                        border: '3px solid #dc2626',
+                        borderRadius: window.innerWidth <= 768 ? '12px' : '12px',
+                        background: isDisabled ? '#f3f4f6' : '#dc2626',
+                        color: isDisabled ? '#9ca3af' : 'white',
+                        cursor: isDisabled ? 'not-allowed' : 'pointer',
+                        fontSize: window.innerWidth <= 768 ? '18px' : '16px',
+                        fontWeight: 700,
+                        transition: 'all 0.3s ease',
+                        opacity: loading ? 0.6 : 1,
+                        flex: 1,
+                        minHeight: window.innerWidth <= 768 ? '60px' : '50px',
+                        boxShadow: window.innerWidth <= 768 ? '0 4px 8px rgba(220,38,38,0.3)' : 'none',
+                      }}
+                      title={
+                        todayData?.clock_out ? '本日は既に退勤済みです（1日1回限り）' :
+                        isClockOutRestricted ? '出勤してから退勤してください' :
+                        '退勤を記録します'
+                      }
+                    >
+                      {loading ? '⏳' : 
+                       todayData?.clock_out ? '✅ 退勤済み' : 
+                       isClockOutRestricted ? '🚫 要出勤' : '🕕 退勤'}
+                    </button>
+                  );
+                })()}
               </div>
             </div>
           )}
