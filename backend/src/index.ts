@@ -426,17 +426,24 @@ app.delete('/api/admin/departments/:id', (req, res) => {
 const employees: { id: number; code: string; name: string; department_id: number | null; dept: string }[] = loadData(EMPLOYEES_FILE, []);
 
 // 社員データのインデックスを作成（パフォーマンス向上）
-const employeeIndex = new Map<string, number>(); // code -> index
 const employeeIdIndex = new Map<number, number>(); // id -> index
+
+// code -> index
+const employeeIndexMap: Map<string, number> = new Map();
+
+// すべてのマップを作り直す
+function rebuildIndexes() {
+  employeeIdIndex.clear();
+  employeeIndexMap.clear();
+  employees.forEach((emp, index) => {
+    employeeIdIndex.set(emp.id, index);
+    if (emp.code) employeeIndexMap.set(emp.code, index);
+  });
+}
 
 // インデックスを初期化
 const initializeEmployeeIndexes = () => {
-  employeeIndex.clear();
-  employeeIdIndex.clear();
-  employees.forEach((emp, index) => {
-    employeeIndex.set(emp.code, index);
-    employeeIdIndex.set(emp.id, index);
-  });
+  rebuildIndexes();
   logger.info(`📊 社員インデックス初期化完了: ${employees.length}名`);
 };
 
@@ -481,7 +488,7 @@ app.post('/api/admin/employees', (req, res) => {
   saveData(EMPLOYEES_FILE, employees);
   
   // インデックスを更新
-  employeeIndex.set(newEmployee.code, employees.length - 1);
+  employeeIndexMap.set(newEmployee.code, employees.length - 1);
   employeeIdIndex.set(newEmployee.id, employees.length - 1);
   
   // 新規社員の個人ページ用勤怠データを初期化（今日と明日分を作成）
@@ -563,64 +570,73 @@ app.put('/api/admin/employees/:id', (req, res) => {
     return res.status(400).json({ error: '社員番号と名前は必須です' });
   }
   
-  const employeeArrayIndex = employeeIdIndex.get(id);
-  if (employeeArrayIndex === undefined) {
-    logger.warn(`社員が見つかりません: ID=${id}`);
-    return res.status(404).json({ error: '社員が見つかりません' });
+  // id で現在のインデックスを取得
+  let empIdx = employeeIdIndex.get(id);
+  if (empIdx === undefined) {
+    // 404 相当の応答
+    res.status(404).json({ message: 'not found' });
+    return;
   }
-  
-  // 社員番号の重複チェック（自分以外）
-  const existingEmployeeIndex = employeeIndex.get(code);
-  if (existingEmployeeIndex !== undefined && existingEmployeeIndex !== employeeArrayIndex) {
-    logger.warn(`社員番号重複: ${code} (既存ID: ${employees[existingEmployeeIndex].id})`);
-    return res.status(400).json({ error: 'この社員番号は既に使用されています' });
+
+  const oldEmployee = { ...employees[empIdx] };
+
+  // 入力値整形
+  const trimmedCode = typeof code === 'string' ? code.trim() : oldEmployee.code;
+
+  // code が変わる場合は一意性チェック
+  if (trimmedCode !== oldEmployee.code) {
+    const takenIdx = employeeIndexMap.get(trimmedCode);
+    if (takenIdx !== undefined && takenIdx !== empIdx) {
+      // 409 相当の応答（コード重複）
+      res.status(409).json({ message: 'code already exists' });
+      return;
+    }
   }
-  
+
   // 部署IDの存在チェック
   if (department_id && !departmentIndex.has(department_id)) {
     logger.warn(`部署が見つかりません: department_id=${department_id}`);
     return res.status(400).json({ error: '指定された部署が存在しません' });
   }
-  
-  // 社員情報を更新
-  const oldEmployee = { ...employees[employeeArrayIndex] };
-  employees[employeeArrayIndex] = {
-    ...employees[employeeArrayIndex],
-    code: code.trim(),
+
+  // 実体の更新
+  employees[empIdx] = {
+    ...oldEmployee,
+    code: trimmedCode,
     name: name.trim(),
     department_id: department_id || null
   };
-  
-  // 部署名を更新
-  if (department_id) {
-    const department = departmentIndex.get(department_id);
-    if (department) {
-      employees[employeeArrayIndex].dept = department.name;
-    }
-  } else {
-    employees[employeeArrayIndex].dept = '未所属';
+
+  // 部署名などの補完が必要ならここで再設定
+  const department = department_id ? departmentIndex.get(department_id) : undefined;
+  if (department) {
+    employees[empIdx].dept = department.name;
+  } else if (!employees[empIdx].dept) {
+    employees[empIdx].dept = '未所属';
   }
-  
-  // インデックスを更新（社員番号が変更された場合）
-  if (oldEmployee.code !== code) {
-    employeeIndex.delete(oldEmployee.code);
-    employeeIndex.set(code, employeeArrayIndex);
+
+  // マップの更新
+  // id -> index は位置が変わっていなければ念のため再設定だけ
+  employeeIdIndex.set(id, empIdx);
+
+  // code -> index は code 変更に追随
+  if (trimmedCode !== oldEmployee.code) {
+    if (oldEmployee.code) employeeIndexMap.delete(oldEmployee.code);
+    if (trimmedCode) employeeIndexMap.set(trimmedCode, empIdx);
   }
   
   // ファイルに保存
   try {
     saveData(EMPLOYEES_FILE, employees);
     logger.info(`✅ 社員情報更新成功: ${oldEmployee.name} -> ${name} (ID: ${id})`);
-    res.json({ 
-      ok: true, 
-      message: `社員情報を更新しました: ${name}`, 
-      employee: employees[employeeArrayIndex],
-      list: employees 
+    res.json({
+      ok: true,
+      employee: employees[empIdx],
     });
   } catch (error) {
     logger.error('❌ 社員更新ファイル保存エラー:', error);
     // 更新を元に戻す
-    employees[employeeArrayIndex] = oldEmployee;
+    employees[empIdx] = oldEmployee;
     res.status(500).json({ ok: false, error: 'ファイル保存に失敗しました' });
   }
 });
