@@ -563,15 +563,15 @@ app.put('/api/admin/employees/:id', (req, res) => {
     return res.status(400).json({ error: '社員番号と名前は必須です' });
   }
   
-  const employeeIndex = employeeIdIndex.get(id);
-  if (employeeIndex === undefined) {
+  const employeeArrayIndex = employeeIdIndex.get(id);
+  if (employeeArrayIndex === undefined) {
     logger.warn(`社員が見つかりません: ID=${id}`);
     return res.status(404).json({ error: '社員が見つかりません' });
   }
   
   // 社員番号の重複チェック（自分以外）
   const existingEmployeeIndex = employeeIndex.get(code);
-  if (existingEmployeeIndex !== undefined && existingEmployeeIndex !== employeeIndex) {
+  if (existingEmployeeIndex !== undefined && existingEmployeeIndex !== employeeArrayIndex) {
     logger.warn(`社員番号重複: ${code} (既存ID: ${employees[existingEmployeeIndex].id})`);
     return res.status(400).json({ error: 'この社員番号は既に使用されています' });
   }
@@ -583,9 +583,9 @@ app.put('/api/admin/employees/:id', (req, res) => {
   }
   
   // 社員情報を更新
-  const oldEmployee = { ...employees[employeeIndex] };
-  employees[employeeIndex] = {
-    ...employees[employeeIndex],
+  const oldEmployee = { ...employees[employeeArrayIndex] };
+  employees[employeeArrayIndex] = {
+    ...employees[employeeArrayIndex],
     code: code.trim(),
     name: name.trim(),
     department_id: department_id || null
@@ -595,16 +595,16 @@ app.put('/api/admin/employees/:id', (req, res) => {
   if (department_id) {
     const department = departmentIndex.get(department_id);
     if (department) {
-      employees[employeeIndex].dept = department.name;
+      employees[employeeArrayIndex].dept = department.name;
     }
   } else {
-    employees[employeeIndex].dept = '未所属';
+    employees[employeeArrayIndex].dept = '未所属';
   }
   
   // インデックスを更新（社員番号が変更された場合）
   if (oldEmployee.code !== code) {
     employeeIndex.delete(oldEmployee.code);
-    employeeIndex.set(code, employeeIndex);
+    employeeIndex.set(code, employeeArrayIndex);
   }
   
   // ファイルに保存
@@ -614,13 +614,13 @@ app.put('/api/admin/employees/:id', (req, res) => {
     res.json({ 
       ok: true, 
       message: `社員情報を更新しました: ${name}`, 
-      employee: employees[employeeIndex],
+      employee: employees[employeeArrayIndex],
       list: employees 
     });
   } catch (error) {
     logger.error('❌ 社員更新ファイル保存エラー:', error);
     // 更新を元に戻す
-    employees[employeeIndex] = oldEmployee;
+    employees[employeeArrayIndex] = oldEmployee;
     res.status(500).json({ ok: false, error: 'ファイル保存に失敗しました' });
   }
 });
