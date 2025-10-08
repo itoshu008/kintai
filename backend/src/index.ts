@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, rmSync, copyFileSync, statSync, cpSync } from 'fs';
 import { createHash } from 'crypto';
-import { registerBackupsHealth, registerBasicHealth } from "./backupsHealth.js";
+import { registerBackupsHealth } from "./backupsHealth.js";
 
 // ログレベル設定
 const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
@@ -43,7 +43,8 @@ const __dirname = dirname(__filename);
 const app = express();
 
 // ヘルス用ルートを登録（静的配信・catch-allより前に）
-registerBasicHealth(app);
+app.get("/__ping", (_req, res) => res.type("text/plain").send("pong"));
+app.get("/api/health", (_req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
 registerBackupsHealth(app);
 
 // リクエストを通過順に可視化するデバッグミドルウェアを一番最初に
