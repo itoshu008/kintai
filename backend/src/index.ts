@@ -425,29 +425,30 @@ app.delete('/api/admin/departments/:id', (req, res) => {
 // 社員管理API（永続化対応）
 const employees: { id: number; code: string; name: string; department_id: number | null; dept: string }[] = loadData(EMPLOYEES_FILE, []);
 
-// 社員データのインデックスを作成（パフォーマンス向上）
-const employeeIdIndex = new Map<number, number>(); // id -> index
+// 社員データ関連（id→index / code→index）
+const employeeIdIndex = new Map<number, number>();    // id -> index
+const employeeIndexMap = new Map<string, number>();   // code -> index
 
-// code -> index
-const employeeIndexMap: Map<string, number> = new Map();
-
-// すべてのマップを作り直す
-function rebuildIndexes() {
+function rebuildEmployeeIndexes() {
   employeeIdIndex.clear();
   employeeIndexMap.clear();
   employees.forEach((emp, index) => {
     employeeIdIndex.set(emp.id, index);
-    if (emp.code) employeeIndexMap.set(emp.code, index);
+    employeeIndexMap.set(emp.code, index);
   });
+  logger.info(`📊 社員インデックス初期化完了: ${employees.length}名`);
 }
 
-// インデックスを初期化
-const initializeEmployeeIndexes = () => {
-  rebuildIndexes();
-  logger.info(`📊 社員インデックス初期化完了: ${employees.length}名`);
-};
+// 起動時に必ず構築
+rebuildEmployeeIndexes();
 
-initializeEmployeeIndexes();
+// ヘルパー
+function findIndexById(id: number): number | undefined {
+  return employeeIdIndex.get(id);
+}
+function findIndexByCode(code: string): number | undefined {
+  return employeeIndexMap.get(code);
+}
 
 // 初期社員データは作成しない（ダミーデータ削除）
 
@@ -485,11 +486,12 @@ app.post('/api/admin/employees', (req, res) => {
     dept: department?.name || '未所属'
   };
   employees.push(newEmployee);
-  saveData(EMPLOYEES_FILE, employees);
   
-  // インデックスを更新
-  employeeIndexMap.set(newEmployee.code, employees.length - 1);
-  employeeIdIndex.set(newEmployee.id, employees.length - 1);
+  // インデックス再構築
+  rebuildEmployeeIndexes();
+  
+  // 保存
+  saveData(EMPLOYEES_FILE, employees);
   
   // 新規社員の個人ページ用勤怠データを初期化（今日と明日分を作成）
   const today = new Date().toISOString().split('T')[0];
@@ -543,7 +545,7 @@ app.delete('/api/admin/employees/:id', (req, res) => {
   employees.splice(index, 1);
   
   // インデックスを再構築（削除された要素のインデックスが変わったため）
-  initializeEmployeeIndexes();
+  rebuildEmployeeIndexes();
   
   // ファイルに保存
   try {
@@ -554,7 +556,7 @@ app.delete('/api/admin/employees/:id', (req, res) => {
     console.error('❌ 社員削除ファイル保存エラー:', error);
     // 削除を元に戻す
     employees.splice(index, 0, deletedEmployee);
-    initializeEmployeeIndexes();
+    rebuildEmployeeIndexes();
     res.status(500).json({ ok: false, error: 'ファイル保存に失敗しました' });
   }
 });
@@ -570,75 +572,39 @@ app.put('/api/admin/employees/:id', (req, res) => {
     return res.status(400).json({ error: '社員番号と名前は必須です' });
   }
   
-  // id で現在のインデックスを取得
-  let empIdx = employeeIdIndex.get(id);
+  let empIdx = findIndexById(id);
   if (empIdx === undefined) {
-    // 404 相当の応答
-    res.status(404).json({ message: 'not found' });
-    return;
+    return res.status(404).json({ error: 'Employee not found' });
   }
 
-  const oldEmployee = { ...employees[empIdx] };
-
-  // 入力値整形
-  const trimmedCode = typeof code === 'string' ? code.trim() : oldEmployee.code;
-
-  // code が変わる場合は一意性チェック
-  if (trimmedCode !== oldEmployee.code) {
-    const takenIdx = employeeIndexMap.get(trimmedCode);
-    if (takenIdx !== undefined && takenIdx !== empIdx) {
-      // 409 相当の応答（コード重複）
-      res.status(409).json({ message: 'code already exists' });
-      return;
-    }
+  // code一意性チェック
+  const existingIdx = findIndexByCode(code);
+  if (existingIdx !== undefined && existingIdx !== empIdx) {
+    return res.status(409).json({ error: 'Employee code already exists' });
   }
 
-  // 部署IDの存在チェック
-  if (department_id && !departmentIndex.has(department_id)) {
-    logger.warn(`部署が見つかりません: department_id=${department_id}`);
-    return res.status(400).json({ error: '指定された部署が存在しません' });
-  }
+  // 退避
+  const prev = { ...employees[empIdx] };
 
-  // 実体の更新
+  // 更新
   employees[empIdx] = {
-    ...oldEmployee,
-    code: trimmedCode,
-    name: name.trim(),
-    department_id: department_id || null
+    ...employees[empIdx],
+    code,
+    name,
+    department_id: department_id ?? null,
   };
 
-  // 部署名などの補完が必要ならここで再設定
+  // インデックス更新（部分更新でもOKだが、まずは安全に再構築）
+  rebuildEmployeeIndexes();
+
+  // 保存
+  saveData(EMPLOYEES_FILE, employees);
+
   const department = department_id ? departmentIndex.get(department_id) : undefined;
-  if (department) {
-    employees[empIdx].dept = department.name;
-  } else if (!employees[empIdx].dept) {
-    employees[empIdx].dept = '未所属';
-  }
-
-  // マップの更新
-  // id -> index は位置が変わっていなければ念のため再設定だけ
-  employeeIdIndex.set(id, empIdx);
-
-  // code -> index は code 変更に追随
-  if (trimmedCode !== oldEmployee.code) {
-    if (oldEmployee.code) employeeIndexMap.delete(oldEmployee.code);
-    if (trimmedCode) employeeIndexMap.set(trimmedCode, empIdx);
-  }
-  
-  // ファイルに保存
-  try {
-    saveData(EMPLOYEES_FILE, employees);
-    logger.info(`✅ 社員情報更新成功: ${oldEmployee.name} -> ${name} (ID: ${id})`);
-    res.json({
-      ok: true,
-      employee: employees[empIdx],
-    });
-  } catch (error) {
-    logger.error('❌ 社員更新ファイル保存エラー:', error);
-    // 更新を元に戻す
-    employees[empIdx] = oldEmployee;
-    res.status(500).json({ ok: false, error: 'ファイル保存に失敗しました' });
-  }
+  return res.json({
+    success: true,
+    employee: { ...employees[empIdx], dept: department?.name ?? '未所属' },
+  });
 });
 
 // 勤怠データ（永続化対応）
@@ -1267,6 +1233,15 @@ app.delete('/api/admin/backups/delete', (req, res) => {
   }
 });
 
+// バックアップヘルス確認API
+app.get('/api/admin/backups/health', (_req, res) => {
+  res.json({
+    enabled: process.env.BACKUP_ENABLED !== '0',          // 既存のフラグを返す想定
+    intervalMinutes: BACKUP_INTERVAL_MINUTES,
+    maxKeep: BACKUP_MAX_KEEP
+  });
+});
+
 // SPAのルーティング対応（API以外のリクエストをindex.htmlに転送）
 app.get('*', (req, res) => {
   logger.debug(`Wildcard route hit: ${req.path}, staticFilesEnabled: ${staticFilesEnabled}`);
@@ -1339,8 +1314,13 @@ const autoInitializeAttendance = () => {
 
 // ==================== バックアップシステム ====================
 // バックアップ設定（軽量版）
-const BACKUP_INTERVAL = 60 * 60 * 1000; // 60分 = 3600秒
-const BACKUP_COUNT = 24; // 24個のバックアップのみ保持（24時間分）
+const BACKUP_INTERVAL_MINUTES =
+  (Number.parseInt(process.env.BACKUP_INTERVAL_MINUTES ?? "60") || 60);
+const BACKUP_MAX_KEEP =
+  (Number.parseInt(process.env.BACKUP_MAX_KEEP ?? "24") || 24);
+
+const BACKUP_INTERVAL = BACKUP_INTERVAL_MINUTES * 60_000;
+const BACKUP_COUNT = BACKUP_MAX_KEEP; // 24個のバックアップのみ保持（24時間分）
 const BACKUP_DIR = path.join(DATA_DIR, '..', 'backups');
 
 // ファイルのハッシュを取得（変更検出用）
@@ -1491,7 +1471,9 @@ const startBackupSystem = () => {
   }
   
   backupInterval = setInterval(createOverwriteBackup, BACKUP_INTERVAL);
-  logger.info(`🔄 上書きバックアップ開始: ${BACKUP_INTERVAL/60000}分間隔、最大${BACKUP_COUNT}個保持`);
+  logger.info(
+    `🔄 上書きバックアップ開始: ${BACKUP_INTERVAL_MINUTES}分間隔、最大${BACKUP_MAX_KEEP}個保持`
+  );
 };
 
 const stopBackupSystem = () => {
