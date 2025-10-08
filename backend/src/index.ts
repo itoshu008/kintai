@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, rmSync, copyFileSync, statSync, cpSync } from 'fs';
 import { createHash } from 'crypto';
+import { registerBackupsHealth, registerBasicHealth } from "./backupsHealth.js";
 
 // ログレベル設定
 const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
@@ -41,11 +42,9 @@ const __dirname = dirname(__filename);
 
 const app = express();
 
-// 最上流に超早い診断ルートを追加（すべてのミドルウェアより前）
-app.get('/__ping', (_req, res) => res.type('text/plain').send('pong'));
-
-// /api/healthを上流に（静的配信や認証よりも上に）
-app.get('/api/health', (_req, res) => res.json({ ok: true }));
+// ヘルス用ルートを登録（静的配信・catch-allより前に）
+registerBasicHealth(app);
+registerBackupsHealth(app);
 
 // リクエストを通過順に可視化するデバッグミドルウェアを一番最初に
 app.use((req, _res, next) => {
@@ -62,8 +61,8 @@ app.use((req, res, next) => {
     : [
         'http://localhost:3000', 
         'http://127.0.0.1:3000', 
-        'http://localhost:8000', 
-        'http://127.0.0.1:8000'
+        'http://localhost:8001', 
+        'http://127.0.0.1:8001'
       ];
   
   const origin = req.headers.origin;
@@ -1242,14 +1241,6 @@ app.delete('/api/admin/backups/delete', (req, res) => {
   }
 });
 
-// バックアップヘルス確認API
-app.get('/api/admin/backups/health', (_req, res) => {
-  res.json({
-    enabled: process.env.BACKUP_ENABLED !== '0',          // 既存のフラグを返す想定
-    intervalMinutes: BACKUP_INTERVAL_MINUTES,
-    maxKeep: BACKUP_MAX_KEEP
-  });
-});
 
 // SPAのルーティング対応（API以外のリクエストをindex.htmlに転送）
 app.get('*', (req, res) => {
@@ -1494,10 +1485,11 @@ const stopBackupSystem = () => {
 };
 
 // ==================== サーバー起動 ====================
-const PORT = process.env.PORT || 8000;
-app.listen(PORT, () => {
-  logger.info(`Backend server running on http://127.0.0.1:${PORT}`);
-  logger.info(`Frontend will be served at http://127.0.0.1:${PORT}`);
+// listen 直前の環境変数読取をこの形に統一
+const HOST = process.env.HOST ?? '127.0.0.1';
+const PORT = Number.parseInt(process.env.PORT ?? '8001', 10);
+app.listen(PORT, HOST, () => {
+  console.log(`ℹ️ Backend server running on http://${HOST}:${PORT}`);
   logger.info(`Static files from: ${frontendPath}`);
   
   // サーバー起動時に勤怠データを自動初期化

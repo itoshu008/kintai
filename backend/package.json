@@ -7,7 +7,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
-    "dev:8000": "cross-env PORT=8000 tsx watch src/index.ts",
+    "dev:8001": "cross-env PORT=8001 tsx watch src/index.ts",
     "start:local": "tsx src/index.ts"
   },
   "dependencies": {
