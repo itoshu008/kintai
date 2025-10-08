@@ -40,6 +40,19 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
+
+// 最上流に超早い診断ルートを追加（すべてのミドルウェアより前）
+app.get('/__ping', (_req, res) => res.type('text/plain').send('pong'));
+
+// /api/healthを上流に（静的配信や認証よりも上に）
+app.get('/api/health', (_req, res) => res.json({ ok: true }));
+
+// リクエストを通過順に可視化するデバッグミドルウェアを一番最初に
+app.use((req, _res, next) => {
+  console.log(`[REQ] ${req.method} ${req.originalUrl}`);
+  next();
+});
+
 // CORS設定を環境変数から動的に設定
 app.use((req, res, next) => {
   // 環境変数から許可されたオリジンを取得
@@ -135,10 +148,6 @@ if (existsSync(frontendPath)) {
   logger.warn(`Set FRONTEND_PATH environment variable to specify custom path`);
 }
 
-// ヘルスチェック
-app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, ts: new Date().toISOString() });
-});
 
 // デバッグ用エンドポイントは本番環境でセキュリティリスクのため削除
 
