@@ -6,3 +6,4 @@ export function writeJsonAtomic(file: string, data: unknown) {
   writeFileSync(tmp, JSON.stringify(data, null, 2), { mode: 0o600 });
   renameSync(tmp, file); // 同一FSなら実質アトミック
 }
+

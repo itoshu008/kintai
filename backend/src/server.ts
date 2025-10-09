@@ -10,3 +10,4 @@ const server = app.listen(PORT, HOST, () => {
 // 保険：未処理例外の可視化
 process.on('unhandledRejection', (e) => console.error('UnhandledRejection:', e));
 process.on('uncaughtException',  (e) => console.error('UncaughtException:', e));
+
