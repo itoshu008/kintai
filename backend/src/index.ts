@@ -214,7 +214,33 @@ app.get('/api/admin/backups', (_req, res) => {
       new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );
     
-    res.json({ ok: true, backups: sortedBackups });
+    // 古いバックアップを自動削除（最新10個を保持）
+    const maxKeep = parseInt(process.env.BACKUP_MAX_KEEP || '10', 10);
+    if (sortedBackups.length > maxKeep) {
+      const toDelete = sortedBackups.slice(maxKeep);
+      const fs = require('fs');
+      
+      toDelete.forEach(async (backup) => {
+        try {
+          const backupDir = path.join(DATA_DIR, '..', 'backups', backup.id);
+          if (fs.existsSync(backupDir)) {
+            fs.rmSync(backupDir, { recursive: true, force: true });
+            console.log(`Deleted old backup: ${backup.id}`);
+          }
+        } catch (deleteError) {
+          console.error(`Failed to delete backup ${backup.id}:`, deleteError);
+        }
+      });
+      
+      // メタデータを更新
+      const remainingBackups = sortedBackups.slice(0, maxKeep);
+      const updatedMetadata = { backups: remainingBackups };
+      fs.writeFileSync(metaFile, JSON.stringify(updatedMetadata, null, 2));
+      
+      console.log(`Cleaned up ${toDelete.length} old backups, keeping ${remainingBackups.length} latest`);
+    }
+    
+    res.json({ ok: true, backups: sortedBackups.slice(0, maxKeep) });
   } catch (e) {
     console.error('Backup list error:', e);
     res.status(500).json({ ok: false, error: String(e) });
@@ -345,6 +371,61 @@ app.delete('/api/admin/backups/:backupId', async (req, res) => {
     res.json({ ok: true, message: `バックアップ ${backupId} を削除しました` });
   } catch (e) {
     console.error('Backup delete error:', e);
+    res.status(500).json({ ok: false, error: String(e) });
+  }
+});
+
+// 古いバックアップを手動クリーンアップ
+app.post('/api/admin/backups/cleanup', async (req, res) => {
+  try {
+    const { maxKeep = 10 } = req.body;
+    const metaFile = path.join(DATA_DIR, '..', 'backups', 'backup_metadata.json');
+    const metadata = safeReadJSON(metaFile, { backups: [] }) as { backups: Array<{id: string, timestamp: string, size: number}> };
+    
+    // バックアップを新しい順にソート
+    const sortedBackups = metadata.backups.sort((a, b) => 
+      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+    
+    if (sortedBackups.length <= maxKeep) {
+      return res.json({ 
+        ok: true, 
+        message: `No cleanup needed. Current backups: ${sortedBackups.length}, max keep: ${maxKeep}`,
+        deletedCount: 0,
+        remainingCount: sortedBackups.length
+      });
+    }
+    
+    const toDelete = sortedBackups.slice(maxKeep);
+    const fs = await import('fs');
+    let deletedCount = 0;
+    
+    for (const backup of toDelete) {
+      try {
+        const backupDir = path.join(DATA_DIR, '..', 'backups', backup.id);
+        if (fs.existsSync(backupDir)) {
+          fs.rmSync(backupDir, { recursive: true, force: true });
+          deletedCount++;
+          console.log(`Deleted old backup: ${backup.id}`);
+        }
+      } catch (deleteError) {
+        console.error(`Failed to delete backup ${backup.id}:`, deleteError);
+      }
+    }
+    
+    // メタデータを更新
+    const remainingBackups = sortedBackups.slice(0, maxKeep);
+    const updatedMetadata = { backups: remainingBackups };
+    fs.writeFileSync(metaFile, JSON.stringify(updatedMetadata, null, 2));
+    
+    res.json({ 
+      ok: true, 
+      message: `Cleanup completed. Deleted ${deletedCount} old backups, keeping ${remainingBackups.length} latest`,
+      deletedCount,
+      remainingCount: remainingBackups.length
+    });
+  } catch (e) {
+    console.error('Backup cleanup error:', e);
     res.status(500).json({ ok: false, error: String(e) });
   }
 });

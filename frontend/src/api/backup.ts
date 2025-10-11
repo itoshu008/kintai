@@ -68,4 +68,16 @@ export const backupApi = {
     });
     return response;
   },
+
+  // 古いバックアップをクリーンアップ
+  cleanupBackups: async (maxKeep: number = 10): Promise<{ ok: boolean; message: string; deletedCount: number; remainingCount: number }> => {
+    const response = await request('/api/admin/backups/cleanup', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ maxKeep }),
+    });
+    return response;
+  },
 };

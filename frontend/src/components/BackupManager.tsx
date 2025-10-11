@@ -99,6 +99,30 @@ export const BackupManager: React.FC<BackupManagerProps> = ({ onBackupRestore })
     setMessage('');
   };
 
+  // 古いバックアップをクリーンアップ
+  const cleanupBackups = async () => {
+    if (!confirm('古いバックアップを削除しますか？最新10個以外のバックアップが削除されます。')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setMessage('');
+      const response = await backupApi.cleanupBackups(10);
+      if (response.ok) {
+        setMessage(`クリーンアップ完了: ${response.deletedCount}個の古いバックアップを削除、${response.remainingCount}個を保持`);
+        await loadBackups(); // 一覧を更新
+      } else {
+        setMessage('クリーンアップに失敗しました');
+      }
+    } catch (error) {
+      setMessage('クリーンアップ中にエラーが発生しました');
+      console.error('Cleanup backups error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // バックアップから復元
   const restoreBackup = async (backupId: string) => {
     if (!confirm('このバックアップから復元しますか？現在のデータは上書きされます。')) {
@@ -330,23 +354,43 @@ export const BackupManager: React.FC<BackupManagerProps> = ({ onBackupRestore })
 
   return (
     <div style={{ padding: '20px' }}>
-      <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
         <h2>バックアップ管理</h2>
-        <button
-          onClick={createBackup}
-          disabled={loading}
-          style={{
-            padding: '10px 20px',
-            background: '#007bff',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: loading ? 'not-allowed' : 'pointer',
-            opacity: loading ? 0.6 : 1
-          }}
-        >
-          {loading ? '作成中...' : '新しいバックアップを作成'}
-        </button>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <button
+            onClick={cleanupBackups}
+            disabled={loading}
+            style={{
+              padding: '10px 20px',
+              background: '#dc3545',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              opacity: loading ? 0.6 : 1
+            }}
+            title="古いバックアップを削除（最新10個を保持）"
+          >
+            🗑️ 古いバックアップを削除
+          </button>
+          <button
+            onClick={createBackup}
+            disabled={loading}
+            style={{
+              padding: '10px 20px',
+              background: '#007bff',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? 0.6 : 1
+            }}
+          >
+            {loading ? '作成中...' : '新しいバックアップを作成'}
+          </button>
+        </div>
       </div>
 
       {message && (
