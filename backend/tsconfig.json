@@ -1,16 +1,16 @@
 {
   "compilerOptions": {
-    "target": "ES6",             // JavaScript のターゲットバージョン
-    "module": "commonjs",        // モジュールシステムを CommonJS に設定
-    "outDir": "./dist",          // コンパイル後のファイルの出力先
-    "rootDir": "./src",          // ソースコードが格納されているディレクトリ
-    "esModuleInterop": true,     // CommonJS モジュールのインポートをサポート
-    "strict": true               // 厳密な型チェックを有効にする
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "outDir": "dist",
+    "rootDir": "src",
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
   },
   "include": [
-    "src/**/*.ts"                // TypeScript ファイルの対象パス
-  ],
-  "exclude": [
-    "node_modules"               // `node_modules` は除外
+    "src"
   ]
 }

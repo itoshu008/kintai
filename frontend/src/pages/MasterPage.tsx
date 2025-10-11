@@ -569,7 +569,7 @@ export default function MasterPage() {
   const loadBackups = async () => {
     try {
       setBackupLoading(true);
-      const response = await fetch('https://zatint1991.com/api/admin/backups');
+      const response = await fetch('http://localhost:8002/api/admin/backups');
       const result = await response.json();
       if (result.ok) {
         setBackups(result.backups || []);
@@ -587,7 +587,7 @@ export default function MasterPage() {
   const createManualBackup = async () => {
     try {
       setBackupLoading(true);
-      const response = await fetch('https://zatint1991.com/api/admin/backup', {
+      const response = await fetch('http://localhost:8002/api/admin/backup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -613,7 +613,7 @@ export default function MasterPage() {
 
     try {
       setBackupLoading(true);
-      const response = await fetch(`https://zatint1991.com/api/admin/backups/${backupName}/restore`, {
+      const response = await fetch(`http://localhost:8002/api/admin/backups/${backupName}/restore`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ backupName })
@@ -641,7 +641,7 @@ export default function MasterPage() {
 
     try {
       setBackupLoading(true);
-      const response = await fetch(`https://zatint1991.com/api/admin/backups/${backupName}`, {
+      const response = await fetch(`http://localhost:8002/api/admin/backups/${backupName}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ backupName })
