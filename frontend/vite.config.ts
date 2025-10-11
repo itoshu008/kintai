@@ -1,5 +1,4 @@
-// vite.config.ts
-import { defineConfig } from "vite";
+// vite.config.tsimport { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { copyFileSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
@@ -60,7 +59,8 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3000,
+    // ポート番号を環境変数または指定ポートで設定
+    port: process.env.PORT || 3000,  // ポートを環境変数で指定可能
     strictPort: true,
     host: true, // 外部からのアクセスを許可
     proxy: {
@@ -85,7 +85,7 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: true,
+    sourcemap: trugitHobプッシュe,
     rollupOptions: {
       output: {
         entryFileNames: `assets/[name]-[hash]-${Math.random().toString(36).substr(2, 9)}.js`,
