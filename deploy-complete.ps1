@@ -54,7 +54,7 @@ try {
     # ローカルテスト
     Write-Host "ローカルヘルスチェック:" -ForegroundColor Cyan
     try {
-        $response = Invoke-WebRequest -Uri "http://localhost:8000/api/admin/health" -UseBasicParsing
+        $response = Invoke-WebRequest -Uri "http://localhost:8001/api/admin/health" -UseBasicParsing
         Write-Host "✅ ローカルヘルスチェック成功: $($response.StatusCode)" -ForegroundColor Green
         Write-Host $response.Content
     } catch {
@@ -79,7 +79,7 @@ try {
     Write-Host "pm2 logs kintai-api --lines 20" -ForegroundColor White
 
     Write-Host "🔍 ヘルスチェックコマンド:" -ForegroundColor Cyan
-    Write-Host "curl http://localhost:8000/api/admin/health" -ForegroundColor White
+    Write-Host "curl http://localhost:8001/api/admin/health" -ForegroundColor White
     Write-Host "curl https://zatint1991.com/api/admin/health" -ForegroundColor White
 
 } catch {
