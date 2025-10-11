@@ -38,21 +38,31 @@ app.get('/api/admin/health', (_req, res) => {
 });
 
 // 管理者API基本エンドポイント
-app.get('/api/admin', (_req, res) => {
-  res.status(200).json({ 
-    message: 'Admin endpoint is working!',
-    timestamp: new Date().toISOString(),
-    version: '1.0.0',
-    endpoints: [
-      'GET /api/admin/health - ヘルスチェック',
-      'GET /api/admin/departments - 部署一覧',
-      'POST /api/admin/departments - 部署作成',
-      'GET /api/admin/employees - 社員一覧',
-      'POST /api/admin/employees - 社員作成',
-      'GET /api/admin/master - マスターデータ',
-      'GET /api/admin/attendance - 勤怠データ'
-    ]
-  });
+app.get('/api/admin', (req, res) => {
+  try {
+    console.log(`[API] GET /api/admin - ${req.ip} - ${new Date().toISOString()}`);
+    res.status(200).json({ 
+      message: 'Admin endpoint is working!',
+      timestamp: new Date().toISOString(),
+      version: '1.0.0',
+      endpoints: [
+        'GET /api/admin/health - ヘルスチェック',
+        'GET /api/admin/departments - 部署一覧',
+        'POST /api/admin/departments - 部署作成',
+        'GET /api/admin/employees - 社員一覧',
+        'POST /api/admin/employees - 社員作成',
+        'GET /api/admin/master - マスターデータ',
+        'GET /api/admin/attendance - 勤怠データ'
+      ]
+    });
+  } catch (error) {
+    console.error('[API ERROR] /api/admin:', error);
+    res.status(200).json({
+      ok: false,
+      error: 'Internal server error',
+      message: 'Admin endpoint error occurred'
+    });
+  }
 });
 
 // セッション管理API
@@ -901,6 +911,26 @@ const PORT = Number(process.env.PORT) || 8001; // 環境変数から読み込み
 
 const server = app.listen(PORT, HOST, () => {
   console.log(`ℹ️ Backend server running on http://${HOST}:${PORT}`);
+});
+
+// グローバルエラーハンドラー
+app.use((err: any, req: any, res: any, next: any) => {
+  console.error('[GLOBAL ERROR]', err);
+  res.status(200).json({
+    ok: false,
+    error: 'Internal server error',
+    message: 'An unexpected error occurred'
+  });
+});
+
+// 404ハンドラー
+app.use('*', (req, res) => {
+  console.log(`[404] ${req.method} ${req.originalUrl} - ${req.ip}`);
+  res.status(200).json({
+    ok: false,
+    error: 'Not found',
+    message: `Route ${req.method} ${req.originalUrl} not found`
+  });
 });
 
 process.on('SIGINT', () => server.close(() => process.exit(0)));
