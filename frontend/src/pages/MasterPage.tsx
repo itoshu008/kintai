@@ -784,7 +784,7 @@ export default function MasterPage() {
   return (
     <div style={{
       padding: window.innerWidth <= 768 ? '12px' : '24px', 
-      background:'#f8f9fa', 
+      background:'#e3f2fd', 
       minHeight:'100vh',
       overflow: 'auto',
       WebkitOverflowScrolling: 'touch'
