@@ -9,15 +9,15 @@ export default defineConfig({
     strictPort: true,
     host: true, // 外部からのアクセスを許可
     proxy: {
-      // アテンダンス管理API -> 8001
+      // アテンダンス管理API -> 3000
       "/api/admin": {
-        target: "http://localhost:8001",
+        target: "http://localhost:3000",
         changeOrigin: true,
         secure: false,
       },
-      // 一般API -> 8001
+      // 一般API -> 3000
       "/api": {
-        target: "http://localhost:8001",
+        target: "http://localhost:3000",
         changeOrigin: true,
         secure: false,
       },

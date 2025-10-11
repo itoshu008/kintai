@@ -29,7 +29,7 @@ const CursorCommandPage: React.FC = () => {
     setResponse(null);
 
     try {
-      const result = await fetch('http://localhost:3000/api/cursor-command', {
+      const result = await fetch('/api/cursor-command', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
