@@ -1,6 +1,6 @@
 import { request } from '../lib/request';
 
-const BASE = "http://localhost:8002/api/admin";
+const BASE = "https://zatint1991.com/api/admin";
 
 export interface BackupInfo {
   id: string;
