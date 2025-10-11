@@ -1,4 +1,5 @@
 // vite.config.tsimport { defineConfig } from "vite";
+import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { copyFileSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
@@ -59,27 +60,27 @@ export default defineConfig({
     },
   },
   server: {
-    // ポート番号を環境変数または指定ポートで設定
-    port: process.env.PORT || 3000,  // ポートを環境変数で指定可能
-    strictPort: true,
+    // ポート 8001 に設定（開発サーバー）
+    port: 8001,
+    strictPort: true, // ポートがすでに使われていたらエラーを出す
     host: true, // 外部からのアクセスを許可
     proxy: {
       // アテンダンス管理API -> 8001
       "/api/admin": {
-        target: "http://localhost:8001",
+        target: "http://localhost:8001", // APIサーバーも8001
         changeOrigin: true,
         secure: false,
       },
       // 一般API -> 8001
       "/api": {
-        target: "http://localhost:8001",
+        target: "http://localhost:8001", // APIサーバーも8001
         changeOrigin: true,
         secure: false,
       },
     },
   },
   preview: {
-    port: 4173,
+    port: 4173, // プレビュー用ポート
     strictPort: true,
     host: true,
   },
