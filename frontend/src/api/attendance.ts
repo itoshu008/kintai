@@ -11,9 +11,85 @@ import {
 
 const BASE = "/api";
 
-// モック機能を完全に無効化
-const USE_MOCK = false;
-const mock = null as any;
+// 一時的にモック機能を有効化（デプロイ完了まで）
+const USE_MOCK = true;
+
+// 一時的なモック実装
+const mock = {
+  health: () => Promise.resolve({ ok: true, ts: new Date().toISOString() }),
+  master: (date?: string) => Promise.resolve({ 
+    ok: true, 
+    data: [], 
+    departments: [
+      { id: 1, name: "メディアプロダクト部" },
+      { id: 2, name: "営業企画部" },
+      { id: 3, name: "総務経理部" }
+    ]
+  }),
+  clockIn: (code: string, note?: string) => Promise.resolve({ 
+    ok: true, 
+    message: '出勤打刻が完了しました',
+    checkin: new Date().toISOString()
+  }),
+  clockOut: (code: string) => Promise.resolve({ 
+    ok: true, 
+    message: '退勤打刻が完了しました',
+    checkout: new Date().toISOString()
+  }),
+  employees: () => Promise.resolve({ 
+    ok: true, 
+    employees: [
+      { id: 1, code: "EMP001", name: "田中太郎", department_id: 1, dept: "メディアプロダクト部" },
+      { id: 2, code: "EMP002", name: "佐藤花子", department_id: 2, dept: "営業企画部" }
+    ]
+  }),
+  createEmployee: (code: string, name: string, department_id?: number) => Promise.resolve({ 
+    ok: true, 
+    employee: { id: 3, code, name, department_id, dept: "新部署" },
+    message: '社員が作成されました'
+  }),
+  updateEmployee: (originalCode: string, data: any) => Promise.resolve({ 
+    ok: true, 
+    employee: { id: 1, ...data },
+    message: '社員が更新されました'
+  }),
+  deleteEmployee: (id: number) => Promise.resolve({ 
+    ok: true, 
+    message: '社員が削除されました'
+  }),
+  departments: () => Promise.resolve({ 
+    ok: true, 
+    departments: [
+      { id: 1, name: "メディアプロダクト部" },
+      { id: 2, name: "営業企画部" },
+      { id: 3, name: "総務経理部" }
+    ]
+  }),
+  createDepartment: (name: string) => Promise.resolve({ 
+    ok: true, 
+    department: { id: 4, name },
+    message: '部署が作成されました'
+  }),
+  updateDepartment: (id: number, name: string) => Promise.resolve({ 
+    ok: true, 
+    department: { id, name },
+    message: '部署が更新されました'
+  }),
+  deleteDepartment: (id: number) => Promise.resolve({ 
+    ok: true, 
+    message: '部署が削除されました'
+  }),
+  getHolidays: () => Promise.resolve({ 
+    ok: true, 
+    holidays: {} 
+  }),
+  checkHoliday: (date: string) => Promise.resolve({ 
+    ok: true, 
+    date,
+    isHoliday: false,
+    holidayName: null
+  })
+};
 
 // 開発環境でのみデバッグログを表示
 if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
