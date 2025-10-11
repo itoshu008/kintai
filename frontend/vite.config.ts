@@ -1,4 +1,4 @@
-// vite.config.tsimport { defineConfig } from "vite";
+// vite.config.ts
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { copyFileSync, readFileSync, writeFileSync } from "fs";

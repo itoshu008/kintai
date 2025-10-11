@@ -37,6 +37,24 @@ app.get('/api/admin/health', (_req, res) => {
   }
 });
 
+// 管理者API基本エンドポイント
+app.get('/api/admin', (_req, res) => {
+  res.status(200).json({ 
+    message: 'Admin endpoint is working!',
+    timestamp: new Date().toISOString(),
+    version: '1.0.0',
+    endpoints: [
+      'GET /api/admin/health - ヘルスチェック',
+      'GET /api/admin/departments - 部署一覧',
+      'POST /api/admin/departments - 部署作成',
+      'GET /api/admin/employees - 社員一覧',
+      'POST /api/admin/employees - 社員作成',
+      'GET /api/admin/master - マスターデータ',
+      'GET /api/admin/attendance - 勤怠データ'
+    ]
+  });
+});
+
 // セッション管理API
 const sessions = new Map<string, { user: any; createdAt: Date; expiresAt: Date }>();
 
