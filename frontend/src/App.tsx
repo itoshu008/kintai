@@ -21,14 +21,17 @@ export default function App(){
         
         // 5xxエラーまたは接続エラーの場合
         if (response.status >= 500 || !response.ok) {
-          setIsMaintenance(true);
+          console.warn('API接続エラー:', response.status, response.statusText);
+          // 一時的にメンテナンス画面を無効化
+          setIsMaintenance(false);
         } else {
           setIsMaintenance(false);
         }
       } catch (error) {
         // 接続エラーの場合
         console.error('API接続エラー:', error);
-        setIsMaintenance(true);
+        // 一時的にメンテナンス画面を無効化
+        setIsMaintenance(false);
       } finally {
         setIsChecking(false);
       }
