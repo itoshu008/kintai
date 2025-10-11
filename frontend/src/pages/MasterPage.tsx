@@ -587,7 +587,7 @@ export default function MasterPage() {
   const createManualBackup = async () => {
     try {
       setBackupLoading(true);
-      const response = await fetch('/api/admin/backups/create', {
+      const response = await fetch('https://zatint1991.com/api/admin/backup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
