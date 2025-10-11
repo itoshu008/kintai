@@ -1,17 +1,29 @@
 {
-    "compilerOptions": {
-        "target": "ES6", // 出力のターゲットをES6に設定
-        "module": "ES2020", // ESモジュールの設定を使用
-        "moduleResolution": "node", // Node.jsのモジュール解決方法
-        "esModuleInterop": true, // ESモジュールのインポートをサポート
-        "skipLibCheck": true, // ライブラリの型チェックをスキップ（エラー回避のため）
-        "forceConsistentCasingInFileNames": true, // ファイル名の一貫性を強制
-        "outDir": "./dist", // コンパイル後のファイル出力先
-        "rootDir": "./src", // ソースコードのルートディレクトリ
-        "strict": true, // 厳密な型チェック
-        "resolveJsonModule": true // JSONファイルのインポートを許可
-    },
-    "include": [
-        "src/**/*.ts" // srcディレクトリ内の全てのTypeScriptファイルを対象
-    ]
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "lib": ["esnext"],
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "skipDefaultLibCheck": true,
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }
