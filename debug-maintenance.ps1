@@ -40,9 +40,9 @@ try {
     }
 
     # 部署APIテスト
-    Write-Host "部署API (http://localhost:3000/api/admin/departments):" -ForegroundColor Yellow
+    Write-Host "部署API (http://localhost:8001/api/admin/departments):" -ForegroundColor Yellow
     try {
-        $response = Invoke-WebRequest -Uri "http://localhost:3000/api/admin/departments" -UseBasicParsing -TimeoutSec 5
+        $response = Invoke-WebRequest -Uri "http://localhost:8001/api/admin/departments" -UseBasicParsing -TimeoutSec 5
         Write-Host "✅ 成功: $($response.StatusCode)" -ForegroundColor Green
         Write-Host "レスポンス: $($response.Content)" -ForegroundColor White
     } catch {

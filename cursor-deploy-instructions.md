@@ -139,7 +139,7 @@ npm run dev
    curl http://localhost:8000/api/admin/backups/health
 
 2. フロントエンドの動作確認
-   curl http://localhost:3000
+   curl http://localhost:8001
 
 3. ログの確認
    pm2 logs --lines 10

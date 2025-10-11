@@ -110,7 +110,7 @@ pm2 restart kintai-backend
 curl http://localhost:8000/api/admin/backups/health
 
 # フロントエンドの確認
-curl http://localhost:3000
+curl http://localhost:8001
 ```
 
 ### 2. ログ確認

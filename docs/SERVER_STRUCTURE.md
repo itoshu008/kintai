@@ -22,7 +22,7 @@
 **ファイル**: `frontend/server.js`
 
 - **役割**: 静的ファイル配信サーバー（開発・テスト用）
-- **ポート**: 3000 (環境変数 `PORT` で変更可能)
+- **ポート**: 8001 (環境変数 `PORT` で変更可能)
 - **ホスト**: 127.0.0.1 (環境変数 `HOST` で変更可能)
 - **機能**:
   - React SPAの静的ファイル配信
@@ -53,7 +53,7 @@
   script: './frontend/server.js',
   env: {
     NODE_ENV: 'production',
-    PORT: 3000,
+    PORT: 8001,
     HOST: '127.0.0.1',
     TZ: 'Asia/Tokyo'
   }
@@ -101,7 +101,7 @@ pm2 start frontend/server.js --name kintai-frontend
 - `TZ`: タイムゾーン (デフォルト: Asia/Tokyo)
 
 ### フロントエンド
-- `PORT`: サーバーポート (デフォルト: 3000)
+- `PORT`: サーバーポート (デフォルト: 8001)
 - `HOST`: サーバーホスト (デフォルト: 127.0.0.1)
 - `NODE_ENV`: 環境 (production/development)
 

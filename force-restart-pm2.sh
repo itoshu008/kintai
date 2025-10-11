@@ -45,10 +45,10 @@ pm2 kill 2>/dev/null || true
 sleep 3
 log_success "PM2完全停止完了"
 
-# ポート3000を解放
-log_info "ポート3000を解放中..."
-sudo fuser -k 3000/tcp 2>/dev/null || true
-pkill -f "node.*3000" 2>/dev/null || true
+# ポート8001を解放
+log_info "ポート8001を解放中..."
+sudo fuser -k 8001/tcp 2>/dev/null || true
+pkill -f "node.*8001" 2>/dev/null || true
 sleep 2
 
 # バックエンドを再ビルド

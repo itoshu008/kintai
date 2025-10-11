@@ -157,7 +157,7 @@ curl -I http://localhost:8000/api/admin/employees
 "フロントエンドの動作を確認してください。"
 
 # 実行コマンド
-curl -I http://localhost:3000
+curl -I http://localhost:8001
 curl -I https://zatint1991.com
 ```
 

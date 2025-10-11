@@ -21,9 +21,9 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
-    # API プロキシ設定（ポート3000に変更）
+    # API プロキシ設定（ポート8001に変更）
     location /api/ {
-        proxy_pass http://127.0.0.1:3000;
+        proxy_pass http://127.0.0.1:8001;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';

@@ -12,14 +12,14 @@ Write-Host "📋 最新のログ (最後の20行):" -ForegroundColor Cyan
 pm2 logs kintai-api --lines 20
 
 # 3. ポート確認
-Write-Host "🔌 ポート3000の使用状況:" -ForegroundColor Cyan
+Write-Host "🔌 ポート8001の使用状況:" -ForegroundColor Cyan
 try {
-    $portCheck = netstat -an | Select-String ":3000"
+    $portCheck = netstat -an | Select-String ":8001"
     if ($portCheck) {
-        Write-Host "✅ ポート3000でリスニング中" -ForegroundColor Green
+        Write-Host "✅ ポート8001でリスニング中" -ForegroundColor Green
         Write-Host $portCheck
     } else {
-        Write-Host "❌ ポート3000でリスニングしていません" -ForegroundColor Red
+        Write-Host "❌ ポート8001でリスニングしていません" -ForegroundColor Red
     }
 } catch {
     Write-Host "⚠️ ポート確認でエラー: $($_.Exception.Message)" -ForegroundColor Yellow
@@ -29,9 +29,9 @@ try {
 Write-Host "🏥 ヘルスチェックテスト:" -ForegroundColor Cyan
 
 # ローカルテスト
-Write-Host "ローカル (http://localhost:3000/api/admin/health):" -ForegroundColor Yellow
+Write-Host "ローカル (http://localhost:8001/api/admin/health):" -ForegroundColor Yellow
 try {
-    $response = Invoke-WebRequest -Uri "http://localhost:3000/api/admin/health" -UseBasicParsing -TimeoutSec 5
+    $response = Invoke-WebRequest -Uri "http://localhost:8001/api/admin/health" -UseBasicParsing -TimeoutSec 5
     Write-Host "✅ 成功: $($response.StatusCode)" -ForegroundColor Green
     Write-Host "レスポンス: $($response.Content)" -ForegroundColor White
 } catch {

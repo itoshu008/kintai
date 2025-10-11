@@ -61,7 +61,7 @@ Write-Host "📝 バックエンドログ:" -ForegroundColor Yellow
 pm2 logs kintai-backend --lines 10
 
 Write-Host "✅ バックエンドPM2起動完了！" -ForegroundColor Green
-Write-Host "🌐 アクセス: http://localhost:3000" -ForegroundColor Cyan
+Write-Host "🌐 アクセス: http://localhost:8001" -ForegroundColor Cyan
 Write-Host "📊 ステータス確認: pm2 status" -ForegroundColor Cyan
 Write-Host "📝 ログ確認: pm2 logs kintai-backend" -ForegroundColor Cyan
 

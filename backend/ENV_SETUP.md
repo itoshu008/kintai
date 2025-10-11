@@ -26,7 +26,7 @@ DB_NAME=attendance
 
 # サーバー設定
 HOST=127.0.0.1
-PORT=3000
+PORT=8001
 NODE_ENV=development
 
 # データディレクトリ設定
@@ -36,7 +36,7 @@ DATA_DIR=./data
 LOG_LEVEL=info
 
 # CORS設定（カンマ区切りで複数指定可能）
-CORS_ORIGIN=http://localhost:3000,http://127.0.0.1:3000
+CORS_ORIGIN=http://localhost:8001,http://127.0.0.1:8001
 
 # タイムゾーン
 TZ=Asia/Tokyo
@@ -65,7 +65,7 @@ CURSOR_AUTH_TOKEN=admin123
 
 #### サーバー設定
 - `HOST`: サーバーのホスト（通常は`127.0.0.1`）
-- `PORT`: サーバーのポート（現在は`3000`に設定）
+- `PORT`: サーバーのポート（現在は`8001`に設定）
 - `NODE_ENV`: 実行環境（`development`または`production`）
 
 #### セキュリティ設定
