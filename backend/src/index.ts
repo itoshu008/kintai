@@ -20,6 +20,27 @@ app.get('/api/health', (_req, res) =>
   res.json({ ok: true, ts: new Date().toISOString() })
 );
 
+// 管理者用ヘルスチェック
+app.get('/api/admin/health', (_req, res) => {
+  try {
+    res.json({ 
+      ok: true, 
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      version: '1.0.0',
+      environment: process.env.NODE_ENV || 'development'
+    });
+  } catch (error) {
+    console.error('Health check error:', error);
+    res.status(500).json({ 
+      ok: false, 
+      status: 'unhealthy',
+      error: 'Internal server error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // ---- ここから互換ミニ版：データ読み取りだけ実装 ----
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
