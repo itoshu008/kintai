@@ -784,7 +784,7 @@ export default function MasterPage() {
   return (
     <div style={{
       padding: window.innerWidth <= 768 ? '12px' : '24px', 
-      background:'#e3f2fd', 
+      background:'#000000', 
       minHeight:'100vh',
       overflow: 'auto',
       WebkitOverflowScrolling: 'touch'
@@ -802,11 +802,11 @@ export default function MasterPage() {
         gap: window.innerWidth <= 768 ? '12px' : '0'
       }}>
         <div style={{display:'flex', alignItems:'center', gap: 24}}>
-          <h1 style={{margin:0, fontSize:'28px', fontWeight:'600', color:'#2c3e50'}}>勤怠管理ページ</h1>
+            <h1 style={{margin:0, fontSize:'28px', fontWeight:'600', color:'#ffffff'}}>勤怠管理ページ</h1>
           
           {/* 月選択を大きく移動 */}
           <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
-            <label style={{fontSize: 18, fontWeight: 600, color: '#374151'}}>月選択:</label>
+            <label style={{fontSize: 18, fontWeight: 600, color: '#ffffff'}}>月選択:</label>
             <input 
               type="month" 
               value={date.slice(0, 7)}
