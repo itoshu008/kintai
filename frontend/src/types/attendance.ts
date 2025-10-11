@@ -55,11 +55,9 @@ export interface ApiResponse<T = any> {
   error?: string;
   date?: string;
   timestamp?: string;
-  // 備考関連のプロパティ
   remark?: string;
   remarks?: { [key: string]: string };
   employeeCode?: string;
-  // 祝日関連のプロパティ
   holidays?: { [key: string]: string };
   isHoliday?: boolean;
   holidayName?: string;
@@ -80,10 +78,8 @@ export interface HealthResponse {
   ts: string;
 }
 
-// API関数の型定義
 export type ApiFunction<T = any, P = any> = (params?: P) => Promise<T>;
 
-// エラーレスポンスの型
 export interface ErrorResponse {
   error: {
     code: number;

@@ -1,264 +1,367 @@
 // src/api/attendance.ts
-import { request } from "../lib/request";
-import { 
-  MasterRow, 
-  Department, 
-  Employee, 
-  ApiResponse, 
-  ClockResponse, 
-  HealthResponse 
-} from "../types/attendance";
+import { MasterRow, Department, Employee, ApiResponse, ClockResponse, HealthResponse, AttendanceRecord } from '../types/attendance';
 
-const BASE = "/api";
+// APIのベースURL
+const API_BASE_URL = 'http://localhost:8001/api';
 
-// 一時的にモック機能を有効化（404エラー回避のため）
-const USE_MOCK = true;
-
-// 一時的なモック実装
-const mock = {
-  health: () => Promise.resolve({ ok: true, ts: new Date().toISOString() }),
-  master: (date?: string) => Promise.resolve({ 
-    ok: true, 
-    data: [], 
-    departments: [
-      { id: 1, name: "メディアプロダクト部" },
-      { id: 2, name: "営業企画部" },
-      { id: 3, name: "総務経理部" }
-    ]
-  }),
-  clockIn: (code: string, note?: string) => Promise.resolve({ 
-    ok: true, 
-    message: '出勤打刻が完了しました',
-    checkin: new Date().toISOString()
-  }),
-  clockOut: (code: string) => Promise.resolve({ 
-    ok: true, 
-    message: '退勤打刻が完了しました',
-    checkout: new Date().toISOString()
-  }),
-  employees: () => Promise.resolve({ 
-    ok: true, 
-    employees: [
-      { id: 1, code: "EMP001", name: "田中太郎", department_id: 1, dept: "メディアプロダクト部" },
-      { id: 2, code: "EMP002", name: "佐藤花子", department_id: 2, dept: "営業企画部" }
-    ]
-  }),
-  createEmployee: (code: string, name: string, department_id?: number) => Promise.resolve({ 
-    ok: true, 
-    employee: { id: 3, code, name, department_id, dept: "新部署" },
-    message: '社員が作成されました'
-  }),
-  updateEmployee: (originalCode: string, data: any) => Promise.resolve({ 
-    ok: true, 
-    employee: { id: 1, ...data },
-    message: '社員が更新されました'
-  }),
-  deleteEmployee: (id: number) => Promise.resolve({ 
-    ok: true, 
-    message: '社員が削除されました'
-  }),
-  departments: () => Promise.resolve({ 
-    ok: true, 
-    departments: [
-      { id: 1, name: "メディアプロダクト部" },
-      { id: 2, name: "営業企画部" },
-      { id: 3, name: "総務経理部" }
-    ]
-  }),
-  createDepartment: (name: string) => Promise.resolve({ 
-    ok: true, 
-    department: { id: 4, name },
-    message: '部署が作成されました'
-  }),
-  updateDepartment: (id: number, name: string) => Promise.resolve({ 
-    ok: true, 
-    department: { id, name },
-    message: '部署が更新されました'
-  }),
-  deleteDepartment: (id: number) => Promise.resolve({ 
-    ok: true, 
-    message: '部署が削除されました'
-  }),
-  getHolidays: () => Promise.resolve({ 
-    ok: true, 
-    holidays: {} 
-  }),
-  checkHoliday: (date: string) => Promise.resolve({ 
-    ok: true, 
-    date,
-    isHoliday: false,
-    holidayName: null
-  })
+// ヘルスチェックAPI
+export const healthCheck = async (): Promise<HealthResponse> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/health`);
+    if (!response.ok) {
+      throw new Error('Failed to check health');
+    }
+    const data: HealthResponse = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error checking health:', error);
+    return { ok: false, ts: '' };
+  }
 };
 
-// 開発環境でのみデバッグログを表示
-if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
-  console.log('🔧 API設定:', { 
-    BASE, 
-    USE_MOCK, 
-    hasMock: !!mock, 
-    env: (import.meta as any).env?.VITE_USE_MOCK,
-    NODE_ENV: process.env.NODE_ENV 
-  });
-}
-
-export const api = {
-  // ヘルスチェック
-  health: async (): Promise<HealthResponse> => {
-    if (USE_MOCK && mock) return mock.health();
-    return request(`${BASE}/health`);
-  },
-
-  // マスターデータ取得
-  master: async (
-    date?: string, 
-    sort?: 'late' | 'early' | 'overtime' | 'night', 
-    department?: number
-  ): Promise<ApiResponse<MasterRow>> => {
-    if (USE_MOCK && mock) return mock.master(date);
-    const q = new URLSearchParams(); 
-    if (date) q.set('date', date); 
-    if (sort) q.set('sort', sort);
-    if (department) q.set('department', String(department));
-    const url = `${BASE}/admin/master?${q}`;
-    
-    if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
-      console.log('API呼び出し: master', { date, sort, department, url });
+// 部署一覧取得
+export const fetchDepartments = async (): Promise<ApiResponse<Department[]>> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/departments`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch departments');
     }
-    return request(url);
-  },
-  weekly: async (start?: string) => {
-    const q = new URLSearchParams(); if (start) q.set('start', start);
-    return request(`${BASE}/admin/weekly?${q}`);
-  },
-  // 出勤打刻
-  clockIn: async (code: string, note?: string): Promise<ClockResponse> => {
-    if (USE_MOCK && mock) {
-      return mock.clockIn(code, note);
-    }
-    return request(`${BASE}/attendance/checkin`, {
-      method: 'POST',
-      body: JSON.stringify({ code, note })
-    });
-  },
+    const data: ApiResponse<Department[]> = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching departments:', error);
+    return { ok: false, error: (error as Error).message };
+  }
+};
 
-  // 退勤打刻
-  clockOut: async (code: string): Promise<ClockResponse> => {
-    if (USE_MOCK && mock) {
-      return mock.clockOut(code);
-    }
-    return request(`${BASE}/attendance/checkout`, {
-      method: 'POST',
-      body: JSON.stringify({ code })
-    });
-  },
-
-  // 社員一覧・登録・更新
-  listEmployees: async () => {
-    if (USE_MOCK && mock) return mock.employees();
-    return request(`${BASE}/admin/employees`);
-  },
-  
-  createEmployee: async (code: string, name: string, department_id?: number) => {
-    if (USE_MOCK && mock) return mock.createEmployee(code, name, department_id);
-    return request(`${BASE}/admin/employees`, {
-      method: 'POST',
-      body: JSON.stringify({ code, name, department_id })
-    });
-  },
-  
-  updateEmployee: async (originalCode: string, data: {code: string, name: string, department_id: number}) => {
-    if (USE_MOCK && mock) return mock.updateEmployee(originalCode, data);
-    console.log('API呼び出し: updateEmployee', { originalCode, data, url: `${BASE}/admin/employees/${originalCode}` });
-    return request(`${BASE}/admin/employees/${originalCode}`, {
-      method: 'PUT',
-      body: JSON.stringify(data)
-    });
-  },
-  
-  deleteEmployee: async (id: number) => {
-    if (USE_MOCK && mock) return mock.deleteEmployee(id);
-    console.log('API呼び出し: deleteEmployee', { id, url: `${BASE}/admin/employees/${id}` });
-    return request(`${BASE}/admin/employees/${id}`, {
-      method: 'DELETE'
-    });
-  },
-  
-  // 部署管理
-  listDepartments: async () => {
-    if (USE_MOCK && mock) return mock.departments();
-    console.log('API呼び出し: listDepartments', { url: `${BASE}/admin/departments` });
-    return request(`${BASE}/admin/departments`);
-  },
-  
-  createDepartment: async (name: string) => {
-    if (USE_MOCK && mock) return mock.createDepartment(name);
-    return request(`${BASE}/admin/departments`, {
-      method: 'POST',
-      body: JSON.stringify({name})
-    });
-  },
-  
-  updateDepartment: async (id: number, name: string) => {
-    if (USE_MOCK && mock) return mock.updateDepartment(id, name);
-    return request(`${BASE}/admin/departments/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify({name})
-    });
-  },
-  
-  deleteDepartment: async (id: number) => {
-    if (USE_MOCK && mock) return mock.deleteDepartment(id);
-    return request(`${BASE}/admin/departments/${id}`, {
-      method: 'DELETE'
-    });
-  },
-  
-  // 備考関連API
-  saveRemark: async (employeeCode: string, date: string, remark: string) =>
-    request(`${BASE}/admin/remarks`, {
+// 部署作成
+export const createDepartment = async (name: string): Promise<ApiResponse<Department>> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/departments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ employeeCode, date, remark })
-    }),
+      body: JSON.stringify({ name }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to create department');
+    }
+    const data: ApiResponse<Department> = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error creating department:', error);
+    return { ok: false, error: (error as Error).message };
+  }
+};
 
-  getRemark: async (employeeCode: string, date: string) =>
-    request(`${BASE}/admin/remarks/${employeeCode}/${date}`),
+// 部署更新
+export const updateDepartment = async (id: number, name: string): Promise<ApiResponse<Department>> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/departments/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update department');
+    }
+    const data: ApiResponse<Department> = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error updating department:', error);
+    return { ok: false, error: (error as Error).message };
+  }
+};
 
-  getRemarks: async (employeeCode: string, month?: string) => {
-    const query = month ? `?month=${month}` : '';
-    return request(`${BASE}/admin/remarks/${employeeCode}${query}`);
-  },
+// 部署削除
+export const deleteDepartment = async (id: number): Promise<ApiResponse> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/departments/${id}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to delete department');
+    }
+    const data: ApiResponse = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error deleting department:', error);
+    return { ok: false, error: (error as Error).message };
+  }
+};
 
-  // 祝日関連API
-  getHolidays: async () => {
-    if (USE_MOCK && mock) return mock.getHolidays();
-    return request(`${BASE}/admin/holidays`);
-  },
+// 社員一覧取得
+export const fetchEmployees = async (): Promise<ApiResponse<Employee[]>> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/employees`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch employees');
+    }
+    const data: ApiResponse<Employee[]> = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching employees:', error);
+    return { ok: false, error: (error as Error).message };
+  }
+};
 
-  checkHoliday: async (date: string) => {
-    if (USE_MOCK && mock) return mock.checkHoliday(date);
-    return request(`${BASE}/admin/holidays/${date}`);
-  },
+// 特定の社員情報取得
+export const fetchEmployee = async (employeeId: number): Promise<ApiResponse<Employee>> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/employees/${employeeId}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch employee');
+    }
+    const data: ApiResponse<Employee> = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching employee:', error);
+    return { ok: false, error: (error as Error).message };
+  }
+};
 
-  // セッション管理
-  saveSession: async (userData: { code: string; name: string; department: string; rememberMe?: boolean }) => {
-    console.log('API呼び出し: saveSession', userData);
-    return request(`${BASE}/admin/sessions`, {
+// 社員作成
+export const createEmployee = async (code: string, name: string, department_id?: number): Promise<ApiResponse<Employee>> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/employees`, {
       method: 'POST',
-      body: JSON.stringify(userData)
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, name, department_id }),
     });
-  },
+    if (!response.ok) {
+      throw new Error('Failed to create employee');
+    }
+    const data: ApiResponse<Employee> = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error creating employee:', error);
+    return { ok: false, error: (error as Error).message };
+  }
+};
 
-  getSession: async (sessionId: string) => {
-    console.log('API呼び出し: getSession', { sessionId });
-    return request(`${BASE}/admin/sessions/${sessionId}`);
-  },
-
-  deleteSession: async (sessionId: string) => {
-    console.log('API呼び出し: deleteSession', { sessionId });
-    return request(`${BASE}/admin/sessions/${sessionId}`, {
-      method: 'DELETE'
+// 社員更新
+export const updateEmployee = async (originalCode: string, data: {code: string, name: string, department_id: number}): Promise<ApiResponse<Employee>> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/employees/${originalCode}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
     });
+    if (!response.ok) {
+      throw new Error('Failed to update employee');
+    }
+    const result: ApiResponse<Employee> = await response.json();
+    return result;
+  } catch (error) {
+    console.error('Error updating employee:', error);
+    return { ok: false, error: (error as Error).message };
+  }
+};
+
+// 社員削除
+export const deleteEmployee = async (id: number): Promise<ApiResponse> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/employees/${id}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to delete employee');
+    }
+    const data: ApiResponse = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error deleting employee:', error);
+    return { ok: false, error: (error as Error).message };
+  }
+};
+
+// マスターデータ取得
+export const fetchMasterData = async (date?: string, sort?: 'late' | 'early' | 'overtime' | 'night', department?: number): Promise<ApiResponse<MasterRow[]>> => {
+  try {
+    const params = new URLSearchParams();
+    if (date) params.set('date', date);
+    if (sort) params.set('sort', sort);
+    if (department) params.set('department', String(department));
+    
+    const response = await fetch(`${API_BASE_URL}/admin/master?${params}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch master data');
+    }
+    const data: ApiResponse<MasterRow[]> = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching master data:', error);
+    return { ok: false, error: (error as Error).message };
+  }
+};
+
+// 出勤打刻
+export const clockIn = async (code: string, note?: string): Promise<ClockResponse> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/attendance/checkin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, note }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to clock in');
+    }
+    const data: ClockResponse = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error clocking in:', error);
+    return { ok: false, message: (error as Error).message };
+  }
+};
+
+// 退勤打刻
+export const clockOut = async (code: string): Promise<ClockResponse> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/attendance/checkout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to clock out');
+    }
+    const data: ClockResponse = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error clocking out:', error);
+    return { ok: false, message: (error as Error).message };
+  }
+};
+
+// 勤怠記録保存
+export const saveAttendanceRecord = async (attendance: AttendanceRecord): Promise<ApiResponse<AttendanceRecord>> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/attendance/record`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(attendance),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to save attendance record');
+    }
+    const data: ApiResponse<AttendanceRecord> = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error saving attendance record:', error);
+    return { ok: false, error: (error as Error).message };
+  }
+};
+
+// 備考保存
+export const saveRemark = async (employeeCode: string, date: string, remark: string): Promise<ApiResponse> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/remarks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ employeeCode, date, remark }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to save remark');
+    }
+    const data: ApiResponse = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error saving remark:', error);
+    return { ok: false, error: (error as Error).message };
+  }
+};
+
+// 備考取得
+export const getRemark = async (employeeCode: string, date: string): Promise<ApiResponse> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/remarks/${employeeCode}/${date}`);
+    if (!response.ok) {
+      throw new Error('Failed to get remark');
+    }
+    const data: ApiResponse = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error getting remark:', error);
+    return { ok: false, error: (error as Error).message };
+  }
+};
+
+// 祝日一覧取得
+export const fetchHolidays = async (): Promise<ApiResponse> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/holidays`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch holidays');
+    }
+    const data: ApiResponse = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching holidays:', error);
+    return { ok: false, error: (error as Error).message };
+  }
+};
+
+// 祝日チェック
+export const checkHoliday = async (date: string): Promise<ApiResponse> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/holidays/${date}`);
+    if (!response.ok) {
+      throw new Error('Failed to check holiday');
+    }
+    const data: ApiResponse = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error checking holiday:', error);
+    return { ok: false, error: (error as Error).message };
+  }
+};
+
+// セッション保存
+export const saveSession = async (userData: { code: string; name: string; department: string; rememberMe?: boolean }): Promise<ApiResponse> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userData),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to save session');
+    }
+    const data: ApiResponse = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error saving session:', error);
+    return { ok: false, error: (error as Error).message };
+  }
+};
+
+// セッション取得
+export const getSession = async (sessionId: string): Promise<ApiResponse> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/sessions/${sessionId}`);
+    if (!response.ok) {
+      throw new Error('Failed to get session');
+    }
+    const data: ApiResponse = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error getting session:', error);
+    return { ok: false, error: (error as Error).message };
+  }
+};
+
+// セッション削除
+export const deleteSession = async (sessionId: string): Promise<ApiResponse> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/sessions/${sessionId}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to delete session');
+    }
+    const data: ApiResponse = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error deleting session:', error);
+    return { ok: false, error: (error as Error).message };
   }
 };
