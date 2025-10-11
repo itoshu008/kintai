@@ -186,10 +186,13 @@ app.get('/api/admin/departments', (_req, res) => {
 
 // 部署作成
 app.post('/api/admin/departments', (req, res) => {
+  console.log('POST /api/admin/departments called with body:', req.body);
+  
   try {
     const { name } = req.body;
     
     if (!name || typeof name !== 'string' || name.trim() === '') {
+      console.log('Validation failed: name is required');
       return res.status(400).json({ 
         ok: false, 
         error: '部署名は必須です' 
@@ -203,6 +206,7 @@ app.post('/api/admin/departments', (req, res) => {
     // 重複チェック
     const existingDept = departments.find(d => d.name === name.trim());
     if (existingDept) {
+      console.log('Validation failed: department already exists');
       return res.status(409).json({ 
         ok: false, 
         error: '同じ名前の部署が既に存在します' 
@@ -221,6 +225,7 @@ app.post('/api/admin/departments', (req, res) => {
     // ファイルに保存
     writeJsonAtomic(DEPARTMENTS_FILE, departments);
     
+    console.log('Department created successfully:', newDepartment);
     res.status(201).json({ 
       ok: true, 
       department: newDepartment,
