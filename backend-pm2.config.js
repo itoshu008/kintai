@@ -11,7 +11,7 @@ module.exports = {
       env: {
         NODE_ENV: "production",
         HOST: "127.0.0.1",
-        PORT: "8001",
+        PORT: "8002",
         TZ: "Asia/Tokyo",
         BACKUP_ENABLED: "1",
         BACKUP_INTERVAL_MINUTES: "60",
@@ -21,7 +21,7 @@ module.exports = {
       env_development: {
         NODE_ENV: "development",
         HOST: "127.0.0.1",
-        PORT: "8001",
+        PORT: "8002",
         TZ: "Asia/Tokyo",
         BACKUP_ENABLED: "1",
         BACKUP_INTERVAL_MINUTES: "60",
