@@ -710,7 +710,7 @@ if (existsSync(path.join(FRONTEND_PATH, 'index.html'))) {
 
 // ---- 起動 ----
 const HOST = process.env.HOST || '127.0.0.1';
-const PORT = 3000; // 3000番ポートで固定
+const PORT = Number(process.env.PORT) || 8001; // 環境変数から読み込み、デフォルトは8001
 
 const server = app.listen(PORT, HOST, () => {
   console.log(`ℹ️ Backend server running on http://${HOST}:${PORT}`);

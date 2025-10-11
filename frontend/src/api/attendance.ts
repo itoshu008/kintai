@@ -7,7 +7,7 @@ import {
   ApiResponse, 
   ClockResponse, 
   HealthResponse 
-} from "../types/attendance";
+} from "../types/attendance.js";
 
 const BASE = "/api";
 

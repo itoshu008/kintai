@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api/attendance';
 import { api as adminApi } from '../lib/api';
-import { Department, MasterRow } from '../types/attendance';
+import { Department, MasterRow } from '../types/attendance.js';
 import { getHolidayNameSync, isHolidaySync } from '../utils/holidays';
 
 // バックアップ関連の型定義

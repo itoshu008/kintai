@@ -52,9 +52,9 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
-    # API プロキシ設定（ポート8002）
+    # API プロキシ設定（ポート3000）
     location /api/ {
-        proxy_pass http://127.0.0.1:8002;
+        proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
