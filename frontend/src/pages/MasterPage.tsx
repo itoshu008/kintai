@@ -569,7 +569,7 @@ export default function MasterPage() {
   const loadBackups = async () => {
     try {
       setBackupLoading(true);
-      const response = await fetch('/api/admin/backups');
+      const response = await fetch('https://zatint1991.com/api/admin/backups');
       const result = await response.json();
       if (result.ok) {
         setBackups(result.backups || []);
@@ -613,7 +613,7 @@ export default function MasterPage() {
     
     try {
       setBackupLoading(true);
-      const response = await fetch('/api/admin/backups/restore', {
+      const response = await fetch(`https://zatint1991.com/api/admin/backups/${backupName}/restore`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ backupName })
@@ -641,7 +641,7 @@ export default function MasterPage() {
     
     try {
       setBackupLoading(true);
-      const response = await fetch('/api/admin/backups/delete', {
+      const response = await fetch(`https://zatint1991.com/api/admin/backups/${backupName}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ backupName })
