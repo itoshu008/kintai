@@ -8,18 +8,23 @@ export async function request(input: string, init?: RequestInit) {
 
   const text = await res.text();
   
-  if (!res.ok) {
-    console.error("[API ERROR]", {
-      url: input, status: res.status, statusText: res.statusText,
-      body: init?.body, responseText: text
-    });
-    throw new Error(`${res.status} ${res.statusText || ''} for ${input}`);
-  }
-  
+  // レスポンスを先にパースしてからエラーチェック
+  let jsonResponse;
   try {
-    return text ? JSON.parse(text) : null;
+    jsonResponse = text ? JSON.parse(text) : null;
   } catch {
     console.error('[API PARSE ERROR]', text.slice(0, 200));
     throw new Error(`Invalid JSON from ${input}`);
   }
+
+  // okフィールドでエラーを判定（すべて200を返すため）
+  if (jsonResponse && jsonResponse.ok === false) {
+    console.error("[API ERROR]", {
+      url: input, status: res.status, statusText: res.statusText,
+      body: init?.body, responseText: text, error: jsonResponse.error
+    });
+    throw new Error(jsonResponse.error || `${res.status} ${res.statusText || ''} for ${input}`);
+  }
+  
+  return jsonResponse;
 }
