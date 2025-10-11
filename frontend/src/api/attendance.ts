@@ -11,8 +11,8 @@ import {
 
 const BASE = "/api";
 
-// モック機能を無効化（実際のAPIを使用）
-const USE_MOCK = false;
+// 一時的にモック機能を有効化（404エラー回避のため）
+const USE_MOCK = true;
 
 // 一時的なモック実装
 const mock = {
