@@ -1,4 +1,4 @@
-const BASE = "http://localhost:8001/api/admin";
+const BASE = "https://zatint1991.com/api/admin";
 
 import { request } from "./request";
 
