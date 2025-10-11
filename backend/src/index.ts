@@ -71,6 +71,16 @@ function today(): string { return new Date().toISOString().slice(0, 10); }
 
 // --- 主要API（読み取り専用）---
 
+// 部署一覧
+app.get('/api/admin/departments', (_req, res) => {
+  try {
+    res.json({ ok: true, departments });
+  } catch (error) {
+    console.error('Departments API error:', error);
+    res.status(500).json({ ok: false, error: 'Failed to fetch departments' });
+  }
+});
+
 // 社員一覧（dept名の解決を含む）
 app.get('/api/admin/employees', (_req, res) => {
   const list = employees.map(e => {
