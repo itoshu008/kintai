@@ -512,7 +512,7 @@ app.delete('/api/admin/employees/:id', (req, res) => {
     
     // 勤怠データがあるかチェック
     const hasAttendance = Object.values(attendanceData).some(dayData => 
-      Object.values(dayData).some(empData => empData.code === employees[employeeIndex].code)
+      Object.values(dayData).some((empData: any) => empData.code === employees[employeeIndex].code)
     );
     
     if (hasAttendance) {
@@ -825,7 +825,7 @@ if (existsSync(FRONTEND_PATH)) {
           date: dateStr,
           totalEmployees: employees.length,
           presentEmployees: dayEmployees.length,
-          lateEmployees: dayEmployees.filter(emp => emp.late > 0).length,
+          lateEmployees: dayEmployees.filter((emp: any) => emp.late > 0).length,
           absentEmployees: employees.length - dayEmployees.length
         };
         
@@ -857,12 +857,12 @@ if (existsSync(FRONTEND_PATH)) {
       
       // 指定月の備考を取得
       for (const [date, dayData] of Object.entries(attendanceData)) {
-        if (date.startsWith(targetMonth)) {
+        if (date.startsWith(targetMonth as string)) {
           for (const [empCode, empData] of Object.entries(dayData)) {
-            if (empCode === employeeCode && empData.remark) {
+            if (empCode === employeeCode && (empData as any).remark) {
               remarks.push({
                 date,
-                remark: empData.remark
+                remark: (empData as any).remark
               });
             }
           }

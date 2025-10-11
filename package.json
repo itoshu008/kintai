@@ -1,30 +1,30 @@
 {
-  "name": "attendance-frontend",
+  "name": "kintai-attendance-system",
   "version": "1.0.0",
-  "description": "Attendance management frontend",
-  "main": "index.js",
+  "description": "Attendance management system with React frontend and Node.js backend",
+  "private": true,
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
-  },
-  "dependencies": {
-    "react": "^17.0.0",
-    "react-dom": "^17.0.0",
-    "react-scripts": "^4.0.0",
-    "axios": "^0.21.1",
-    "react-router-dom": "^5.1.0"
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm run dev:8001",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build": "npm run build:backend && npm run build:frontend",
+    "build:backend": "cd backend && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "start": "cd backend && npm run start",
+    "start:pm2": "pm2 start ecosystem.config.js",
+    "stop:pm2": "pm2 stop all",
+    "restart:pm2": "pm2 restart all",
+    "logs:pm2": "pm2 logs",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install"
   },
   "devDependencies": {
-    "react-app-rewired": "^2.1.8",
-    "babel-plugin-styled-components": "^1.10.7"
+    "concurrently": "^8.2.2"
   },
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
   "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/your-repo/issues"
-  },
-  "homepage": "https://github.com/your-repo"
+  "license": "ISC"
 }
 

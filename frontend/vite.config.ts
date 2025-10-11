@@ -60,20 +60,20 @@ export default defineConfig({
     },
   },
   server: {
-    // ポート 8001 に設定（開発サーバー）
-    port: 8001,
+    // ポート 3000 に設定（開発サーバー）
+    port: 3000,
     strictPort: true, // ポートがすでに使われていたらエラーを出す
     host: true, // 外部からのアクセスを許可
     proxy: {
       // アテンダンス管理API -> 8001
       "/api/admin": {
-        target: "http://localhost:8001", // APIサーバーも8001
+        target: "http://localhost:8001", // APIサーバーは8001
         changeOrigin: true,
         secure: false,
       },
       // 一般API -> 8001
       "/api": {
-        target: "http://localhost:8001", // APIサーバーも8001
+        target: "http://localhost:8001", // APIサーバーは8001
         changeOrigin: true,
         secure: false,
       },
