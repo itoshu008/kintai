@@ -60,8 +60,8 @@ export default defineConfig({
     },
   },
   server: {
-    // フロントエンド開発サーバーは3000番で起動
-    port: 3000,
+    // フロントエンド開発サーバーは3001番で起動
+    port: 3001,
     strictPort: true, // ポートがすでに使われていたらエラーを出す
     host: true, // 外部からのアクセスを許可
     proxy: {
@@ -74,7 +74,7 @@ export default defineConfig({
     },
   },
   preview: {
-    port: 4173, // プレビュー用ポート
+    port: 3001, // プレビュー用ポート（統一）
     strictPort: true,
     host: true,
   },
