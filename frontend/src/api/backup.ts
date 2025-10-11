@@ -21,6 +21,10 @@ export const backupApi = {
   createBackup: async (): Promise<{ ok: boolean; backupId: string; timestamp: string; message: string }> => {
     const response = await request('/api/admin/backup', {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ reason: 'manual' }),
     });
     return response;
   },
