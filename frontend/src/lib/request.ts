@@ -1,7 +1,7 @@
 // src/lib/request.ts
 export async function request(input: string, init?: RequestInit) {
   const res = await fetch(input, {
-    // credentials: "include", // 一時的に無効化してCORSエラーを回避
+    credentials: "include", // セッション管理のために有効化
     headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
     ...init,
   });
