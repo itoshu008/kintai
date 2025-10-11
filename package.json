@@ -1,37 +1,30 @@
 {
-  "name": "attendance-app",
+  "name": "attendance-frontend",
   "version": "1.0.0",
-  "description": "50名規模の勤怠アプリ",
-  "private": true,
-  "workspaces": [
-    "backend",
-    "frontend"
-  ],
+  "description": "Attendance management frontend",
+  "main": "index.js",
   "scripts": {
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "dev:backend": "cd backend && npm run dev",
-    "dev:frontend": "cd frontend && npm run dev",
-    "build": "npm run build:backend && npm run build:frontend",
-    "build:backend": "cd backend && npm run build",
-    "build:frontend": "cd frontend && npm run build",
-    "start": "npm run start:backend",
-    "start:backend": "cd backend && npm start",
-    "setup": "chmod +x setup.sh && ./setup.sh",
-    "cursor:dev": "powershell -ExecutionPolicy Bypass -File cursor-dev.ps1 dev",
-    "cursor:build": "powershell -ExecutionPolicy Bypass -File cursor-dev.ps1 build",
-    "cursor:start": "powershell -ExecutionPolicy Bypass -File cursor-dev.ps1 start",
-    "cursor:restart": "powershell -ExecutionPolicy Bypass -File cursor-dev.ps1 restart",
-    "cursor:stop": "powershell -ExecutionPolicy Bypass -File cursor-dev.ps1 stop",
-    "cursor:logs": "powershell -ExecutionPolicy Bypass -File cursor-dev.ps1 logs",
-    "cursor:status": "powershell -ExecutionPolicy Bypass -File cursor-dev.ps1 status",
-    "cursor:health": "powershell -ExecutionPolicy Bypass -File cursor-dev.ps1 health",
-    "cursor:clean": "powershell -ExecutionPolicy Bypass -File cursor-dev.ps1 clean"
-  },
-  "devDependencies": {
-    "concurrently": "^8.2.2"
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
   },
   "dependencies": {
-    "body-parser": "^2.2.0",
-    "iconv-lite": "^0.7.0"
-  }
+    "react": "^17.0.0",
+    "react-dom": "^17.0.0",
+    "react-scripts": "^4.0.0",
+    "axios": "^0.21.1",
+    "react-router-dom": "^5.1.0"
+  },
+  "devDependencies": {
+    "react-app-rewired": "^2.1.8",
+    "babel-plugin-styled-components": "^1.10.7"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/your-repo/issues"
+  },
+  "homepage": "https://github.com/your-repo"
 }
+
