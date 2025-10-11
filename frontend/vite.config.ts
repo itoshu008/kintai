@@ -85,7 +85,7 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: trugitHobプッシュe,
+    sourcemap: true,
     rollupOptions: {
       output: {
         entryFileNames: `assets/[name]-[hash]-${Math.random().toString(36).substr(2, 9)}.js`,
