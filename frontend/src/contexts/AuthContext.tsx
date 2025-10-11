@@ -35,22 +35,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (savedSessionId) {
         try {
           const response = await api.getSession(savedSessionId);
-          if (response.ok && response.user) {
-            console.log('AuthContext: セッション復元成功', response.user);
-            setUser(response.user);
+          if (response.ok && response.data) {
+            console.log('AuthContext: セッション復元成功', response.data);
+            setUser(response.data);
           } else {
             console.log('AuthContext: セッション無効、削除');
             localStorage.removeItem('sessionId');
+            setUser(null);
           }
         } catch (error) {
           console.error('セッション復元エラー:', error);
           localStorage.removeItem('sessionId');
+          setUser(null);
         }
       } else {
         console.log('AuthContext: 保存されたセッションIDがありません');
+        setUser(null);
       }
     };
-
+    
     restoreSession();
   }, []);
 
@@ -66,14 +69,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         rememberMe
       });
 
-      if (response.ok && response.sessionId) {
+      if (response.ok && response.data) {
         console.log('AuthContext: セッション保存成功', response);
-        setUser(response.user);
+        setUser(response.data);
         
-        if (rememberMe) {
-          localStorage.setItem('sessionId', response.sessionId);
+        if (rememberMe && response.data.sessionId) {
+          localStorage.setItem('sessionId', response.data.sessionId);
           console.log('AuthContext: セッションIDをローカルストレージに保存');
         }
+      } else {
+        throw new Error(response.error || 'ログインに失敗しました');
       }
     } catch (error) {
       console.error('ログイン処理エラー:', error);
