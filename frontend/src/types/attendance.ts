@@ -60,7 +60,7 @@ export interface ApiResponse<T = any> {
   remarks?: { [key: string]: string };
   employeeCode?: string;
   // 祝日関連のプロパティ
-  holidays?: {[key: string]: string};
+  holidays?: { [key: string]: string };
   isHoliday?: boolean;
   holidayName?: string;
   isWeekend?: boolean;
