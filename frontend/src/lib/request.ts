@@ -1,4 +1,6 @@
 // src/lib/request.ts
+import { extractErrorMessageFromHtml, handleApiError } from '../utils/errorHandler';
+
 export async function request(input: string, init?: RequestInit) {
   try {
     const res = await fetch(input, {
@@ -23,7 +25,10 @@ export async function request(input: string, init?: RequestInit) {
         contentType,
         responseText: errorText.slice(0, 200)
       });
-      throw new Error(`Invalid API response: Expected JSON, but got ${contentType || 'unknown content type'}`);
+      
+      // HTMLレスポンスからエラーメッセージを抽出
+      const extractedError = extractErrorMessageFromHtml(errorText);
+      throw new Error(`Invalid API response: ${extractedError}`);
     }
 
     const text = await res.text();
@@ -63,10 +68,12 @@ export async function request(input: string, init?: RequestInit) {
     
     return jsonResponse;
   } catch (error) {
+    const errorResponse = handleApiError(error, `request to ${input}`);
     console.error('[REQUEST ERROR]', {
       url: input,
       method: init?.method || 'GET',
-      error: error instanceof Error ? error.message : String(error)
+      error: errorResponse.error,
+      message: errorResponse.message
     });
     throw error;
   }
@@ -92,7 +99,10 @@ export const fetchData = async (url: string, options?: RequestInit) => {
         contentType,
         responseText: errorText.slice(0, 200)
       });
-      throw new Error('Invalid API response: Expected JSON, but got HTML');
+      
+      // HTMLレスポンスからエラーメッセージを抽出
+      const extractedError = extractErrorMessageFromHtml(errorText);
+      throw new Error(`Invalid API response: ${extractedError}`);
     }
 
     if (!response.ok) {
@@ -104,11 +114,22 @@ export const fetchData = async (url: string, options?: RequestInit) => {
 
   } catch (error) {
     // エラーを処理する
+    const errorResponse = handleApiError(error, `fetchData from ${url}`);
     console.error('Failed to fetch data:', {
       url,
-      error: error instanceof Error ? error.message : String(error)
+      error: errorResponse.error,
+      message: errorResponse.message
     });
     // 必要に応じてUIにエラーメッセージを表示
-    return { error: 'Failed to load data' };
+    return { error: errorResponse.error || 'Failed to load data' };
   }
 };
+
+// エラーハンドリング機能をエクスポート
+export { 
+  handleError, 
+  fetchDataWithRetry, 
+  fetchHtmlError, 
+  extractErrorMessageFromHtml,
+  handleApiError 
+} from '../utils/errorHandler';
