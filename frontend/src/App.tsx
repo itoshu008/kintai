@@ -3,8 +3,54 @@ import { AuthProvider } from './contexts/AuthContext';
 import LoginPage from './pages/LoginPage';
 import MasterPage from './pages/MasterPage';
 import PersonalPage from './pages/PersonalPage';
+import { useState, useEffect } from 'react';
 
 export default function App(){
+  const [isMaintenance, setIsMaintenance] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
+
+  useEffect(() => {
+    const checkApiHealth = async () => {
+      try {
+        const response = await fetch('https://zatint1991.com/api/admin/departments', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        // 5xxエラーまたは接続エラーの場合
+        if (response.status >= 500 || !response.ok) {
+          setIsMaintenance(true);
+        } else {
+          setIsMaintenance(false);
+        }
+      } catch (error) {
+        // 接続エラーの場合
+        console.error('API接続エラー:', error);
+        setIsMaintenance(true);
+      } finally {
+        setIsChecking(false);
+      }
+    };
+
+    checkApiHealth();
+  }, []);
+
+  // メンテナンス画面
+  if (isMaintenance) {
+    return (
+      <div className="maintenance-message">
+        <div className="maintenance-content">
+          <div className="maintenance-icon">🔧</div>
+          <h1>サーバーが一時的にメンテナンス中です。しばらくお待ちください。</h1>
+          <p>システムの復旧をお待ちください。</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 通常のアプリケーション
   return (
     <div style={{
       width: '100%',

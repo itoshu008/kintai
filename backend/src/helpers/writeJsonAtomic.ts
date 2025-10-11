@@ -7,3 +7,4 @@ export function writeJsonAtomic(file: string, data: unknown) {
   renameSync(tmp, file); // 同一FSなら実質アトミック
 }
 
+

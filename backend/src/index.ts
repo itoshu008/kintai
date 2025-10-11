@@ -151,6 +151,176 @@ app.get('/api/admin/backups/health', (_req, res) => {
   }
 });
 
+// --- バックアップAPI ---
+
+// バックアップ作成
+app.post('/api/admin/backup', async (req, res) => {
+  try {
+    const timestamp = new Date().toISOString();
+    const backupId = `backup_${Date.now()}`;
+    
+    // 現在の全データを取得
+    const backupData = {
+      id: backupId,
+      timestamp,
+      employees: [...employees],
+      departments: [...departments],
+      attendance: { ...attendanceData },
+      holidays: { ...holidays },
+      remarks: { ...remarksData }
+    };
+    
+    // バックアップディレクトリを作成
+    const backupDir = path.join(DATA_DIR, '..', 'backups', backupId);
+    const fs = await import('fs');
+    if (!fs.existsSync(backupDir)) {
+      fs.mkdirSync(backupDir, { recursive: true });
+    }
+    
+    // バックアップファイルを保存
+    const backupFile = path.join(backupDir, 'backup.json');
+    writeJsonAtomic(backupFile, backupData);
+    
+    // バックアップメタデータを保存
+    const metaFile = path.join(DATA_DIR, '..', 'backups', 'backup_metadata.json');
+    const existingMeta = safeReadJSON(metaFile, { backups: [] }) as { backups: Array<{id: string, timestamp: string, size: number}> };
+    existingMeta.backups.push({
+      id: backupId,
+      timestamp,
+      size: JSON.stringify(backupData).length
+    });
+    writeJsonAtomic(metaFile, existingMeta);
+    
+    res.json({ 
+      ok: true, 
+      backupId, 
+      timestamp,
+      message: 'バックアップが正常に作成されました'
+    });
+  } catch (e) {
+    console.error('Backup creation error:', e);
+    res.status(500).json({ ok: false, error: String(e) });
+  }
+});
+
+// バックアップ一覧取得
+app.get('/api/admin/backups', (_req, res) => {
+  try {
+    const metaFile = path.join(DATA_DIR, '..', 'backups', 'backup_metadata.json');
+    const metadata = safeReadJSON(metaFile, { backups: [] }) as { backups: Array<{id: string, timestamp: string, size: number}> };
+    
+    // バックアップを新しい順にソート
+    const sortedBackups = metadata.backups.sort((a, b) => 
+      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+    
+    res.json({ ok: true, backups: sortedBackups });
+  } catch (e) {
+    console.error('Backup list error:', e);
+    res.status(500).json({ ok: false, error: String(e) });
+  }
+});
+
+// バックアップ詳細取得
+app.get('/api/admin/backups/:backupId', (req, res) => {
+  try {
+    const { backupId } = req.params;
+    const backupFile = path.join(DATA_DIR, '..', 'backups', backupId, 'backup.json');
+    
+    if (!existsSync(backupFile)) {
+      return res.status(404).json({ ok: false, error: 'Backup not found' });
+    }
+    
+    const backupData = safeReadJSON(backupFile, null);
+    if (!backupData) {
+      return res.status(404).json({ ok: false, error: 'Backup data corrupted' });
+    }
+    
+    res.json({ ok: true, backup: backupData });
+  } catch (e) {
+    console.error('Backup detail error:', e);
+    res.status(500).json({ ok: false, error: String(e) });
+  }
+});
+
+// バックアップから復元
+app.post('/api/admin/backups/:backupId/restore', (req, res) => {
+  try {
+    const { backupId } = req.params;
+    const backupFile = path.join(DATA_DIR, '..', 'backups', backupId, 'backup.json');
+    
+    if (!existsSync(backupFile)) {
+      return res.status(404).json({ ok: false, error: 'Backup not found' });
+    }
+    
+    const backupData = safeReadJSON(backupFile, null) as any;
+    if (!backupData) {
+      return res.status(404).json({ ok: false, error: 'Backup data corrupted' });
+    }
+    
+    // 現在のデータをバックアップ（復元前の安全策）
+    const currentBackup = {
+      employees: [...employees],
+      departments: [...departments],
+      attendance: { ...attendanceData },
+      holidays: { ...holidays },
+      remarks: { ...remarksData }
+    };
+    
+    // バックアップデータで復元
+    employees.length = 0;
+    employees.push(...backupData.employees);
+    departments.length = 0;
+    departments.push(...backupData.departments);
+    Object.assign(attendanceData, backupData.attendance);
+    Object.assign(holidays, backupData.holidays);
+    Object.assign(remarksData, backupData.remarks);
+    
+    // ファイルに保存
+    writeJsonAtomic(EMPLOYEES_FILE, employees);
+    writeJsonAtomic(DEPARTMENTS_FILE, departments);
+    writeJsonAtomic(ATTENDANCE_FILE, attendanceData);
+    writeJsonAtomic(HOLIDAYS_FILE, holidays);
+    writeJsonAtomic(REMARKS_FILE, remarksData);
+    
+    res.json({ 
+      ok: true, 
+      message: `バックアップ ${backupId} から復元しました`,
+      restoredAt: new Date().toISOString()
+    });
+  } catch (e) {
+    console.error('Backup restore error:', e);
+    res.status(500).json({ ok: false, error: String(e) });
+  }
+});
+
+// バックアップ削除
+app.delete('/api/admin/backups/:backupId', async (req, res) => {
+  try {
+    const { backupId } = req.params;
+    const backupDir = path.join(DATA_DIR, '..', 'backups', backupId);
+    
+    if (!existsSync(backupDir)) {
+      return res.status(404).json({ ok: false, error: 'Backup not found' });
+    }
+    
+    // バックアップディレクトリを削除
+    const fs = await import('fs');
+    fs.rmSync(backupDir, { recursive: true, force: true });
+    
+    // メタデータから削除
+    const metaFile = path.join(DATA_DIR, '..', 'backups', 'backup_metadata.json');
+    const existingMeta = safeReadJSON(metaFile, { backups: [] }) as { backups: Array<{id: string, timestamp: string, size: number}> };
+    existingMeta.backups = existingMeta.backups.filter((b) => b.id !== backupId);
+    writeJsonAtomic(metaFile, existingMeta);
+    
+    res.json({ ok: true, message: `バックアップ ${backupId} を削除しました` });
+  } catch (e) {
+    console.error('Backup delete error:', e);
+    res.status(500).json({ ok: false, error: String(e) });
+  }
+});
+
 // --- 備考API（読み書き） ---
 
 // 備考取得

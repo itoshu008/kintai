@@ -3,6 +3,7 @@ import { api } from '../api/attendance';
 import { api as adminApi } from '../lib/api';
 import { MasterRow, Department } from '../types/attendance';
 import { isHolidaySync, getHolidayNameSync, isSunday, isSaturday } from '../utils/holidays';
+import { BackupManager } from '../components/BackupManager';
 
 // バックアップ関連の型定義
 interface BackupItem {
@@ -90,6 +91,7 @@ export default function MasterPage() {
   const [data, setData]   = useState<MasterRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg]     = useState('');
+  const [activeTab, setActiveTab] = useState<'attendance' | 'backup'>('attendance');
 
   // ▼ 追加：ロードの「キー」を1つに集約（依存が増えると再走るのでここに集める）
   const loadKey = useMemo(() => `${date}`, [date]);
@@ -781,6 +783,12 @@ export default function MasterPage() {
     return [...filtered].sort((a, b) => a.code.localeCompare(b.code));
   }, [data, depFilter]);
 
+  // バックアップ復元時のコールバック
+  const handleBackupRestore = () => {
+    setMsg('バックアップから復元しました。データを再読み込み中...');
+    loadOnce(loadKey);
+  };
+
   return (
     <div style={{
       padding: window.innerWidth <= 768 ? '12px' : '24px', 
@@ -789,19 +797,71 @@ export default function MasterPage() {
       overflow: 'auto',
       WebkitOverflowScrolling: 'touch'
     }}>
+      {/* タブナビゲーション */}
       <div style={{
-        display:'flex', 
-        justifyContent: window.innerWidth <= 768 ? 'center' : 'space-between', 
-        alignItems:'center', 
-        marginBottom: window.innerWidth <= 768 ? '12px' : '24px', 
-        padding: window.innerWidth <= 768 ? '12px' : '20px 24px', 
-        background:'white', 
-        borderRadius: window.innerWidth <= 768 ? '8px' : '12px', 
-        boxShadow:'0 2px 8px rgba(0,0,0,0.1)',
-        flexDirection: window.innerWidth <= 768 ? 'column' : 'row',
-        gap: window.innerWidth <= 768 ? '12px' : '0'
+        background: 'white',
+        borderRadius: '12px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        marginBottom: '24px',
+        overflow: 'hidden'
       }}>
-        <div style={{display:'flex', alignItems:'center', gap: 24}}>
+        <div style={{
+          display: 'flex',
+          borderBottom: '1px solid #e9ecef'
+        }}>
+          <button
+            onClick={() => setActiveTab('attendance')}
+            style={{
+              flex: 1,
+              padding: '16px 24px',
+              background: activeTab === 'attendance' ? '#007bff' : 'transparent',
+              color: activeTab === 'attendance' ? 'white' : '#495057',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '16px',
+              fontWeight: '600',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            📊 勤怠管理
+          </button>
+          <button
+            onClick={() => setActiveTab('backup')}
+            style={{
+              flex: 1,
+              padding: '16px 24px',
+              background: activeTab === 'backup' ? '#007bff' : 'transparent',
+              color: activeTab === 'backup' ? 'white' : '#495057',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '16px',
+              fontWeight: '600',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            💾 バックアップ管理
+          </button>
+        </div>
+      </div>
+
+      {/* タブコンテンツ */}
+      {activeTab === 'backup' ? (
+        <BackupManager onBackupRestore={handleBackupRestore} />
+      ) : (
+        <>
+          <div style={{
+            display:'flex', 
+            justifyContent: window.innerWidth <= 768 ? 'center' : 'space-between', 
+            alignItems:'center', 
+            marginBottom: window.innerWidth <= 768 ? '12px' : '24px', 
+            padding: window.innerWidth <= 768 ? '12px' : '20px 24px', 
+            background:'white', 
+            borderRadius: window.innerWidth <= 768 ? '8px' : '12px', 
+            boxShadow:'0 2px 8px rgba(0,0,0,0.1)',
+            flexDirection: window.innerWidth <= 768 ? 'column' : 'row',
+            gap: window.innerWidth <= 768 ? '12px' : '0'
+          }}>
+            <div style={{display:'flex', alignItems:'center', gap: 24}}>
           <h1 style={{margin:0, fontSize:'28px', fontWeight:'600', color:'#2c3e50'}}>勤怠管理ページ</h1>
           
           {/* 月選択を大きく移動 */}
@@ -2857,8 +2917,8 @@ export default function MasterPage() {
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 }
@@ -2867,6 +2927,12 @@ const th: React.CSSProperties = { textAlign:'left', padding:'8px 6px', fontWeigh
 const td: React.CSSProperties = { padding:'6px' };
 
 // 状況に応じて薄い色分け
+        </>
+      )}
+    </div>
+  );
+}
+
 function rowBg(r: MasterRow){
   if (r.status === '出勤中') return '#f0fff4'; // 薄緑
   if ((r.late||0) + (r.early||0) + (r.overtime||0) + (r.night||0) > 0) return '#fffdf0'; // 薄黄
