@@ -13,7 +13,7 @@ export default function App() {
   useEffect(() => {
     const checkApiHealth = async () => {
       try {
-        const response = await fetch('https://zatint1991.com/api/admin/departments', {
+        const response = await fetch('/api/admin/departments', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
