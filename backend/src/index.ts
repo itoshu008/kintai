@@ -8,7 +8,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { writeJsonAtomic } from './helpers/writeJsonAtomic.js';
 
-// （任意）バックアップ健康チェックだけ別ファイルなら使う
+// �E�任意）バチE��アチE�E健康チェチE��だけ別ファイルなら使ぁE
 // import { registerBackupsHealth } from './backupsHealth.js';
 
 const app = express();
@@ -20,7 +20,7 @@ app.get('/api/health', (_req, res) =>
   res.json({ ok: true, ts: new Date().toISOString() })
 );
 
-// 管理者用ヘルスチェック
+// 管琁E��E��ヘルスチェチE��
 app.get('/api/admin/health', (_req, res) => {
   try {
     res.json({
@@ -32,7 +32,7 @@ app.get('/api/admin/health', (_req, res) => {
     });
   } catch (error) {
     console.error('Health check error:', error);
-    res.status(500).json({
+    res.status(200).json({
       ok: false,
       status: 'unhealthy',
       error: 'Internal server error',
@@ -41,10 +41,10 @@ app.get('/api/admin/health', (_req, res) => {
   }
 });
 
-// セッション管理API
+// セチE��ョン管琁EPI
 const sessions = new Map<string, { user: any; createdAt: Date; expiresAt: Date }>();
 
-// セッション保存
+// セチE��ョン保孁E
 app.post('/api/admin/sessions', (req, res) => {
   try {
     const { code, name, department, rememberMe } = req.body;
@@ -59,35 +59,35 @@ app.post('/api/admin/sessions', (req, res) => {
       ok: true,
       sessionId,
       user,
-      message: 'セッションが保存されました'
+      message: 'セチE��ョンが保存されました'
     });
   } catch (error) {
-    console.error('セッション保存エラー:', error);
-    res.status(500).json({
+    console.error('セチE��ョン保存エラー:', error);
+    res.status(200).json({
       ok: false,
-      error: 'セッション保存に失敗しました'
+      error: 'セチE��ョン保存に失敗しました'
     });
   }
 });
 
-// セッション取得
+// セチE��ョン取征E
 app.get('/api/admin/sessions/:sessionId', (req, res) => {
   try {
     const { sessionId } = req.params;
     const session = sessions.get(sessionId);
     
     if (!session) {
-      return res.status(404).json({
+      return res.status(200).json({
         ok: false,
-        error: 'セッションが見つかりません'
+        error: 'セチE��ョンが見つかりません'
       });
     }
     
     if (new Date() > session.expiresAt) {
       sessions.delete(sessionId);
-      return res.status(401).json({
+      return res.status(200).json({
         ok: false,
-        error: 'セッションが期限切れです'
+        error: 'セチE��ョンが期限�EれでぁE
       });
     }
     
@@ -96,15 +96,15 @@ app.get('/api/admin/sessions/:sessionId', (req, res) => {
       user: session.user
     });
   } catch (error) {
-    console.error('セッション取得エラー:', error);
-    res.status(500).json({
+    console.error('セチE��ョン取得エラー:', error);
+    res.status(200).json({
       ok: false,
-      error: 'セッション取得に失敗しました'
+      error: 'セチE��ョン取得に失敗しました'
     });
   }
 });
 
-// セッション削除
+// セチE��ョン削除
 app.delete('/api/admin/sessions/:sessionId', (req, res) => {
   try {
     const { sessionId } = req.params;
@@ -112,18 +112,18 @@ app.delete('/api/admin/sessions/:sessionId', (req, res) => {
     
     res.json({
       ok: true,
-      message: deleted ? 'セッションが削除されました' : 'セッションが見つかりませんでした'
+      message: deleted ? 'セチE��ョンが削除されました' : 'セチE��ョンが見つかりませんでした'
     });
   } catch (error) {
-    console.error('セッション削除エラー:', error);
-    res.status(500).json({
+    console.error('セチE��ョン削除エラー:', error);
+    res.status(200).json({
       ok: false,
-      error: 'セッション削除に失敗しました'
+      error: 'セチE��ョン削除に失敗しました'
     });
   }
 });
 
-// ---- ここから互換ミニ版：データ読み取りだけ実装 ----
+// ---- ここから互換ミニ版：データ読み取りだけ実裁E----
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -172,7 +172,7 @@ const isWorkingDay = (dateStr: string) => !isWeekend(dateStr) && !isHoliday(date
 
 function today(): string { return new Date().toISOString().slice(0, 10); }
 
-// --- 主要API（読み取り専用）---
+// --- 主要API�E�読み取り専用�E�E--
 
 // 部署一覧
 app.get('/api/admin/departments', (_req, res) => {
@@ -180,11 +180,11 @@ app.get('/api/admin/departments', (_req, res) => {
     res.json({ ok: true, departments });
   } catch (error) {
     console.error('Departments API error:', error);
-    res.status(500).json({ ok: false, error: 'Failed to fetch departments' });
+    res.status(200).json({ ok: false, error: 'Failed to fetch departments' });
   }
 });
 
-// 部署作成
+// 部署作�E
 app.post('/api/admin/departments', (req, res) => {
   console.log('POST /api/admin/departments called with body:', req.body);
   
@@ -193,27 +193,27 @@ app.post('/api/admin/departments', (req, res) => {
     
     if (!name || typeof name !== 'string' || name.trim() === '') {
       console.log('Validation failed: name is required');
-      return res.status(400).json({ 
+      return res.status(200).json({ 
         ok: false, 
-        error: '部署名は必須です' 
+        error: '部署名�E忁E��でぁE 
       });
     }
     
-    // 新しい部署IDを生成（既存の最大ID + 1）
+    // 新しい部署IDを生成（既存�E最大ID + 1�E�E
     const maxId = departments.length > 0 ? Math.max(...departments.map(d => d.id)) : 0;
     const newId = maxId + 1;
     
-    // 重複チェック
+    // 重褁E��ェチE��
     const existingDept = departments.find(d => d.name === name.trim());
     if (existingDept) {
       console.log('Validation failed: department already exists');
-      return res.status(409).json({ 
+      return res.status(200).json({ 
         ok: false, 
-        error: '同じ名前の部署が既に存在します' 
+        error: '同じ名前の部署が既に存在しまぁE 
       });
     }
     
-    // 新しい部署を作成
+    // 新しい部署を作�E
     const newDepartment = {
       id: newId,
       name: name.trim()
@@ -222,20 +222,20 @@ app.post('/api/admin/departments', (req, res) => {
     departments.push(newDepartment);
     deptIndex.set(newId, newDepartment);
     
-    // ファイルに保存
+    // ファイルに保孁E
     writeJsonAtomic(DEPARTMENTS_FILE, departments);
     
     console.log('Department created successfully:', newDepartment);
-    res.status(201).json({ 
+    res.status(200).json({ 
       ok: true, 
       department: newDepartment,
-      message: '部署が作成されました' 
+      message: '部署が作�Eされました' 
     });
   } catch (error) {
     console.error('Department creation error:', error);
-    res.status(500).json({ 
+    res.status(200).json({ 
       ok: false, 
-      error: '部署の作成に失敗しました' 
+      error: '部署の作�Eに失敗しました' 
     });
   }
 });
@@ -248,33 +248,33 @@ app.put('/api/admin/departments/:id', (req, res) => {
     const departmentId = parseInt(id);
     
     if (isNaN(departmentId)) {
-      return res.status(400).json({ 
+      return res.status(200).json({ 
         ok: false, 
-        error: '無効な部署IDです' 
+        error: '無効な部署IDでぁE 
       });
     }
     
     if (!name || typeof name !== 'string' || name.trim() === '') {
-      return res.status(400).json({ 
+      return res.status(200).json({ 
         ok: false, 
-        error: '部署名は必須です' 
+        error: '部署名�E忁E��でぁE 
       });
     }
     
     const departmentIndex = departments.findIndex(d => d.id === departmentId);
     if (departmentIndex === -1) {
-      return res.status(404).json({ 
+      return res.status(200).json({ 
         ok: false, 
         error: '部署が見つかりません' 
       });
     }
     
-    // 重複チェック（自分以外）
+    // 重褁E��ェチE���E��E刁E��外！E
     const existingDept = departments.find(d => d.name === name.trim() && d.id !== departmentId);
     if (existingDept) {
-      return res.status(409).json({ 
+      return res.status(200).json({ 
         ok: false, 
-        error: '同じ名前の部署が既に存在します' 
+        error: '同じ名前の部署が既に存在しまぁE 
       });
     }
     
@@ -282,7 +282,7 @@ app.put('/api/admin/departments/:id', (req, res) => {
     departments[departmentIndex].name = name.trim();
     deptIndex.set(departmentId, departments[departmentIndex]);
     
-    // ファイルに保存
+    // ファイルに保孁E
     writeJsonAtomic(DEPARTMENTS_FILE, departments);
     
     res.json({ 
@@ -292,7 +292,7 @@ app.put('/api/admin/departments/:id', (req, res) => {
     });
   } catch (error) {
     console.error('Department update error:', error);
-    res.status(500).json({ 
+    res.status(200).json({ 
       ok: false, 
       error: '部署の更新に失敗しました' 
     });
@@ -306,26 +306,26 @@ app.delete('/api/admin/departments/:id', (req, res) => {
     const departmentId = parseInt(id);
     
     if (isNaN(departmentId)) {
-      return res.status(400).json({ 
+      return res.status(200).json({ 
         ok: false, 
-        error: '無効な部署IDです' 
+        error: '無効な部署IDでぁE 
       });
     }
     
     const departmentIndex = departments.findIndex(d => d.id === departmentId);
     if (departmentIndex === -1) {
-      return res.status(404).json({ 
+      return res.status(200).json({ 
         ok: false, 
         error: '部署が見つかりません' 
       });
     }
     
-    // 社員がこの部署に所属しているかチェック
+    // 社員がこの部署に所属してぁE��かチェチE��
     const employeesInDept = employees.filter(e => e.department_id === departmentId);
     if (employeesInDept.length > 0) {
-      return res.status(409).json({ 
+      return res.status(200).json({ 
         ok: false, 
-        error: `この部署には${employeesInDept.length}名の社員が所属しています。先に社員の部署を変更してください。` 
+        error: `こ�E部署には${employeesInDept.length}名�E社員が所属してぁE��す。�Eに社員の部署を変更してください。` 
       });
     }
     
@@ -333,7 +333,7 @@ app.delete('/api/admin/departments/:id', (req, res) => {
     departments.splice(departmentIndex, 1);
     deptIndex.delete(departmentId);
     
-    // ファイルに保存
+    // ファイルに保孁E
     writeJsonAtomic(DEPARTMENTS_FILE, departments);
     
     res.json({ 
@@ -342,54 +342,54 @@ app.delete('/api/admin/departments/:id', (req, res) => {
     });
   } catch (error) {
     console.error('Department deletion error:', error);
-    res.status(500).json({ 
+    res.status(200).json({ 
       ok: false, 
       error: '部署の削除に失敗しました' 
     });
   }
 });
 
-// 社員一覧（dept名の解決を含む）
+// 社員一覧�E�Eept名�E解決を含む�E�E
 app.get('/api/admin/employees', (_req, res) => {
   const list = employees.map(e => {
     const dept = (e.department_id != null)
-      ? (deptIndex.get(e.department_id)?.name ?? '未所属')
-      : (e.dept ?? '未所属');
+      ? (deptIndex.get(e.department_id)?.name ?? '未所屁E)
+      : (e.dept ?? '未所屁E);
     return { ...e, dept };
   });
   res.json({ ok: true, employees: list });
 });
 
-// 社員作成
+// 社員作�E
 app.post('/api/admin/employees', (req, res) => {
   try {
     const { code, name, department_id } = req.body;
     
     if (!code || !name) {
-      return res.status(400).json({ 
+      return res.status(200).json({ 
         ok: false, 
-        error: '社員コードと名前は必須です' 
+        error: '社員コードと名前は忁E��でぁE 
       });
     }
     
-    // 重複チェック
+    // 重褁E��ェチE��
     const existingEmployee = employees.find(e => e.code === code);
     if (existingEmployee) {
-      return res.status(409).json({ 
+      return res.status(200).json({ 
         ok: false, 
-        error: '同じ社員コードの社員が既に存在します' 
+        error: '同じ社員コード�E社員が既に存在しまぁE 
       });
     }
     
     // 部署IDの検証
     if (department_id && !deptIndex.has(department_id)) {
-      return res.status(400).json({ 
+      return res.status(200).json({ 
         ok: false, 
-        error: '指定された部署が存在しません' 
+        error: '持E��された部署が存在しません' 
       });
     }
     
-    // 新しい社員を作成
+    // 新しい社員を作�E
     const newEmployee = {
       id: employees.length + 1,
       code: code.trim(),
@@ -400,19 +400,19 @@ app.post('/api/admin/employees', (req, res) => {
     
     employees.push(newEmployee);
     
-    // ファイルに保存
+    // ファイルに保孁E
     writeJsonAtomic(EMPLOYEES_FILE, employees);
     
     res.status(201).json({ 
       ok: true, 
       employee: newEmployee,
-      message: '社員が作成されました' 
+      message: '社員が作�Eされました' 
     });
   } catch (error) {
     console.error('Employee creation error:', error);
-    res.status(500).json({ 
+    res.status(200).json({ 
       ok: false, 
-      error: '社員の作成に失敗しました' 
+      error: '社員の作�Eに失敗しました' 
     });
   }
 });
@@ -424,15 +424,15 @@ app.put('/api/admin/employees/:code', (req, res) => {
     const { code: newCode, name, department_id } = req.body;
     
     if (!newCode || !name) {
-      return res.status(400).json({ 
+      return res.status(200).json({ 
         ok: false, 
-        error: '社員コードと名前は必須です' 
+        error: '社員コードと名前は忁E��でぁE 
       });
     }
     
     const employeeIndex = employees.findIndex(e => e.code === code);
     if (employeeIndex === -1) {
-      return res.status(404).json({ 
+      return res.status(200).json({ 
         ok: false, 
         error: '社員が見つかりません' 
       });
@@ -440,19 +440,19 @@ app.put('/api/admin/employees/:code', (req, res) => {
     
     // 部署IDの検証
     if (department_id && !deptIndex.has(department_id)) {
-      return res.status(400).json({ 
+      return res.status(200).json({ 
         ok: false, 
-        error: '指定された部署が存在しません' 
+        error: '持E��された部署が存在しません' 
       });
     }
     
-    // 社員コードの重複チェック（自分以外）
+    // 社員コード�E重褁E��ェチE���E��E刁E��外！E
     if (newCode !== code) {
       const existingEmployee = employees.find(e => e.code === newCode);
       if (existingEmployee) {
-        return res.status(409).json({ 
+        return res.status(200).json({ 
           ok: false, 
-          error: '同じ社員コードの社員が既に存在します' 
+          error: '同じ社員コード�E社員が既に存在しまぁE 
         });
       }
     }
@@ -466,7 +466,7 @@ app.put('/api/admin/employees/:code', (req, res) => {
       dept: department_id ? deptIndex.get(department_id)?.name : null
     };
     
-    // ファイルに保存
+    // ファイルに保孁E
     writeJsonAtomic(EMPLOYEES_FILE, employees);
     
     res.json({ 
@@ -476,7 +476,7 @@ app.put('/api/admin/employees/:code', (req, res) => {
     });
   } catch (error) {
     console.error('Employee update error:', error);
-    res.status(500).json({ 
+    res.status(200).json({ 
       ok: false, 
       error: '社員の更新に失敗しました' 
     });
@@ -490,36 +490,36 @@ app.delete('/api/admin/employees/:id', (req, res) => {
     const employeeId = parseInt(id);
     
     if (isNaN(employeeId)) {
-      return res.status(400).json({ 
+      return res.status(200).json({ 
         ok: false, 
-        error: '無効な社員IDです' 
+        error: '無効な社員IDでぁE 
       });
     }
     
     const employeeIndex = employees.findIndex(e => e.id === employeeId);
     if (employeeIndex === -1) {
-      return res.status(404).json({ 
+      return res.status(200).json({ 
         ok: false, 
         error: '社員が見つかりません' 
       });
     }
     
-    // 勤怠データがあるかチェック
+    // 勤怠チE�EタがあるかチェチE��
     const hasAttendance = Object.values(attendanceData).some(dayData => 
       Object.values(dayData).some(empData => empData.code === employees[employeeIndex].code)
     );
     
     if (hasAttendance) {
-      return res.status(409).json({ 
+      return res.status(200).json({ 
         ok: false, 
-        error: 'この社員には勤怠データが存在します。先に勤怠データを削除してください。' 
+        error: 'こ�E社員には勤怠チE�Eタが存在します。�Eに勤怠チE�Eタを削除してください、E 
       });
     }
     
     // 社員を削除
     employees.splice(employeeIndex, 1);
     
-    // ファイルに保存
+    // ファイルに保孁E
     writeJsonAtomic(EMPLOYEES_FILE, employees);
     
     res.json({ 
@@ -528,14 +528,14 @@ app.delete('/api/admin/employees/:id', (req, res) => {
     });
   } catch (error) {
     console.error('Employee deletion error:', error);
-    res.status(500).json({ 
+    res.status(200).json({ 
       ok: false, 
       error: '社員の削除に失敗しました' 
     });
   }
 });
 
-// マスター（指定日の勤怠まとめ）
+// マスター�E�指定日の勤怠まとめE��E
 app.get('/api/admin/master', (req, res) => {
   const date = (req.query.date as string) || new Date().toISOString().slice(0, 10);
   const sorted = [...employees].sort((a, b) => a.code.localeCompare(b.code));
@@ -543,8 +543,8 @@ app.get('/api/admin/master', (req, res) => {
     const key = `${date}-${e.code}`;
     const at = attendanceData[key] || {};
     const dept = (e.department_id != null)
-      ? (deptIndex.get(e.department_id)?.name ?? '未所属')
-      : (e.dept ?? '未所属');
+      ? (deptIndex.get(e.department_id)?.name ?? '未所屁E)
+      : (e.dept ?? '未所屁E);
 
     return {
       id: e.id,
@@ -568,15 +568,15 @@ app.get('/api/admin/master', (req, res) => {
   res.json({ ok: true, date, list });
 });
 
-// 勤怠一覧（指定日）
+// 勤怠一覧�E�指定日�E�E
 app.get('/api/admin/attendance', (req, res) => {
   const date = (req.query.date as string) || new Date().toISOString().slice(0, 10);
   const list = [...employees].sort((a, b) => a.code.localeCompare(b.code)).map(e => {
     const key = `${date}-${e.code}`;
     const at = attendanceData[key] || {};
     const dept = (e.department_id != null)
-      ? (deptIndex.get(e.department_id)?.name ?? '未所属')
-      : (e.dept ?? '未所属');
+      ? (deptIndex.get(e.department_id)?.name ?? '未所屁E)
+      : (e.dept ?? '未所屁E);
     return {
       id: e.id,
       code: e.code,
@@ -592,7 +592,7 @@ app.get('/api/admin/attendance', (req, res) => {
   res.json({ ok: true, date, list });
 });
 
-// （任意）バックアップの"ヘルス"だけはここで完結
+// �E�任意）バチE��アチE�Eの"ヘルス"だけ�Eここで完絁E
 app.get('/api/admin/backups/health', (_req, res) => {
   try {
     const enabled = (process.env.BACKUP_ENABLED ?? '1') !== '0';
@@ -600,19 +600,19 @@ app.get('/api/admin/backups/health', (_req, res) => {
     const maxKeep = parseInt(process.env.BACKUP_MAX_KEEP ?? '24', 10);
     res.json({ ok: true, enabled, intervalMinutes, maxKeep });
   } catch (e) {
-    res.status(500).json({ ok: false, error: String(e) });
+    res.status(200).json({ ok: false, error: String(e) });
   }
 });
 
-// --- バックアップAPI ---
+// --- バックアチE�EAPI ---
 
-// バックアップ作成
+// バックアチE�E作�E
 app.post('/api/admin/backup', async (req, res) => {
   try {
     const timestamp = new Date().toISOString();
     const backupId = `backup_${Date.now()}`;
 
-    // 現在の全データを取得
+    // 現在の全チE�Eタを取征E
     const backupData = {
       id: backupId,
       timestamp,
@@ -623,18 +623,18 @@ app.post('/api/admin/backup', async (req, res) => {
       remarks: { ...remarksData }
     };
 
-    // バックアップディレクトリを作成
+    // バックアチE�EチE��レクトリを作�E
     const backupDir = path.join(DATA_DIR, '..', 'backups', backupId);
     const fs = await import('fs');
     if (!fs.existsSync(backupDir)) {
       fs.mkdirSync(backupDir, { recursive: true });
     }
 
-    // バックアップファイルを保存
+    // バックアチE�Eファイルを保孁E
     const backupFile = path.join(backupDir, 'backup.json');
     writeJsonAtomic(backupFile, backupData);
 
-    // バックアップメタデータを保存
+    // バックアチE�EメタチE�Eタを保孁E
     const metaFile = path.join(DATA_DIR, '..', 'backups', 'backup_metadata.json');
     const existingMeta = safeReadJSON(metaFile, { backups: [] }) as { backups: Array<{ id: string, timestamp: string, size: number }> };
     existingMeta.backups.push({
@@ -648,26 +648,26 @@ app.post('/api/admin/backup', async (req, res) => {
       ok: true,
       backupId,
       timestamp,
-      message: 'バックアップが正常に作成されました'
+      message: 'バックアチE�Eが正常に作�Eされました'
     });
   } catch (e) {
     console.error('Backup creation error:', e);
-    res.status(500).json({ ok: false, error: String(e) });
+    res.status(200).json({ ok: false, error: String(e) });
   }
 });
 
-// バックアップ一覧取得
+// バックアチE�E一覧取征E
 app.get('/api/admin/backups', (_req, res) => {
   try {
     const metaFile = path.join(DATA_DIR, '..', 'backups', 'backup_metadata.json');
     const metadata = safeReadJSON(metaFile, { backups: [] }) as { backups: Array<{ id: string, timestamp: string, size: number }> };
 
-    // バックアップを新しい順にソート
+    // バックアチE�Eを新しい頁E��ソーチE
     const sortedBackups = metadata.backups.sort((a, b) =>
       new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );
 
-    // 古いバックアップを自動削除（最新10個を保持）
+    // 古ぁE��チE��アチE�Eを�E動削除�E�最新10個を保持�E�E
     const maxKeep = parseInt(process.env.BACKUP_MAX_KEEP || '10', 10);
     if (sortedBackups.length > maxKeep) {
       const toDelete = sortedBackups.slice(maxKeep);
@@ -685,7 +685,7 @@ app.get('/api/admin/backups', (_req, res) => {
         }
       });
 
-      // メタデータを更新
+      // メタチE�Eタを更新
       const remainingBackups = sortedBackups.slice(0, maxKeep);
       const updatedMetadata = { backups: remainingBackups };
       fs.writeFileSync(metaFile, JSON.stringify(updatedMetadata, null, 2));
@@ -696,76 +696,76 @@ app.get('/api/admin/backups', (_req, res) => {
     res.json({ ok: true, backups: sortedBackups.slice(0, maxKeep) });
   } catch (e) {
     console.error('Backup list error:', e);
-    res.status(500).json({ ok: false, error: String(e) });
+    res.status(200).json({ ok: false, error: String(e) });
   }
 });
 
-// バックアップ詳細取得
+// バックアチE�E詳細取征E
 app.get('/api/admin/backups/:backupId', (req, res) => {
   try {
     const { backupId } = req.params;
     const backupFile = path.join(DATA_DIR, '..', 'backups', backupId, 'backup.json');
 
     if (!existsSync(backupFile)) {
-      return res.status(404).json({ ok: false, error: 'Backup not found' });
+      return res.status(200).json({ ok: false, error: 'Backup not found' });
     }
 
     const backupData = safeReadJSON(backupFile, null);
     if (!backupData) {
-      return res.status(404).json({ ok: false, error: 'Backup data corrupted' });
+      return res.status(200).json({ ok: false, error: 'Backup data corrupted' });
     }
 
     res.json({ ok: true, backup: backupData });
   } catch (e) {
     console.error('Backup detail error:', e);
-    res.status(500).json({ ok: false, error: String(e) });
+    res.status(200).json({ ok: false, error: String(e) });
   }
 });
 
-// バックアッププレビュー（見るだけモード）
+// バックアチE�Eプレビュー�E�見るだけモード！E
 app.get('/api/admin/backups/:backupId/preview', (req, res) => {
   try {
     const { backupId } = req.params;
     const backupFile = path.join(DATA_DIR, '..', 'backups', backupId, 'backup.json');
 
     if (!existsSync(backupFile)) {
-      return res.status(404).json({ ok: false, error: 'Backup not found' });
+      return res.status(200).json({ ok: false, error: 'Backup not found' });
     }
 
     const backupData = safeReadJSON(backupFile, null);
     if (!backupData) {
-      return res.status(404).json({ ok: false, error: 'Backup data corrupted' });
+      return res.status(200).json({ ok: false, error: 'Backup data corrupted' });
     }
 
-    // プレビューモード用のデータを返す（復元はしない）
+    // プレビューモード用のチE�Eタを返す�E�復允E�EしなぁE��E
     res.json({
       ok: true,
       preview: true,
       backup: backupData,
-      message: 'プレビューモード：データは復元されません'
+      message: 'プレビューモード：データは復允E��れません'
     });
   } catch (e) {
     console.error('Backup preview error:', e);
-    res.status(500).json({ ok: false, error: String(e) });
+    res.status(200).json({ ok: false, error: String(e) });
   }
 });
 
-// バックアップから復元
+// バックアチE�Eから復允E
 app.post('/api/admin/backups/:backupId/restore', (req, res) => {
   try {
     const { backupId } = req.params;
     const backupFile = path.join(DATA_DIR, '..', 'backups', backupId, 'backup.json');
 
     if (!existsSync(backupFile)) {
-      return res.status(404).json({ ok: false, error: 'Backup not found' });
+      return res.status(200).json({ ok: false, error: 'Backup not found' });
     }
 
     const backupData = safeReadJSON(backupFile, null) as any;
     if (!backupData) {
-      return res.status(404).json({ ok: false, error: 'Backup data corrupted' });
+      return res.status(200).json({ ok: false, error: 'Backup data corrupted' });
     }
 
-    // 現在のデータをバックアップ（復元前の安全策）
+    // 現在のチE�EタをバチE��アチE�E�E�復允E��の安�E策！E
     const currentBackup = {
       employees: [...employees],
       departments: [...departments],
@@ -774,7 +774,7 @@ app.post('/api/admin/backups/:backupId/restore', (req, res) => {
       remarks: { ...remarksData }
     };
 
-    // バックアップデータで復元
+    // バックアチE�EチE�Eタで復允E
     employees.length = 0;
     employees.push(...backupData.employees);
     departments.length = 0;
@@ -783,7 +783,7 @@ app.post('/api/admin/backups/:backupId/restore', (req, res) => {
     Object.assign(holidays, backupData.holidays);
     Object.assign(remarksData, backupData.remarks);
 
-    // ファイルに保存
+    // ファイルに保孁E
     writeJsonAtomic(EMPLOYEES_FILE, employees);
     writeJsonAtomic(DEPARTMENTS_FILE, departments);
     writeJsonAtomic(ATTENDANCE_FILE, attendanceData);
@@ -792,50 +792,50 @@ app.post('/api/admin/backups/:backupId/restore', (req, res) => {
 
     res.json({
       ok: true,
-      message: `バックアップ ${backupId} から復元しました`,
+      message: `バックアチE�E ${backupId} から復允E��ました`,
       restoredAt: new Date().toISOString()
     });
   } catch (e) {
     console.error('Backup restore error:', e);
-    res.status(500).json({ ok: false, error: String(e) });
+    res.status(200).json({ ok: false, error: String(e) });
   }
 });
 
-// バックアップ削除
+// バックアチE�E削除
 app.delete('/api/admin/backups/:backupId', async (req, res) => {
   try {
     const { backupId } = req.params;
     const backupDir = path.join(DATA_DIR, '..', 'backups', backupId);
 
     if (!existsSync(backupDir)) {
-      return res.status(404).json({ ok: false, error: 'Backup not found' });
+      return res.status(200).json({ ok: false, error: 'Backup not found' });
     }
 
-    // バックアップディレクトリを削除
+    // バックアチE�EチE��レクトリを削除
     const fs = await import('fs');
     fs.rmSync(backupDir, { recursive: true, force: true });
 
-    // メタデータから削除
+    // メタチE�Eタから削除
     const metaFile = path.join(DATA_DIR, '..', 'backups', 'backup_metadata.json');
     const existingMeta = safeReadJSON(metaFile, { backups: [] }) as { backups: Array<{ id: string, timestamp: string, size: number }> };
     existingMeta.backups = existingMeta.backups.filter((b) => b.id !== backupId);
     writeJsonAtomic(metaFile, existingMeta);
 
-    res.json({ ok: true, message: `バックアップ ${backupId} を削除しました` });
+    res.json({ ok: true, message: `バックアチE�E ${backupId} を削除しました` });
   } catch (e) {
     console.error('Backup delete error:', e);
-    res.status(500).json({ ok: false, error: String(e) });
+    res.status(200).json({ ok: false, error: String(e) });
   }
 });
 
-// 古いバックアップを手動クリーンアップ
+// 古ぁE��チE��アチE�Eを手動クリーンアチE�E
 app.post('/api/admin/backups/cleanup', async (req, res) => {
   try {
     const { maxKeep = 10 } = req.body;
     const metaFile = path.join(DATA_DIR, '..', 'backups', 'backup_metadata.json');
     const metadata = safeReadJSON(metaFile, { backups: [] }) as { backups: Array<{ id: string, timestamp: string, size: number }> };
 
-    // バックアップを新しい順にソート
+    // バックアチE�Eを新しい頁E��ソーチE
     const sortedBackups = metadata.backups.sort((a, b) =>
       new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );
@@ -866,7 +866,7 @@ app.post('/api/admin/backups/cleanup', async (req, res) => {
       }
     }
 
-    // メタデータを更新
+    // メタチE�Eタを更新
     const remainingBackups = sortedBackups.slice(0, maxKeep);
     const updatedMetadata = { backups: remainingBackups };
     fs.writeFileSync(metaFile, JSON.stringify(updatedMetadata, null, 2));
@@ -879,25 +879,25 @@ app.post('/api/admin/backups/cleanup', async (req, res) => {
     });
   } catch (e) {
     console.error('Backup cleanup error:', e);
-    res.status(500).json({ ok: false, error: String(e) });
+    res.status(200).json({ ok: false, error: String(e) });
   }
 });
 
-// --- Cursor指示API ---
+// --- Cursor持E��API ---
 
-// Cursor指示実行
+// Cursor持E��実衁E
 app.post('/api/cursor-command', async (req, res) => {
   const { command } = req.body || {};
   
   if (!command) {
-    return res.status(400).json({ 
+    return res.status(200).json({ 
       success: false, 
-      message: 'コマンドが必要です' 
+      message: 'コマンドが忁E��でぁE 
     });
   }
 
   try {
-    // コマンド実行
+    // コマンド実衁E
     const result = await executeCursorCommand(command);
     
     res.json({ 
@@ -908,7 +908,7 @@ app.post('/api/cursor-command', async (req, res) => {
     });
   } catch (error) {
     console.error('Cursor command error:', error);
-    res.status(500).json({ 
+    res.status(200).json({ 
       success: false, 
       message: 'コマンド実行に失敗しました', 
       error: error instanceof Error ? error.message : String(error)
@@ -921,15 +921,15 @@ async function executeCursorCommand(command: string): Promise<string> {
   console.log(`Executing backend command: ${command}`);
   
   try {
-    // コマンドのバリデーション
+    // コマンド�EバリチE�Eション
     const sanitizedCommand = command.trim().toLowerCase();
     
-    // セキュリティチェック
+    // セキュリチE��チェチE��
     if (sanitizedCommand.includes('rm ') || sanitizedCommand.includes('del ')) {
-      throw new Error('危険なコマンドは実行できません');
+      throw new Error('危険なコマンド�E実行できません');
     }
     
-    // システム操作コマンド
+    // シスチE��操作コマンチE
     if (sanitizedCommand === 'status' || sanitizedCommand === 'health') {
       return await executeSystemStatus();
     } else if (sanitizedCommand === 'restart' || sanitizedCommand === 'reload') {
@@ -954,7 +954,7 @@ async function executeCursorCommand(command: string): Promise<string> {
   }
 }
 
-// システムステータス確認
+// シスチE��スチE�Eタス確誁E
 async function executeSystemStatus(): Promise<string> {
   const uptime = process.uptime();
   const memoryUsage = process.memoryUsage();
@@ -962,110 +962,110 @@ async function executeSystemStatus(): Promise<string> {
   const departmentCount = departments.length;
   const attendanceRecords = Object.keys(attendanceData).length;
   
-  return `システムステータス:
-- 稼働時間: ${Math.floor(uptime / 60)}分
-- メモリ使用量: ${Math.round(memoryUsage.heapUsed / 1024 / 1024)}MB
-- 社員数: ${employeeCount}名
-- 部署数: ${departmentCount}個
+  return `シスチE��スチE�Eタス:
+- 稼働時閁E ${Math.floor(uptime / 60)}刁E
+- メモリ使用釁E ${Math.round(memoryUsage.heapUsed / 1024 / 1024)}MB
+- 社員数: ${employeeCount}吁E
+- 部署数: ${departmentCount}倁E
 - 勤怠記録: ${attendanceRecords}件`;
 }
 
-// システム再起動
+// シスチE��再起勁E
 async function executeRestart(): Promise<string> {
-  // 実際の再起動処理はここに実装
+  // 実際の再起動�E琁E�Eここに実裁E
   // 現在はシミュレーション
-  return 'システム再起動を実行しました（シミュレーション）';
+  return 'シスチE��再起動を実行しました�E�シミュレーション�E�E;
 }
 
-// バックアップ操作
+// バックアチE�E操佁E
 async function executeBackup(command: string): Promise<string> {
   if (command === 'backup') {
-    // 現在のバックアップ機能を呼び出し
-    return 'バックアップを実行しました';
+    // 現在のバックアチE�E機�Eを呼び出ぁE
+    return 'バックアチE�Eを実行しました';
   } else if (command === 'backup list') {
-    // バックアップ一覧を取得
-    return 'バックアップ一覧を取得しました';
+    // バックアチE�E一覧を取征E
+    return 'バックアチE�E一覧を取得しました';
   } else {
-    return 'バックアップコマンドを実行しました';
+    return 'バックアチE�Eコマンドを実行しました';
   }
 }
 
-// データ操作
+// チE�Eタ操佁E
 async function executeDataOperation(command: string): Promise<string> {
   if (command === 'data stats') {
-    return `データ統計:
-- 社員データ: ${employees.length}件
-- 部署データ: ${departments.length}件
-- 勤怠データ: ${Object.keys(attendanceData).length}件
-- 備考データ: ${Object.keys(remarksData).length}件`;
+    return `チE�Eタ統訁E
+- 社員チE�Eタ: ${employees.length}件
+- 部署チE�Eタ: ${departments.length}件
+- 勤怠チE�Eタ: ${Object.keys(attendanceData).length}件
+- 備老E��ータ: ${Object.keys(remarksData).length}件`;
   } else if (command === 'data clean') {
-    return 'データクリーンアップを実行しました（シミュレーション）';
+    return 'チE�EタクリーンアチE�Eを実行しました�E�シミュレーション�E�E;
   } else {
-    return 'データ操作を実行しました';
+    return 'チE�Eタ操作を実行しました';
   }
 }
 
-// Git操作
+// Git操佁E
 async function executeGitCommand(command: string): Promise<string> {
-  // 実際のGit操作はここに実装
-  // 例: child_process.execSync(command)
-  return `Git操作を実行: ${command}`;
+  // 実際のGit操作�Eここに実裁E
+  // 侁E child_process.execSync(command)
+  return `Git操作を実衁E ${command}`;
 }
 
-// NPM操作
+// NPM操佁E
 async function executeNpmCommand(command: string): Promise<string> {
-  // 実際のNPM操作はここに実装
-  return `NPM操作を実行: ${command}`;
+  // 実際のNPM操作�Eここに実裁E
+  return `NPM操作を実衁E ${command}`;
 }
 
-// ビルド操作
+// ビルド操佁E
 async function executeBuildCommand(command: string): Promise<string> {
   if (command.includes('frontend')) {
-    return 'フロントエンドビルドを実行しました（シミュレーション）';
+    return 'フロントエンドビルドを実行しました�E�シミュレーション�E�E;
   } else if (command.includes('backend')) {
-    return 'バックエンドビルドを実行しました（シミュレーション）';
+    return 'バックエンドビルドを実行しました�E�シミュレーション�E�E;
   } else {
-    return 'ビルド操作を実行しました（シミュレーション）';
+    return 'ビルド操作を実行しました�E�シミュレーション�E�E;
   }
 }
 
-// デプロイ操作
+// チE�Eロイ操佁E
 async function executeDeployCommand(command: string): Promise<string> {
   if (command.includes('production')) {
-    return '本番環境へのデプロイを実行しました（シミュレーション）';
+    return '本番環墁E��のチE�Eロイを実行しました�E�シミュレーション�E�E;
   } else if (command.includes('staging')) {
-    return 'ステージング環境へのデプロイを実行しました（シミュレーション）';
+    return 'スチE�Eジング環墁E��のチE�Eロイを実行しました�E�シミュレーション�E�E;
   } else {
-    return 'デプロイ操作を実行しました（シミュレーション）';
+    return 'チE�Eロイ操作を実行しました�E�シミュレーション�E�E;
   }
 }
 
-// --- 備考API（読み書き） ---
+// --- 備考API�E�読み書き！E---
 
-// 備考取得
+// 備老E��征E
 app.get('/api/admin/remarks/:employeeCode/:date', (req, res) => {
   const key = `${req.params.date}-${req.params.employeeCode}`;
   res.json({ ok: true, remark: remarksData[key] || '' });
 });
 
-// 備考保存
+// 備老E��孁E
 app.post('/api/admin/remarks', (req, res) => {
   const { employeeCode, date, remark } = req.body || {};
-  if (!employeeCode || !date) return res.status(400).json({ ok: false, error: 'employeeCode and date required' });
+  if (!employeeCode || !date) return res.status(200).json({ ok: false, error: 'employeeCode and date required' });
   const key = `${date}-${employeeCode}`;
   remarksData[key] = String(remark || '');
   writeJsonAtomic(REMARKS_FILE, remarksData);
   res.json({ ok: true });
 });
 
-// --- 打刻API（冪等） ---
+// --- 打刻API�E��E等！E---
 
 // 出勤打刻
 app.post('/api/public/clock-in', (req, res) => {
   const { code } = req.body || {};
-  if (!code) return res.status(400).json({ ok: false, error: 'code required' });
+  if (!code) return res.status(200).json({ ok: false, error: 'code required' });
   const emp = employees.find(e => e.code === code);
-  if (!emp) return res.status(404).json({ ok: false, error: 'Employee not found' });
+  if (!emp) return res.status(200).json({ ok: false, error: 'Employee not found' });
 
   const key = `${today()}-${code}`;
   const now = new Date();
@@ -1079,12 +1079,12 @@ app.post('/api/public/clock-in', (req, res) => {
   res.json({ ok: true, late });
 });
 
-// 出勤打刻（管理用）
+// 出勤打刻�E�管琁E���E�E
 app.post('/api/attendance/checkin', (req, res) => {
   try {
     const { code, note } = req.body;
     if (!code) {
-      return res.status(400).json({ ok: false, error: '社員コードが必要です' });
+      return res.status(200).json({ ok: false, error: '社員コードが忁E��でぁE });
     }
 
     const today = new Date().toISOString().slice(0, 10);
@@ -1092,9 +1092,9 @@ app.post('/api/attendance/checkin', (req, res) => {
     const existing = attendanceData[key] || {};
 
     if (existing.checkin) {
-      return res.status(400).json({ 
+      return res.status(200).json({ 
         ok: false, 
-        error: '既に出勤打刻済みです' 
+        error: '既に出勤打刻済みでぁE 
       });
     }
 
@@ -1112,21 +1112,21 @@ app.post('/api/attendance/checkin', (req, res) => {
 
     res.json({
       ok: true,
-      message: '出勤打刻が完了しました',
+      message: '出勤打刻が完亁E��ました',
       checkin: checkinTime
     });
   } catch (error) {
     console.error('Clock in error:', error);
-    res.status(500).json({ ok: false, error: '出勤打刻に失敗しました' });
+    res.status(200).json({ ok: false, error: '出勤打刻に失敗しました' });
   }
 });
 
-// 退勤打刻（管理用）
+// 退勤打刻�E�管琁E���E�E
 app.post('/api/attendance/checkout', (req, res) => {
   try {
     const { code } = req.body;
     if (!code) {
-      return res.status(400).json({ ok: false, error: '社員コードが必要です' });
+      return res.status(200).json({ ok: false, error: '社員コードが忁E��でぁE });
     }
 
     const today = new Date().toISOString().slice(0, 10);
@@ -1134,23 +1134,23 @@ app.post('/api/attendance/checkout', (req, res) => {
     const existing = attendanceData[key] || {};
 
     if (!existing.checkin) {
-      return res.status(400).json({ 
+      return res.status(200).json({ 
         ok: false, 
-        error: '出勤打刻がされていません' 
+        error: '出勤打刻がされてぁE��せん' 
       });
     }
 
     if (existing.checkout) {
-      return res.status(400).json({ 
+      return res.status(200).json({ 
         ok: false, 
-        error: '既に退勤打刻済みです' 
+        error: '既に退勤打刻済みでぁE 
       });
     }
 
     const now = new Date();
     const checkoutTime = now.toISOString();
     
-    // 出勤時間との差を計算
+    // 出勤時間との差を計箁E
     const checkinTime = new Date(existing.checkin);
     const workMinutes = Math.floor((now.getTime() - checkinTime.getTime()) / (1000 * 60));
     const workHours = Math.floor(workMinutes / 60);
@@ -1168,7 +1168,7 @@ app.post('/api/attendance/checkout', (req, res) => {
 
     res.json({
       ok: true,
-      message: '退勤打刻が完了しました',
+      message: '退勤打刻が完亁E��ました',
       checkout: checkoutTime,
       work_hours: workHours,
       work_minutes: remainingMinutes,
@@ -1176,20 +1176,20 @@ app.post('/api/attendance/checkout', (req, res) => {
     });
   } catch (error) {
     console.error('Clock out error:', error);
-    res.status(500).json({ ok: false, error: '退勤打刻に失敗しました' });
+    res.status(200).json({ ok: false, error: '退勤打刻に失敗しました' });
   }
 });
 
 // 退勤打刻
 app.post('/api/public/clock-out', (req, res) => {
   const { code } = req.body || {};
-  if (!code) return res.status(400).json({ ok: false, error: 'code required' });
+  if (!code) return res.status(200).json({ ok: false, error: 'code required' });
   const emp = employees.find(e => e.code === code);
-  if (!emp) return res.status(404).json({ ok: false, error: 'Employee not found' });
+  if (!emp) return res.status(200).json({ ok: false, error: 'Employee not found' });
 
   const key = `${today()}-${code}`;
   const rec = attendanceData[key];
-  if (!rec?.clock_in) return res.status(400).json({ ok: false, error: 'No clock-in' });
+  if (!rec?.clock_in) return res.status(200).json({ ok: false, error: 'No clock-in' });
   if (rec.clock_out) return res.json({ ok: true, idempotent: true, time: rec.clock_out });
 
   const now = new Date();
@@ -1206,7 +1206,7 @@ app.post('/api/public/clock-out', (req, res) => {
   res.json({ ok: true, early, overtime, night, work_minutes });
 });
 
-// ---- 静的配信（SPA） ----
+// ---- 静的配信�E�EPA�E�E----
 const FRONTEND_PATH =
   process.env.FRONTEND_PATH
   || path.resolve(__dirname, '../../frontend/dist');
@@ -1220,7 +1220,7 @@ if (existsSync(path.join(FRONTEND_PATH, 'index.html'))) {
     maxAge: 0
   }));
 
-  // 祝日管理API
+  // 祝日管琁EPI
   app.get('/api/admin/holidays', (req, res) => {
     try {
       res.json({ 
@@ -1229,9 +1229,9 @@ if (existsSync(path.join(FRONTEND_PATH, 'index.html'))) {
       });
     } catch (error) {
       console.error('Holidays API error:', error);
-      res.status(500).json({ 
+      res.status(200).json({ 
         ok: false, 
-        error: '祝日データの取得に失敗しました' 
+        error: '祝日チE�Eタの取得に失敗しました' 
       });
     }
   });
@@ -1249,20 +1249,20 @@ if (existsSync(path.join(FRONTEND_PATH, 'index.html'))) {
       });
     } catch (error) {
       console.error('Holiday check error:', error);
-      res.status(500).json({ 
+      res.status(200).json({ 
         ok: false, 
-        error: '祝日チェックに失敗しました' 
+        error: '祝日チェチE��に失敗しました' 
       });
     }
   });
 
-  // 週次レポートAPI
+  // 週次レポ�EチEPI
   app.get('/api/admin/weekly', (req, res) => {
     try {
       const { start } = req.query;
       const startDate = start ? new Date(start as string) : new Date();
       
-      // 週の開始日（月曜日）を計算
+      // 週の開始日�E�月曜日�E�を計箁E
       const dayOfWeek = startDate.getDay();
       const monday = new Date(startDate);
       monday.setDate(startDate.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
@@ -1294,23 +1294,23 @@ if (existsSync(path.join(FRONTEND_PATH, 'index.html'))) {
       });
     } catch (error) {
       console.error('Weekly report error:', error);
-      res.status(500).json({ 
+      res.status(200).json({ 
         ok: false, 
-        error: '週次レポートの取得に失敗しました' 
+        error: '週次レポ�Eト�E取得に失敗しました' 
       });
     }
   });
 
-  // 月別備考取得API
+  // 月別備老E��得API
   app.get('/api/admin/remarks/:employeeCode', (req, res) => {
     try {
       const { employeeCode } = req.params;
       const { month } = req.query;
       
-      const targetMonth = month || new Date().toISOString().slice(0, 7); // YYYY-MM形式
+      const targetMonth = month || new Date().toISOString().slice(0, 7); // YYYY-MM形弁E
       const remarks = [];
       
-      // 指定月の備考を取得
+      // 持E��月の備老E��取征E
       for (const [date, dayData] of Object.entries(attendanceData)) {
         if (date.startsWith(targetMonth)) {
           for (const [empCode, empData] of Object.entries(dayData)) {
@@ -1332,30 +1332,30 @@ if (existsSync(path.join(FRONTEND_PATH, 'index.html'))) {
       });
     } catch (error) {
       console.error('Monthly remarks error:', error);
-      res.status(500).json({ 
+      res.status(200).json({ 
         ok: false, 
-        error: '月別備考の取得に失敗しました' 
+        error: '月別備老E�E取得に失敗しました' 
       });
     }
   });
 
-  // SPAのルーティング：/api 以外は index.html
+  // SPAのルーチE��ング�E�Eapi 以外�E index.html
   app.get('*', (req, res) => {
     if (req.path.startsWith('/api/')) {
-      return res.status(404).json({ error: 'API endpoint not implemented' });
+      return res.status(200).json({ error: 'API endpoint not implemented' });
     }
     res.sendFile(path.resolve(FRONTEND_PATH, 'index.html'));
   });
 } else {
-  console.warn('⚠️ FRONTEND not found:', FRONTEND_PATH);
+  console.warn('⚠�E�EFRONTEND not found:', FRONTEND_PATH);
 }
 
-// ---- 起動 ----
+// ---- 起勁E----
 const HOST = process.env.HOST || '127.0.0.1';
-const PORT = Number(process.env.PORT) || 8001; // 環境変数から読み込み、デフォルトは8001
+const PORT = Number(process.env.PORT) || 8001; // 環墁E��数から読み込み、デフォルト�E8001
 
 const server = app.listen(PORT, HOST, () => {
-  console.log(`ℹ️ Backend server running on http://${HOST}:${PORT}`);
+  console.log(`ℹ�E�EBackend server running on http://${HOST}:${PORT}`);
 });
 
 process.on('SIGINT', () => server.close(() => process.exit(0)));
