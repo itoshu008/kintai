@@ -243,6 +243,34 @@ app.get('/api/admin/backups/:backupId', (req, res) => {
   }
 });
 
+// バックアッププレビュー（見るだけモード）
+app.get('/api/admin/backups/:backupId/preview', (req, res) => {
+  try {
+    const { backupId } = req.params;
+    const backupFile = path.join(DATA_DIR, '..', 'backups', backupId, 'backup.json');
+    
+    if (!existsSync(backupFile)) {
+      return res.status(404).json({ ok: false, error: 'Backup not found' });
+    }
+    
+    const backupData = safeReadJSON(backupFile, null);
+    if (!backupData) {
+      return res.status(404).json({ ok: false, error: 'Backup data corrupted' });
+    }
+    
+    // プレビューモード用のデータを返す（復元はしない）
+    res.json({ 
+      ok: true, 
+      preview: true,
+      backup: backupData,
+      message: 'プレビューモード：データは復元されません'
+    });
+  } catch (e) {
+    console.error('Backup preview error:', e);
+    res.status(500).json({ ok: false, error: String(e) });
+  }
+});
+
 // バックアップから復元
 app.post('/api/admin/backups/:backupId/restore', (req, res) => {
   try {

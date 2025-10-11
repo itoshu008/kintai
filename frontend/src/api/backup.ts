@@ -41,6 +41,14 @@ export const backupApi = {
     return response;
   },
 
+  // バックアッププレビュー（見るだけモード）
+  getBackupPreview: async (backupId: string): Promise<{ ok: boolean; preview: boolean; backup: BackupData; message: string }> => {
+    const response = await request(`/api/admin/backups/${backupId}/preview`, {
+      method: 'GET',
+    });
+    return response;
+  },
+
   // バックアップから復元
   restoreBackup: async (backupId: string): Promise<{ ok: boolean; message: string; restoredAt: string }> => {
     const response = await request(`/api/admin/backups/${backupId}/restore`, {
