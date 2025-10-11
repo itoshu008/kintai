@@ -41,6 +41,88 @@ app.get('/api/admin/health', (_req, res) => {
   }
 });
 
+// セッション管理API
+const sessions = new Map<string, { user: any; createdAt: Date; expiresAt: Date }>();
+
+// セッション保存
+app.post('/api/admin/sessions', (req, res) => {
+  try {
+    const { code, name, department, rememberMe } = req.body;
+    const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + (rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000)); // 30日 or 1日
+    
+    const user = { code, name, department, isAdmin: true };
+    sessions.set(sessionId, { user, createdAt: now, expiresAt });
+    
+    res.json({
+      ok: true,
+      sessionId,
+      user,
+      message: 'セッションが保存されました'
+    });
+  } catch (error) {
+    console.error('セッション保存エラー:', error);
+    res.status(500).json({
+      ok: false,
+      error: 'セッション保存に失敗しました'
+    });
+  }
+});
+
+// セッション取得
+app.get('/api/admin/sessions/:sessionId', (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const session = sessions.get(sessionId);
+    
+    if (!session) {
+      return res.status(404).json({
+        ok: false,
+        error: 'セッションが見つかりません'
+      });
+    }
+    
+    if (new Date() > session.expiresAt) {
+      sessions.delete(sessionId);
+      return res.status(401).json({
+        ok: false,
+        error: 'セッションが期限切れです'
+      });
+    }
+    
+    res.json({
+      ok: true,
+      user: session.user
+    });
+  } catch (error) {
+    console.error('セッション取得エラー:', error);
+    res.status(500).json({
+      ok: false,
+      error: 'セッション取得に失敗しました'
+    });
+  }
+});
+
+// セッション削除
+app.delete('/api/admin/sessions/:sessionId', (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const deleted = sessions.delete(sessionId);
+    
+    res.json({
+      ok: true,
+      message: deleted ? 'セッションが削除されました' : 'セッションが見つかりませんでした'
+    });
+  } catch (error) {
+    console.error('セッション削除エラー:', error);
+    res.status(500).json({
+      ok: false,
+      error: 'セッション削除に失敗しました'
+    });
+  }
+});
+
 // ---- ここから互換ミニ版：データ読み取りだけ実装 ----
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

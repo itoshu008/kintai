@@ -21,7 +21,7 @@ export interface BackupData {
 export const backupApi = {
   // バックアップ作成
   createBackup: async (): Promise<{ ok: boolean; backupId: string; timestamp: string; message: string }> => {
-    const response = await request(`${BASE}/backup`, {
+    const response = await request(`${BASE}/admin/backup`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -33,7 +33,7 @@ export const backupApi = {
 
   // バックアップ一覧取得
   getBackups: async (): Promise<{ ok: boolean; backups: BackupInfo[] }> => {
-    const response = await request(`${BASE}/backups`, {
+    const response = await request(`${BASE}/admin/backups`, {
       method: 'GET',
     });
     return response;
@@ -41,7 +41,7 @@ export const backupApi = {
 
   // バックアップ詳細取得
   getBackupDetail: async (backupId: string): Promise<{ ok: boolean; backup: BackupData }> => {
-    const response = await request(`${BASE}/backups/${backupId}`, {
+    const response = await request(`${BASE}/admin/backups/${backupId}`, {
       method: 'GET',
     });
     return response;
@@ -49,7 +49,7 @@ export const backupApi = {
 
   // バックアッププレビュー（見るだけモード）
   getBackupPreview: async (backupId: string): Promise<{ ok: boolean; preview: boolean; backup: BackupData; message: string }> => {
-    const response = await request(`${BASE}/backups/${backupId}/preview`, {
+    const response = await request(`${BASE}/admin/backups/${backupId}/preview`, {
       method: 'GET',
     });
     return response;
@@ -57,7 +57,7 @@ export const backupApi = {
 
   // バックアップから復元
   restoreBackup: async (backupId: string): Promise<{ ok: boolean; message: string; restoredAt: string }> => {
-    const response = await request(`${BASE}/backups/${backupId}/restore`, {
+    const response = await request(`${BASE}/admin/backups/${backupId}/restore`, {
       method: 'POST',
     });
     return response;
@@ -65,7 +65,7 @@ export const backupApi = {
 
   // バックアップ削除
   deleteBackup: async (backupId: string): Promise<{ ok: boolean; message: string }> => {
-    const response = await request(`${BASE}/backups/${backupId}`, {
+    const response = await request(`${BASE}/admin/backups/${backupId}`, {
       method: 'DELETE',
     });
     return response;
@@ -73,7 +73,7 @@ export const backupApi = {
 
   // 古いバックアップをクリーンアップ
   cleanupBackups: async (maxKeep: number = 10): Promise<{ ok: boolean; message: string; deletedCount: number; remainingCount: number }> => {
-    const response = await request(`${BASE}/backups/cleanup`, {
+    const response = await request(`${BASE}/admin/backups/cleanup`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
