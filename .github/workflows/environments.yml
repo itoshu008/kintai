@@ -1,0 +1,80 @@
+name: Environment Management
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - create-backup
+          - rollback
+          - health-check
+          - cleanup
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  environment-action:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up SSH key
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Create backup
+        if: github.event.inputs.action == 'create-backup'
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} '
+            cd ${{ secrets.DEPLOY_PATH }} &&
+            BACKUP_NAME="manual_backup_$(date +%Y%m%d_%H%M%S)" &&
+            mkdir -p ${{ secrets.BACKUP_PATH }}/$BACKUP_NAME &&
+            cp -r dist ${{ secrets.BACKUP_PATH }}/$BACKUP_NAME/ &&
+            echo "✅ Backup created: $BACKUP_NAME"
+          '
+
+      - name: Rollback
+        if: github.event.inputs.action == 'rollback'
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} '
+            cd ${{ secrets.DEPLOY_PATH }} &&
+            echo "🔄 Rolling back..." &&
+            git reset --hard HEAD~1 &&
+            npm ci &&
+            cd backend && npm ci && npm run build && cd .. &&
+            cd frontend && npm ci && npm run build && cd .. &&
+            pm2 restart all &&
+            echo "✅ Rollback completed"
+          '
+
+      - name: Health check
+        if: github.event.inputs.action == 'health-check'
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} '
+            echo "🏥 Performing health check..." &&
+            pm2 status &&
+            curl -f http://localhost:8000/api/admin/backups/health &&
+            echo "✅ Health check passed"
+          '
+
+      - name: Cleanup
+        if: github.event.inputs.action == 'cleanup'
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} '
+            echo "🧹 Cleaning up..." &&
+            find ${{ secrets.BACKUP_PATH }} -name "backup_*" -mtime +7 -exec rm -rf {} \; &&
+            pm2 flush &&
+            echo "✅ Cleanup completed"
+          '
