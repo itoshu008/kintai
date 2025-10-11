@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api/attendance';
-import { api as adminApi } from '../lib/api';
+import { backupApi } from '../api/backup';
 import { Department, MasterRow } from '../types/attendance';
 import { getHolidayNameSync, isHolidaySync } from '../utils/holidays';
 
@@ -377,7 +377,7 @@ export default function MasterPage() {
       const newName = editEmployeeName.trim();
       const newDeptId = editEmployeeDept || undefined;
 
-      const res = await adminApi.updateEmployee(editingEmployee.id, newCode, newName, newDeptId);
+      const res = await api.updateEmployee(editingEmployee.code, { code: newCode, name: newName, department_id: newDeptId });
 
       if (res.ok) {
         setMsg(`✅ 社員「${editEmployeeName}」を更新しました`);
@@ -488,7 +488,7 @@ export default function MasterPage() {
     try {
       // 部署IDを取得
       const deptId = deps.find(d => d.name === newDepartment.trim())?.id;
-      await adminApi.createEmployee(newCode.trim(), newName.trim(), deptId);
+      await api.createEmployee(newCode.trim(), newName.trim(), deptId);
       setNewCode(''); setNewName(''); setNewDepartment('');
       setMsg('✅ 社員を登録しました');
 
@@ -535,7 +535,7 @@ export default function MasterPage() {
       return;
     }
     try {
-      await adminApi.createDepartment(newDeptName.trim());
+      await api.createDepartment(newDeptName.trim());
       setNewDeptName('');
       setMsg('✅ 部署を登録しました');
 
@@ -557,7 +557,7 @@ export default function MasterPage() {
 
   const loadDeps = async () => {
     try {
-      const r = await adminApi.listDepartments();
+      const r = await api.listDepartments();
       setDeps(r?.list || []);
     } catch (e: any) {
       console.warn('Failed to load departments:', e);
@@ -569,8 +569,7 @@ export default function MasterPage() {
   const loadBackups = async () => {
     try {
       setBackupLoading(true);
-      const response = await fetch('/api/admin/backups');
-      const result = await response.json();
+      const result = await backupApi.getBackups();
       if (result.ok) {
         setBackups(result.backups || []);
       } else {
@@ -587,16 +586,12 @@ export default function MasterPage() {
   const createManualBackup = async () => {
     try {
       setBackupLoading(true);
-      const response = await fetch('/api/admin/backup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const result = await response.json();
+      const result = await backupApi.createBackup();
       if (result.ok) {
-        setMsg(`✅ バックアップを作成しました: ${result.backupName}`);
+        setMsg(`✅ バックアップを作成しました: ${result.backupId}`);
         loadBackups(); // 一覧を更新
       } else {
-        setMsg(`❌ バックアップ作成エラー: ${result.error}`);
+        setMsg(`❌ バックアップ作成エラー: ${result.message}`);
       }
     } catch (e: any) {
       setMsg(`❌ バックアップ作成エラー: ${e.message}`);
@@ -613,18 +608,13 @@ export default function MasterPage() {
 
     try {
       setBackupLoading(true);
-      const response = await fetch(`/api/admin/backups/${backupName}/restore`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ backupName })
-      });
-      const result = await response.json();
+      const result = await backupApi.restoreBackup(backupName);
       if (result.ok) {
         setMsg(`✅ バックアップを復元しました: ${backupName}`);
         loadBackups(); // 一覧を更新
         loadOnce(loadKey); // データを再読み込み
       } else {
-        setMsg(`❌ バックアップ復元エラー: ${result.error}`);
+        setMsg(`❌ バックアップ復元エラー: ${result.message}`);
       }
     } catch (e: any) {
       setMsg(`❌ バックアップ復元エラー: ${e.message}`);
@@ -641,17 +631,12 @@ export default function MasterPage() {
 
     try {
       setBackupLoading(true);
-      const response = await fetch(`/api/admin/backups/${backupName}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ backupName })
-      });
-      const result = await response.json();
+      const result = await backupApi.deleteBackup(backupName);
       if (result.ok) {
         setMsg(`✅ バックアップを削除しました: ${backupName}`);
         loadBackups(); // 一覧を更新
       } else {
-        setMsg(`❌ バックアップ削除エラー: ${result.error}`);
+        setMsg(`❌ バックアップ削除エラー: ${result.message}`);
       }
     } catch (e: any) {
       setMsg(`❌ バックアップ削除エラー: ${e.message}`);
@@ -679,7 +664,7 @@ export default function MasterPage() {
       return;
     }
     try {
-      await adminApi.updateDepartment(editingDepartment.id, editDeptName.trim());
+      await api.updateDepartment(editingDepartment.id, editDeptName.trim());
       setMsg('✅ 部署名を更新しました');
 
       // 即座に部署リストを更新（リアルタイム反映）
@@ -708,7 +693,7 @@ export default function MasterPage() {
       return;
     }
     try {
-      await adminApi.deleteDepartment(id);
+      await api.deleteDepartment(id);
       setMsg('✅ 部署「' + name + '」を削除しました');
       loadDeps();
     } catch (e: any) {
