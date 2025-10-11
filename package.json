@@ -16,7 +16,16 @@
     "build:frontend": "cd frontend && npm run build",
     "start": "npm run start:backend",
     "start:backend": "cd backend && npm start",
-    "setup": "chmod +x setup.sh && ./setup.sh"
+    "setup": "chmod +x setup.sh && ./setup.sh",
+    "cursor:dev": "powershell -ExecutionPolicy Bypass -File cursor-dev.ps1 dev",
+    "cursor:build": "powershell -ExecutionPolicy Bypass -File cursor-dev.ps1 build",
+    "cursor:start": "powershell -ExecutionPolicy Bypass -File cursor-dev.ps1 start",
+    "cursor:restart": "powershell -ExecutionPolicy Bypass -File cursor-dev.ps1 restart",
+    "cursor:stop": "powershell -ExecutionPolicy Bypass -File cursor-dev.ps1 stop",
+    "cursor:logs": "powershell -ExecutionPolicy Bypass -File cursor-dev.ps1 logs",
+    "cursor:status": "powershell -ExecutionPolicy Bypass -File cursor-dev.ps1 status",
+    "cursor:health": "powershell -ExecutionPolicy Bypass -File cursor-dev.ps1 health",
+    "cursor:clean": "powershell -ExecutionPolicy Bypass -File cursor-dev.ps1 clean"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

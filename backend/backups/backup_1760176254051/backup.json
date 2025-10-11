@@ -1,0 +1,247 @@
+{
+  "id": "backup_1760176254051",
+  "timestamp": "2025-10-11T09:50:54.051Z",
+  "employees": [],
+  "departments": [
+    {
+      "id": 1,
+      "name": "メディアプロダクト部"
+    },
+    {
+      "id": 2,
+      "name": "営業企画部"
+    },
+    {
+      "id": 3,
+      "name": "総務経理部"
+    }
+  ],
+  "attendance": {
+    "2025-10-05-008": {
+      "clock_in": "2025-10-05T07:45:26.160Z",
+      "late": 405,
+      "clock_out": "2025-10-05T11:31:16.405Z",
+      "early": 0,
+      "overtime": 0,
+      "night": 0
+    },
+    "2025-10-08-008": {
+      "clock_in": null,
+      "clock_out": null,
+      "late": 0,
+      "early": 0,
+      "overtime": 0,
+      "night": 0,
+      "work_minutes": 0
+    },
+    "2025-10-09-008": {
+      "clock_in": null,
+      "clock_out": null,
+      "late": 0,
+      "early": 0,
+      "overtime": 0,
+      "night": 0,
+      "work_minutes": 0
+    },
+    "2025-10-08-001": {
+      "clock_in": null,
+      "clock_out": null,
+      "late": 0,
+      "early": 0,
+      "overtime": 0,
+      "night": 0,
+      "work_minutes": 0
+    },
+    "2025-10-09-001": {
+      "clock_in": null,
+      "clock_out": null,
+      "late": 0,
+      "early": 0,
+      "overtime": 0,
+      "night": 0,
+      "work_minutes": 0
+    },
+    "2025-10-08-002": {
+      "clock_in": null,
+      "clock_out": null,
+      "late": 0,
+      "early": 0,
+      "overtime": 0,
+      "night": 0,
+      "work_minutes": 0
+    },
+    "2025-10-09-002": {
+      "clock_in": null,
+      "clock_out": null,
+      "late": 0,
+      "early": 0,
+      "overtime": 0,
+      "night": 0,
+      "work_minutes": 0
+    },
+    "2025-10-08-003": {
+      "clock_in": null,
+      "clock_out": null,
+      "late": 0,
+      "early": 0,
+      "overtime": 0,
+      "night": 0,
+      "work_minutes": 0
+    },
+    "2025-10-09-003": {
+      "clock_in": null,
+      "clock_out": null,
+      "late": 0,
+      "early": 0,
+      "overtime": 0,
+      "night": 0,
+      "work_minutes": 0
+    },
+    "2025-10-08-004": {
+      "clock_in": null,
+      "clock_out": null,
+      "late": 0,
+      "early": 0,
+      "overtime": 0,
+      "night": 0,
+      "work_minutes": 0
+    },
+    "2025-10-09-004": {
+      "clock_in": null,
+      "clock_out": null,
+      "late": 0,
+      "early": 0,
+      "overtime": 0,
+      "night": 0,
+      "work_minutes": 0
+    },
+    "2025-10-08-005": {
+      "clock_in": null,
+      "clock_out": null,
+      "late": 0,
+      "early": 0,
+      "overtime": 0,
+      "night": 0,
+      "work_minutes": 0
+    },
+    "2025-10-09-005": {
+      "clock_in": null,
+      "clock_out": null,
+      "late": 0,
+      "early": 0,
+      "overtime": 0,
+      "night": 0,
+      "work_minutes": 0
+    },
+    "2025-10-08-006": {
+      "clock_in": null,
+      "clock_out": null,
+      "late": 0,
+      "early": 0,
+      "overtime": 0,
+      "night": 0,
+      "work_minutes": 0
+    },
+    "2025-10-09-006": {
+      "clock_in": null,
+      "clock_out": null,
+      "late": 0,
+      "early": 0,
+      "overtime": 0,
+      "night": 0,
+      "work_minutes": 0
+    },
+    "2025-10-08-007": {
+      "clock_in": null,
+      "clock_out": null,
+      "late": 0,
+      "early": 0,
+      "overtime": 0,
+      "night": 0,
+      "work_minutes": 0
+    },
+    "2025-10-09-007": {
+      "clock_in": null,
+      "clock_out": null,
+      "late": 0,
+      "early": 0,
+      "overtime": 0,
+      "night": 0,
+      "work_minutes": 0
+    },
+    "2025-10-08-009": {
+      "clock_in": null,
+      "clock_out": null,
+      "late": 0,
+      "early": 0,
+      "overtime": 0,
+      "night": 0,
+      "work_minutes": 0
+    },
+    "2025-10-09-009": {
+      "clock_in": null,
+      "clock_out": null,
+      "late": 0,
+      "early": 0,
+      "overtime": 0,
+      "night": 0,
+      "work_minutes": 0
+    },
+    "2025-10-08-010": {
+      "clock_in": null,
+      "clock_out": null,
+      "late": 0,
+      "early": 0,
+      "overtime": 0,
+      "night": 0,
+      "work_minutes": 0
+    },
+    "2025-10-09-010": {
+      "clock_in": null,
+      "clock_out": null,
+      "late": 0,
+      "early": 0,
+      "overtime": 0,
+      "night": 0,
+      "work_minutes": 0
+    },
+    "2025-10-08-011": {
+      "clock_in": null,
+      "clock_out": null,
+      "late": 0,
+      "early": 0,
+      "overtime": 0,
+      "night": 0,
+      "work_minutes": 0
+    },
+    "2025-10-09-011": {
+      "clock_in": null,
+      "clock_out": null,
+      "late": 0,
+      "early": 0,
+      "overtime": 0,
+      "night": 0,
+      "work_minutes": 0
+    },
+    "2025-10-08-012": {
+      "clock_in": null,
+      "clock_out": null,
+      "late": 0,
+      "early": 0,
+      "overtime": 0,
+      "night": 0,
+      "work_minutes": 0
+    },
+    "2025-10-09-012": {
+      "clock_in": null,
+      "clock_out": null,
+      "late": 0,
+      "early": 0,
+      "overtime": 0,
+      "night": 0,
+      "work_minutes": 0
+    }
+  },
+  "holidays": {},
+  "remarks": {}
+}

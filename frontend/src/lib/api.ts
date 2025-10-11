@@ -1,4 +1,4 @@
-const BASE = "https://zatint1991.com/api/admin";
+const BASE = "http://localhost:8001/api/admin";
 
 import { request } from "./request";
 
@@ -14,7 +14,7 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ code })
     }),
-  master: async (date?: string, sort?: 'late'|'early'|'overtime'|'night') => {
+  master: async (date?: string, sort?: 'late' | 'early' | 'overtime' | 'night') => {
     const q = new URLSearchParams(); if (date) q.set('date', date); if (sort) q.set('sort', sort);
     return request(`${BASE}/master?${q}`);
   },

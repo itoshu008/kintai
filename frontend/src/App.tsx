@@ -1,24 +1,24 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import LoginPage from './pages/LoginPage';
 import MasterPage from './pages/MasterPage';
 import PersonalPage from './pages/PersonalPage';
-import { useState, useEffect } from 'react';
 
-export default function App(){
+export default function App() {
   const [isMaintenance, setIsMaintenance] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
     const checkApiHealth = async () => {
       try {
-        const response = await fetch('https://zatint1991.com/api/admin/departments', {
+        const response = await fetch('http://localhost:8001/api/admin/departments', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
           },
         });
-        
+
         // 5xxエラーまたは接続エラーの場合
         if (response.status >= 500 || !response.ok) {
           console.warn('API接続エラー:', response.status, response.statusText);
@@ -65,10 +65,10 @@ export default function App(){
       <AuthProvider>
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<LoginPage/>} />
-            <Route path="/login" element={<LoginPage/>} />
-            <Route path="/admin-dashboard-2024" element={<MasterPage/>} />
-            <Route path="/personal" element={<PersonalPage/>} />
+            <Route path="/" element={<LoginPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/admin-dashboard-2024" element={<MasterPage />} />
+            <Route path="/personal" element={<PersonalPage />} />
             {/* 存在しないパスはログインページにリダイレクト */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

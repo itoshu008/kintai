@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api/attendance';
 import { api as adminApi } from '../lib/api';
-import { MasterRow, Department } from '../types/attendance';
-import { isHolidaySync, getHolidayNameSync, isSunday, isSaturday } from '../utils/holidays';
+import { Department, MasterRow } from '../types/attendance';
+import { getHolidayNameSync, isHolidaySync } from '../utils/holidays';
 
 // バックアップ関連の型定義
 interface BackupItem {
@@ -11,23 +11,23 @@ interface BackupItem {
   size: number;
 }
 
-const fmtHM = (s?: string|null) => {
+const fmtHM = (s?: string | null) => {
   if (!s) return '—';
   const d = new Date(s);
   const hours = d.getHours();
   const minutes = d.getMinutes();
-  const z = (n:number)=> String(n).padStart(2,'0');
+  const z = (n: number) => String(n).padStart(2, '0');
   return `${hours}:${z(minutes)}`; // 0:00 表記
 };
 
-const calcWorkTime = (clockIn?: string|null, clockOut?: string|null) => {
+const calcWorkTime = (clockIn?: string | null, clockOut?: string | null) => {
   if (!clockIn || !clockOut) return '—';
   const start = new Date(clockIn);
   const end = new Date(clockOut);
   const diffMs = end.getTime() - start.getTime();
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
   const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-  const z = (n:number)=> String(n).padStart(2,'0');
+  const z = (n: number) => String(n).padStart(2, '0');
   return `${diffHours}:${z(diffMinutes)}`;
 };
 
@@ -37,7 +37,7 @@ const calcLateEarly = (late?: number, early?: number) => {
   const total = lateMin + earlyMin;
   const hours = Math.floor(total / 60);
   const minutes = total % 60;
-  const z = (n:number)=> String(n).padStart(2,'0');
+  const z = (n: number) => String(n).padStart(2, '0');
   return `${hours}:${z(minutes)}`;
 };
 
@@ -45,7 +45,7 @@ const calcOvertime = (overtime?: number) => {
   const overtimeMin = overtime || 0;
   const hours = Math.floor(overtimeMin / 60);
   const minutes = overtimeMin % 60;
-  const z = (n:number)=> String(n).padStart(2,'0');
+  const z = (n: number) => String(n).padStart(2, '0');
   return `${hours}:${z(minutes)}`;
 };
 
@@ -75,7 +75,7 @@ const calcIllegalOvertime = (clockIn?: string | null, clockOut?: string | null) 
   const end = new Date(clockOut);
   const diffMs = end.getTime() - start.getTime();
   const totalMinutes = Math.floor(diffMs / (1000 * 60));
-  
+
   // 10時間30分(630分)を超えた分を法定外時間外労働として計上
   const illegalOvertimeMinutes = Math.max(0, totalMinutes - 630);
   const hours = Math.floor(illegalOvertimeMinutes / 60);
@@ -86,10 +86,10 @@ const calcIllegalOvertime = (clockIn?: string | null, clockOut?: string | null) 
 
 
 export default function MasterPage() {
-  const [date, setDate]   = useState(new Date().toISOString().slice(0,10));
-  const [data, setData]   = useState<MasterRow[]>([]);
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [data, setData] = useState<MasterRow[]>([]);
   const [loading, setLoading] = useState(false);
-  const [msg, setMsg]     = useState('');
+  const [msg, setMsg] = useState('');
 
   // ▼ 追加：ロードの「キー」を1つに集約（依存が増えると再走るのでここに集める）
   const loadKey = useMemo(() => `${date}`, [date]);
@@ -121,7 +121,7 @@ export default function MasterPage() {
       const res = await api.master(d, undefined);
       if (!ac.signal.aborted) setData(res.list || []);
       if (!ac.signal.aborted) setMsg('');
-    } catch (e:any) {
+    } catch (e: any) {
       if (!ac.signal.aborted) setMsg(String(e.message || e));
     } finally {
       if (acRef.current === ac) acRef.current = null;
@@ -139,19 +139,19 @@ export default function MasterPage() {
   const [newCode, setNewCode] = useState('');
   const [newName, setNewName] = useState('');
   const [newDepartment, setNewDepartment] = useState('');
-  
+
   // 部署フィルター
   const [deps, setDeps] = useState<Department[]>([]);
-  const [depFilter, setDepFilter] = useState<number|null>(null);
+  const [depFilter, setDepFilter] = useState<number | null>(null);
   const [newDeptName, setNewDeptName] = useState('');
-  
+
   // ドロップダウンメニュー
   const [showDropdown, setShowDropdown] = useState(false);
   const [showDeptManagement, setShowDeptManagement] = useState(false);
   const [showEmployeeRegistration, setShowEmployeeRegistration] = useState(false);
   const [showEmployeeEditMenu, setShowEmployeeEditMenu] = useState(false);
 
-  
+
   // 選択された社員の詳細表示
   const [selectedEmployee, setSelectedEmployee] = useState<MasterRow | null>(null);
   const [employeeDetails, setEmployeeDetails] = useState<MasterRow[]>([]);
@@ -193,13 +193,13 @@ export default function MasterPage() {
     if (!selectedEmployee) return;
     try {
       await api.saveRemark(selectedEmployee.code, targetDate, remark);
-      
+
       // ローカルステートも即座に更新
       const key = `${targetDate}-${selectedEmployee.code}`;
       setRemarks(prev => ({ ...prev, [key]: remark }));
-      
+
       setMsg(`✅ ${targetDate}の備考を保存しました`);
-      
+
       // 即座に最新データを再読み込み（リアルタイム反映）
       setTimeout(async () => {
         try {
@@ -220,14 +220,14 @@ export default function MasterPage() {
 
     try {
       setLoading(true);
-      
+
       // APIエンドポイントが存在しないため、現在はメッセージのみ表示
       // 実際の実装では、勤怠時間修正用のAPIエンドポイントを呼び出す
       setMsg(`${editingTimeData.employee.name}の勤怠時間を修正しました`);
-      
+
       setShowTimeEditModal(false);
       setEditingTimeData(null);
-      
+
       // データを再読み込み
       loadOnce(loadKey);
     } catch (error) {
@@ -247,26 +247,26 @@ export default function MasterPage() {
   // 深夜勤務時間計算（勤務時間内の22:00～5:00）
   const calcNightWorkTime = (clockIn?: string | null, clockOut?: string | null) => {
     if (!clockIn || !clockOut) return '0:00';
-    
+
     const start = new Date(clockIn);
     const end = new Date(clockOut);
-    
+
     let totalNightMinutes = 0;
-    
+
     // 勤務時間を1分刻みでチェックし、深夜時間帯（22:00-5:00）の分数をカウント
     const current = new Date(start);
     while (current < end) {
       const hour = current.getHours();
-      
+
       // 22:00-5:00の深夜時間帯かどうかチェック
       if (hour >= 22 || hour < 5) {
         totalNightMinutes += 1;
       }
-      
+
       // 1分進める
       current.setMinutes(current.getMinutes() + 1);
     }
-    
+
     const hours = Math.floor(totalNightMinutes / 60);
     const minutes = totalNightMinutes % 60;
     const z = (n: number) => String(n).padStart(2, '0');
@@ -313,7 +313,7 @@ export default function MasterPage() {
     return `${hours}:${z(minutes)}`;
   };
 
-  useEffect(()=>{ 
+  useEffect(() => {
     // 日付が変更されたら選択された社員の詳細をクリア
     setSelectedEmployee(null);
     setEmployeeDetails([]);
@@ -378,15 +378,15 @@ export default function MasterPage() {
       const newDeptId = editEmployeeDept || undefined;
 
       const res = await adminApi.updateEmployee(editingEmployee.id, newCode, newName, newDeptId);
-      
+
       if (res.ok) {
         setMsg(`✅ 社員「${editEmployeeName}」を更新しました`);
         cancelEditEmployee();
         setShowEmployeeEditModal(false);
-        
+
         // 即座にデータを再読み込み（リアルタイム反映）
         await loadOnce(loadKey);
-        
+
         // さらに即座に最新データを再読み込み
         setTimeout(async () => {
           try {
@@ -409,15 +409,15 @@ export default function MasterPage() {
   // 社員削除機能
   const deleteEmployee = async () => {
     if (!deleteTargetEmployee) return;
-    
+
     if (!confirm(`本当に「${deleteTargetEmployee.name} (${deleteTargetEmployee.code})」を削除しますか？\n\nこの操作は取り消せません。`)) {
       return;
     }
-    
+
     try {
       setLoading(true);
       const result = await api.deleteEmployee(deleteTargetEmployee.id);
-      
+
       if (result.ok) {
         setMsg(`社員を削除しました: ${deleteTargetEmployee.name} (${deleteTargetEmployee.code})`);
         setDeleteTargetEmployee(null);
@@ -481,9 +481,9 @@ export default function MasterPage() {
   }, [loading, loadKey, loadOnce]);
 
   const onCreate = async () => {
-    if (!newCode.trim() || !newName.trim()) { 
-      setMsg('社員番号、氏名を入力してください'); 
-      return; 
+    if (!newCode.trim() || !newName.trim()) {
+      setMsg('社員番号、氏名を入力してください');
+      return;
     }
     try {
       // 部署IDを取得
@@ -491,10 +491,10 @@ export default function MasterPage() {
       await adminApi.createEmployee(newCode.trim(), newName.trim(), deptId);
       setNewCode(''); setNewName(''); setNewDepartment('');
       setMsg('✅ 社員を登録しました');
-      
+
       // 即座にデータを更新（リアルタイム反映）
       await loadOnce(loadKey);
-      
+
       // さらに即座に最新データを再読み込み
       setTimeout(async () => {
         try {
@@ -503,19 +503,19 @@ export default function MasterPage() {
           console.error('社員作成後の再読み込みエラー:', e);
         }
       }, 100);
-    } catch(e:any){
+    } catch (e: any) {
       setMsg(`❌ 社員登録エラー: ${e.message}`);
     }
   };
 
-  const onClock = async (code: string, kind: 'in'|'out') => {
+  const onClock = async (code: string, kind: 'in' | 'out') => {
     try {
-      if (kind==='in') await api.clockIn(code);
+      if (kind === 'in') await api.clockIn(code);
       else await api.clockOut(code);
-      
+
       // 即座にデータを更新（リアルタイム反映）
       await loadOnce(loadKey);
-      
+
       // さらに即座に最新データを再読み込み
       setTimeout(async () => {
         try {
@@ -524,24 +524,24 @@ export default function MasterPage() {
           console.error('打刻後の再読み込みエラー:', e);
         }
       }, 100);
-    } catch(e:any){ 
-      setMsg(`❌ 打刻エラー: ${e.message}`); 
+    } catch (e: any) {
+      setMsg(`❌ 打刻エラー: ${e.message}`);
     }
   };
 
   const onCreateDepartment = async () => {
-    if (!newDeptName.trim()) { 
-      setMsg('部署名を入力してください'); 
-      return; 
+    if (!newDeptName.trim()) {
+      setMsg('部署名を入力してください');
+      return;
     }
     try {
       await adminApi.createDepartment(newDeptName.trim());
       setNewDeptName('');
       setMsg('✅ 部署を登録しました');
-      
+
       // 即座に部署リストを更新（リアルタイム反映）
       await loadDeps();
-      
+
       // さらに即座に最新データを再読み込み
       setTimeout(async () => {
         try {
@@ -550,7 +550,7 @@ export default function MasterPage() {
           console.error('部署作成後の再読み込みエラー:', e);
         }
       }, 100);
-    } catch(e:any){
+    } catch (e: any) {
       setMsg(`❌ 部署登録エラー: ${e.message}`);
     }
   };
@@ -559,7 +559,7 @@ export default function MasterPage() {
     try {
       const r = await adminApi.listDepartments();
       setDeps(r?.list || []);
-    } catch(e:any){
+    } catch (e: any) {
       console.warn('Failed to load departments:', e);
       setDeps([]);
     }
@@ -569,7 +569,7 @@ export default function MasterPage() {
   const loadBackups = async () => {
     try {
       setBackupLoading(true);
-      const response = await fetch('https://zatint1991.com/api/admin/backups');
+      const response = await fetch('http://localhost:8001/api/admin/backups');
       const result = await response.json();
       if (result.ok) {
         setBackups(result.backups || []);
@@ -587,7 +587,7 @@ export default function MasterPage() {
   const createManualBackup = async () => {
     try {
       setBackupLoading(true);
-      const response = await fetch('https://zatint1991.com/api/admin/backup', {
+      const response = await fetch('http://localhost:8001/api/admin/backup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -610,10 +610,10 @@ export default function MasterPage() {
     if (!confirm(`バックアップ「${backupName}」を復元しますか？\n現在のデータは上書きされます。`)) {
       return;
     }
-    
+
     try {
       setBackupLoading(true);
-      const response = await fetch(`https://zatint1991.com/api/admin/backups/${backupName}/restore`, {
+      const response = await fetch(`http://localhost:8001/api/admin/backups/${backupName}/restore`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ backupName })
@@ -638,10 +638,10 @@ export default function MasterPage() {
     if (!confirm(`バックアップ「${backupName}」を削除しますか？\nこの操作は元に戻せません。`)) {
       return;
     }
-    
+
     try {
       setBackupLoading(true);
-      const response = await fetch(`https://zatint1991.com/api/admin/backups/${backupName}`, {
+      const response = await fetch(`http://localhost:8001/api/admin/backups/${backupName}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ backupName })
@@ -681,10 +681,10 @@ export default function MasterPage() {
     try {
       await adminApi.updateDepartment(editingDepartment.id, editDeptName.trim());
       setMsg('✅ 部署名を更新しました');
-      
+
       // 即座に部署リストを更新（リアルタイム反映）
       await loadDeps();
-      
+
       // さらに即座に最新データを再読み込み
       setTimeout(async () => {
         try {
@@ -693,11 +693,11 @@ export default function MasterPage() {
           console.error('部署更新後の再読み込みエラー:', e);
         }
       }, 100);
-      
+
       // 編集状態をリセット
       setEditingDepartment(null);
       setEditDeptName('');
-    } catch(e:any){
+    } catch (e: any) {
       setMsg(`❌ 部署更新エラー: ${e.message}`);
     }
   };
@@ -723,368 +723,368 @@ export default function MasterPage() {
     try {
       const month = date.slice(0, 7); // YYYY-MM形式
       console.log('Selecting employee for month:', month);
-      
+
       // 日付の配列を生成（1日から月末まで）
       const dates = [];
       const year = parseInt(month.split('-')[0]);
       const monthNum = parseInt(month.split('-')[1]) - 1;
       const daysInMonth = new Date(year, monthNum + 1, 0).getDate();
-      
+
       for (let day = 1; day <= daysInMonth; day++) {
         const dateStr = `${year}-${String(monthNum + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         dates.push(dateStr);
       }
-      
+
       // バッチ処理で高速化（10日ずつ処理）
       const batchSize = 10;
       const batches = [];
       for (let i = 0; i < dates.length; i += batchSize) {
         batches.push(dates.slice(i, i + batchSize));
       }
-      
+
       const allDetails = [];
       for (const batch of batches) {
-        const promises = batch.map(dateStr => 
+        const promises = batch.map(dateStr =>
           api.master(dateStr).catch(e => {
             console.warn(`Failed to load data for ${dateStr}:`, e);
             return { list: [] };
           })
         );
         const results = await Promise.all(promises);
-        allDetails.push(...results.flatMap((r, batchIndex) => 
+        allDetails.push(...results.flatMap((r, batchIndex) =>
           (r.list || []).map(row => ({
             ...row,
             date: batch[batchIndex] // 対応する日付を追加
           }))
         ));
       }
-      
+
       const filteredDetails = allDetails.filter(row => row.code === employee.code);
       setEmployeeDetails(filteredDetails);
-    } catch(e:any){
+    } catch (e: any) {
       setMsg(String(e.message));
-    } finally{
+    } finally {
       setLoading(false);
     }
   };
 
-  const sorted = useMemo(()=> {
+  const sorted = useMemo(() => {
     if (!data) return [];
-    
+
     // 部署フィルターによる絞り込み
     let filtered = data;
     if (depFilter !== null) {
       filtered = data.filter(r => (r as any).department_id === depFilter);
     }
-    
+
     // デフォルトはコード順
     return [...filtered].sort((a, b) => a.code.localeCompare(b.code));
   }, [data, depFilter]);
 
   return (
     <div style={{
-      padding: window.innerWidth <= 768 ? '12px' : '24px', 
-      background:'#000000', 
-      minHeight:'100vh',
+      padding: window.innerWidth <= 768 ? '12px' : '24px',
+      background: '#000000',
+      minHeight: '100vh',
       overflow: 'auto',
       WebkitOverflowScrolling: 'touch'
     }}>
       <div style={{
-        display:'flex', 
-        justifyContent: window.innerWidth <= 768 ? 'center' : 'space-between', 
-        alignItems:'center', 
-        marginBottom: window.innerWidth <= 768 ? '12px' : '24px', 
-        padding: window.innerWidth <= 768 ? '12px' : '20px 24px', 
-        background:'white', 
-        borderRadius: window.innerWidth <= 768 ? '8px' : '12px', 
-        boxShadow:'0 2px 8px rgba(0,0,0,0.1)',
+        display: 'flex',
+        justifyContent: window.innerWidth <= 768 ? 'center' : 'space-between',
+        alignItems: 'center',
+        marginBottom: window.innerWidth <= 768 ? '12px' : '24px',
+        padding: window.innerWidth <= 768 ? '12px' : '20px 24px',
+        background: 'white',
+        borderRadius: window.innerWidth <= 768 ? '8px' : '12px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
         flexDirection: window.innerWidth <= 768 ? 'column' : 'row',
         gap: window.innerWidth <= 768 ? '12px' : '0'
       }}>
-        <div style={{display:'flex', alignItems:'center', gap: 24}}>
-            <h1 style={{margin:0, fontSize:'28px', fontWeight:'600', color:'#ffffff'}}>勤怠管理ページ</h1>
-          
+        <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+          <h1 style={{ margin: 0, fontSize: '28px', fontWeight: '600', color: '#ffffff' }}>勤怠管理ページ</h1>
+
           {/* 月選択を大きく移動 */}
-          <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
-            <label style={{fontSize: 18, fontWeight: 600, color: '#ffffff'}}>月選択:</label>
-            <input 
-              type="month" 
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <label style={{ fontSize: 18, fontWeight: 600, color: '#ffffff' }}>月選択:</label>
+            <input
+              type="month"
               value={date.slice(0, 7)}
               onChange={(e) => setDate(e.target.value + '-01')}
               style={{
-                padding: '12px 16px', 
-                border: '2px solid #d1d5db', 
-                borderRadius: 8, 
-                fontSize: 18, 
+                padding: '12px 16px',
+                border: '2px solid #d1d5db',
+                borderRadius: 8,
+                fontSize: 18,
                 fontWeight: 500,
-                color: '#374151', 
-                background: 'white', 
-                cursor: 'pointer', 
+                color: '#374151',
+                background: 'white',
+                cursor: 'pointer',
                 minWidth: 200,
                 boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
               }}
             />
           </div>
         </div>
-        
+
         {/* 再読込ボタンとメニュー */}
         <div style={{
-          display: 'flex', 
-          alignItems: 'center', 
+          display: 'flex',
+          alignItems: 'center',
           gap: window.innerWidth <= 768 ? '8px' : '16px',
           flexWrap: 'wrap',
           justifyContent: window.innerWidth <= 768 ? 'center' : 'flex-start'
         }}>
           {/* 再読込ボタン */}
-          <button 
-            onClick={() => loadOnce(loadKey)} 
+          <button
+            onClick={() => loadOnce(loadKey)}
             disabled={loading}
             style={{
               padding: window.innerWidth <= 768 ? '8px 16px' : '12px 20px',
               background: loading ? '#6c757d' : '#28a745',
-              color:'white',
-              border:'none',
-              borderRadius:8,
+              color: 'white',
+              border: 'none',
+              borderRadius: 8,
               cursor: loading ? 'not-allowed' : 'pointer',
-              fontWeight:'600',
+              fontWeight: '600',
               fontSize: window.innerWidth <= 768 ? '14px' : '16px',
-              transition:'all 0.2s ease',
+              transition: 'all 0.2s ease',
               boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
               minHeight: '44px'
             }}
           >
-            {loading?'更新中...':'🔄 再読込'}
+            {loading ? '更新中...' : '🔄 再読込'}
           </button>
-          
-          
+
+
           {/* 右上のドロップダウンメニューボタン */}
-          <div style={{position:'relative'}} data-dropdown>
-          <button 
-            onClick={() => setShowDropdown(!showDropdown)}
-            style={{
-              padding: '12px 20px',
-              background: showDropdown ? '#0056b3' : '#007bff',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500',
-              boxShadow: '0 2px 4px rgba(0,123,255,0.3)',
-              transition: 'all 0.2s ease',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.background = '#0056b3'}
-            onMouseLeave={(e) => e.currentTarget.style.background = showDropdown ? '#0056b3' : '#007bff'}
-          >
-            <span style={{fontSize:'16px'}}>☰</span>
-            メニュー
-          </button>
-          
-          {/* ドロップダウンメニュー */}
-          {showDropdown && (
-            <div style={{
-              position: 'absolute',
-              top: '100%',
-              right: 0,
-              background: 'white',
-              border: '1px solid #e9ecef',
-              borderRadius: '12px',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
-              zIndex: 1000,
-              minWidth: '220px',
-              marginTop: '8px',
-              overflow: 'hidden'
-            }}>
-              <div style={{padding: '4px 0'}}>
-                <button 
-                  onClick={() => {
-                    setShowDropdown(false);
-                    setShowDeptManagement(!showDeptManagement);
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '12px 20px',
-                    border: 'none',
-                    background: 'transparent',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    color: '#495057',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                >
-                  <span style={{fontSize:'16px'}}>📁</span>
-                  部署管理
-                </button>
-                <button 
-                  onClick={() => {
-                    setShowDropdown(false);
-                    setShowEmployeeRegistration(!showEmployeeRegistration);
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '12px 20px',
-                    border: 'none',
-                    background: 'transparent',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    color: '#495057',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                >
-                  <span style={{fontSize:'16px'}}>👤</span>
-                  社員登録
-                </button>
-                <button 
-                  onClick={() => {
-                    setShowDropdown(false);
-                    setShowEmployeeEditMenu(!showEmployeeEditMenu);
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '12px 20px',
-                    border: 'none',
-                    background: 'transparent',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    color: '#495057',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                >
-                  <span style={{fontSize:'16px'}}>✏️</span>
-                  社員情報変更
-                </button>
-                <div style={{height:'1px', background:'#e9ecef', margin:'4px 0'}}></div>
-                <button 
-                  onClick={() => {
-                    setShowDropdown(false);
-                    setShowEmployeeDeleteMenu(true);
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '12px 20px',
-                    border: 'none',
-                    background: 'transparent',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    color: '#dc3545',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#fff5f5'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                >
-                  <span style={{fontSize:'16px'}}>🗑️</span>
-                  社員削除
-                </button>
-                <button 
-                  onClick={() => {
-                    setShowDropdown(false);
-                    setShowBackupManagement(true);
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '12px 20px',
-                    border: 'none',
-                    background: 'transparent',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    color: '#17a2b8',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#e6f7ff'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                >
-                  <span style={{fontSize:'16px'}}>💾</span>
-                  バックアップ管理
-                </button>
-                <button 
-                  onClick={() => {
-                    setShowDropdown(false);
-                    // ヘルプ機能
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '12px 20px',
-                    border: 'none',
-                    background: 'transparent',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    color: '#6c757d',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                >
-                  <span style={{fontSize:'16px'}}>❓</span>
-                  ヘルプ
-                </button>
+          <div style={{ position: 'relative' }} data-dropdown>
+            <button
+              onClick={() => setShowDropdown(!showDropdown)}
+              style={{
+                padding: '12px 20px',
+                background: showDropdown ? '#0056b3' : '#007bff',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500',
+                boxShadow: '0 2px 4px rgba(0,123,255,0.3)',
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#0056b3'}
+              onMouseLeave={(e) => e.currentTarget.style.background = showDropdown ? '#0056b3' : '#007bff'}
+            >
+              <span style={{ fontSize: '16px' }}>☰</span>
+              メニュー
+            </button>
+
+            {/* ドロップダウンメニュー */}
+            {showDropdown && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                right: 0,
+                background: 'white',
+                border: '1px solid #e9ecef',
+                borderRadius: '12px',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                zIndex: 1000,
+                minWidth: '220px',
+                marginTop: '8px',
+                overflow: 'hidden'
+              }}>
+                <div style={{ padding: '4px 0' }}>
+                  <button
+                    onClick={() => {
+                      setShowDropdown(false);
+                      setShowDeptManagement(!showDeptManagement);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 20px',
+                      border: 'none',
+                      background: 'transparent',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: '#495057',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <span style={{ fontSize: '16px' }}>📁</span>
+                    部署管理
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowDropdown(false);
+                      setShowEmployeeRegistration(!showEmployeeRegistration);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 20px',
+                      border: 'none',
+                      background: 'transparent',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: '#495057',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <span style={{ fontSize: '16px' }}>👤</span>
+                    社員登録
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowDropdown(false);
+                      setShowEmployeeEditMenu(!showEmployeeEditMenu);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 20px',
+                      border: 'none',
+                      background: 'transparent',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: '#495057',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <span style={{ fontSize: '16px' }}>✏️</span>
+                    社員情報変更
+                  </button>
+                  <div style={{ height: '1px', background: '#e9ecef', margin: '4px 0' }}></div>
+                  <button
+                    onClick={() => {
+                      setShowDropdown(false);
+                      setShowEmployeeDeleteMenu(true);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 20px',
+                      border: 'none',
+                      background: 'transparent',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: '#dc3545',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#fff5f5'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <span style={{ fontSize: '16px' }}>🗑️</span>
+                    社員削除
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowDropdown(false);
+                      setShowBackupManagement(true);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 20px',
+                      border: 'none',
+                      background: 'transparent',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: '#17a2b8',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#e6f7ff'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <span style={{ fontSize: '16px' }}>💾</span>
+                    バックアップ管理
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowDropdown(false);
+                      // ヘルプ機能
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 20px',
+                      border: 'none',
+                      background: 'transparent',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: '#6c757d',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#f8f9fa'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <span style={{ fontSize: '16px' }}>❓</span>
+                    ヘルプ
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
       </div>
 
 
       {/* 部署管理・フィルター */}
       {showDeptManagement && (
-        <div style={{marginBottom:24, padding:24, border:'1px solid #007bff', borderRadius:12, background:'linear-gradient(135deg, #f8f9ff 0%, #e3f2fd 100%)', boxShadow:'0 4px 12px rgba(0,123,255,0.1)'}}>
-          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16}}>
-            <h3 style={{margin:0, color:'#007bff', fontSize:'18px', fontWeight:'600'}}>部署管理</h3>
+        <div style={{ marginBottom: 24, padding: 24, border: '1px solid #007bff', borderRadius: 12, background: 'linear-gradient(135deg, #f8f9ff 0%, #e3f2fd 100%)', boxShadow: '0 4px 12px rgba(0,123,255,0.1)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h3 style={{ margin: 0, color: '#007bff', fontSize: '18px', fontWeight: '600' }}>部署管理</h3>
             <button
               onClick={() => setShowDeptManagement(false)}
               style={{
-                background:'#dc3545',
-                color:'white',
-                border:'none',
-                borderRadius:'50%',
-                width:'32px',
-                height:'32px',
-                display:'flex',
-                alignItems:'center',
-                justifyContent:'center',
-                cursor:'pointer',
-                fontSize:'16px',
-                fontWeight:'bold',
-                transition:'all 0.2s ease'
+                background: '#dc3545',
+                color: 'white',
+                border: 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                transition: 'all 0.2s ease'
               }}
               onMouseEnter={(e) => e.currentTarget.style.background = '#c82333'}
               onMouseLeave={(e) => e.currentTarget.style.background = '#dc3545'}
@@ -1092,40 +1092,40 @@ export default function MasterPage() {
               ×
             </button>
           </div>
-          
+
           {/* 部署登録 */}
-          <div style={{display:'flex', gap:12, alignItems:'flex-end', marginBottom:20}}>
-            <div style={{flex:1}}>
-              <label style={{display:'block', marginBottom:6, fontWeight:'500', color:'#495057', fontSize:'14px'}}>部署名</label>
-              <input 
-                placeholder="部署名を入力してください" 
-                value={newDeptName} 
-                onChange={e=>setNewDeptName(e.target.value)} 
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', marginBottom: 20 }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', marginBottom: 6, fontWeight: '500', color: '#495057', fontSize: '14px' }}>部署名</label>
+              <input
+                placeholder="部署名を入力してください"
+                value={newDeptName}
+                onChange={e => setNewDeptName(e.target.value)}
                 style={{
-                  width:'100%',
-                  padding:'10px 12px', 
-                  border:'1px solid #ced4da', 
-                  borderRadius:8,
-                  fontSize:'14px',
-                  transition:'all 0.2s ease'
+                  width: '100%',
+                  padding: '10px 12px',
+                  border: '1px solid #ced4da',
+                  borderRadius: 8,
+                  fontSize: '14px',
+                  transition: 'all 0.2s ease'
                 }}
                 onFocus={(e) => e.target.style.borderColor = '#007bff'}
                 onBlur={(e) => e.target.style.borderColor = '#ced4da'}
               />
             </div>
-            <button 
-              onClick={onCreateDepartment} 
+            <button
+              onClick={onCreateDepartment}
               style={{
-                padding:'10px 20px', 
-                background:'#007bff', 
-                color:'white', 
-                border:'none', 
-                borderRadius:8,
-                fontWeight:'500',
-                fontSize:'14px',
-                cursor:'pointer',
-                transition:'all 0.2s ease',
-                boxShadow:'0 2px 4px rgba(0,123,255,0.3)'
+                padding: '10px 20px',
+                background: '#007bff',
+                color: 'white',
+                border: 'none',
+                borderRadius: 8,
+                fontWeight: '500',
+                fontSize: '14px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 2px 4px rgba(0,123,255,0.3)'
               }}
               onMouseEnter={(e) => e.currentTarget.style.background = '#0056b3'}
               onMouseLeave={(e) => e.currentTarget.style.background = '#007bff'}
@@ -1137,21 +1137,21 @@ export default function MasterPage() {
 
           {/* 部署一覧 */}
           <div>
-            <h4 style={{marginBottom:8, color:'#495057', fontSize:'16px', fontWeight:'500'}}>部署一覧</h4>
-            <p style={{marginBottom:12, color:'#6c757d', fontSize:'13px', fontStyle:'italic'}}>
+            <h4 style={{ marginBottom: 8, color: '#495057', fontSize: '16px', fontWeight: '500' }}>部署一覧</h4>
+            <p style={{ marginBottom: 12, color: '#6c757d', fontSize: '13px', fontStyle: 'italic' }}>
               💡 各部署の「編集」ボタンで名前変更、「🗑️ 削除」ボタンで部署削除ができます
             </p>
-            <div style={{display:'grid', gap:8}}>
+            <div style={{ display: 'grid', gap: 8 }}>
               {deps.map(dept => (
                 <div key={dept.id} style={{
-                  display:'flex',
-                  alignItems:'center',
-                  gap:12,
-                  padding:'12px 16px',
-                  background:'white',
-                  border:'1px solid #e9ecef',
-                  borderRadius:8,
-                  transition:'all 0.2s ease'
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: '12px 16px',
+                  background: 'white',
+                  border: '1px solid #e9ecef',
+                  borderRadius: 8,
+                  transition: 'all 0.2s ease'
                 }}>
                   {editingDepartment?.id === dept.id ? (
                     <>
@@ -1159,11 +1159,11 @@ export default function MasterPage() {
                         value={editDeptName}
                         onChange={e => setEditDeptName(e.target.value)}
                         style={{
-                          flex:1,
-                          padding:'8px 12px',
-                          border:'1px solid #007bff',
-                          borderRadius:6,
-                          fontSize:'14px'
+                          flex: 1,
+                          padding: '8px 12px',
+                          border: '1px solid #007bff',
+                          borderRadius: 6,
+                          fontSize: '14px'
                         }}
                         onKeyPress={e => e.key === 'Enter' && onUpdateDepartment()}
                         autoFocus
@@ -1171,13 +1171,13 @@ export default function MasterPage() {
                       <button
                         onClick={onUpdateDepartment}
                         style={{
-                          padding:'6px 12px',
-                          background:'#28a745',
-                          color:'white',
-                          border:'none',
-                          borderRadius:6,
-                          fontSize:'12px',
-                          cursor:'pointer'
+                          padding: '6px 12px',
+                          background: '#28a745',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: 6,
+                          fontSize: '12px',
+                          cursor: 'pointer'
                         }}
                       >
                         保存
@@ -1185,13 +1185,13 @@ export default function MasterPage() {
                       <button
                         onClick={onCancelEditDepartment}
                         style={{
-                          padding:'6px 12px',
-                          background:'#6c757d',
-                          color:'white',
-                          border:'none',
-                          borderRadius:6,
-                          fontSize:'12px',
-                          cursor:'pointer'
+                          padding: '6px 12px',
+                          background: '#6c757d',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: 6,
+                          fontSize: '12px',
+                          cursor: 'pointer'
                         }}
                       >
                         キャンセル
@@ -1199,18 +1199,18 @@ export default function MasterPage() {
                     </>
                   ) : (
                     <>
-                      <span style={{flex:1, fontSize:'14px', color:'#495057'}}>{dept.name}</span>
+                      <span style={{ flex: 1, fontSize: '14px', color: '#495057' }}>{dept.name}</span>
                       <button
                         onClick={() => onStartEditDepartment(dept)}
                         style={{
-                          padding:'6px 12px',
-                          background:'#ffc107',
-                          color:'#212529',
-                          border:'none',
-                          borderRadius:6,
-                          fontSize:'12px',
-                          cursor:'pointer',
-                          transition:'all 0.2s ease'
+                          padding: '6px 12px',
+                          background: '#ffc107',
+                          color: '#212529',
+                          border: 'none',
+                          borderRadius: 6,
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
                         }}
                         onMouseEnter={(e) => e.currentTarget.style.background = '#e0a800'}
                         onMouseLeave={(e) => e.currentTarget.style.background = '#ffc107'}
@@ -1220,16 +1220,16 @@ export default function MasterPage() {
                       <button
                         onClick={() => onDeleteDepartment(dept.id, dept.name)}
                         style={{
-                          padding:'8px 16px',
-                          background:'#dc3545',
-                          color:'white',
-                          border:'2px solid #dc3545',
-                          borderRadius:8,
-                          fontSize:'13px',
-                          fontWeight:'bold',
-                          cursor:'pointer',
-                          transition:'all 0.2s ease',
-                          boxShadow:'0 2px 4px rgba(220,53,69,0.3)'
+                          padding: '8px 16px',
+                          background: '#dc3545',
+                          color: 'white',
+                          border: '2px solid #dc3545',
+                          borderRadius: 8,
+                          fontSize: '13px',
+                          fontWeight: 'bold',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          boxShadow: '0 2px 4px rgba(220,53,69,0.3)'
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.background = '#c82333';
@@ -1252,13 +1252,13 @@ export default function MasterPage() {
               ))}
               {deps.length === 0 && (
                 <div style={{
-                  padding:'20px',
-                  textAlign:'center',
-                  color:'#6c757d',
-                  fontSize:'14px',
-                  background:'#f8f9fa',
-                  borderRadius:8,
-                  border:'1px dashed #dee2e6'
+                  padding: '20px',
+                  textAlign: 'center',
+                  color: '#6c757d',
+                  fontSize: '14px',
+                  background: '#f8f9fa',
+                  borderRadius: 8,
+                  border: '1px dashed #dee2e6'
                 }}>
                   部署が登録されていません
                 </div>
@@ -1270,25 +1270,25 @@ export default function MasterPage() {
 
       {/* 社員登録フォーム */}
       {showEmployeeRegistration && (
-        <div style={{marginBottom:24, padding:24, border:'1px solid #28a745', borderRadius:12, background:'linear-gradient(135deg, #f8fff9 0%, #e8f5e8 100%)', boxShadow:'0 4px 12px rgba(40,167,69,0.1)'}}>
-          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20}}>
-            <h3 style={{margin:0, color:'#28a745', fontSize:'18px', fontWeight:'600'}}>社員登録</h3>
+        <div style={{ marginBottom: 24, padding: 24, border: '1px solid #28a745', borderRadius: 12, background: 'linear-gradient(135deg, #f8fff9 0%, #e8f5e8 100%)', boxShadow: '0 4px 12px rgba(40,167,69,0.1)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <h3 style={{ margin: 0, color: '#28a745', fontSize: '18px', fontWeight: '600' }}>社員登録</h3>
             <button
               onClick={() => setShowEmployeeRegistration(false)}
               style={{
-                background:'#dc3545',
-                color:'white',
-                border:'none',
-                borderRadius:'50%',
-                width:'32px',
-                height:'32px',
-                display:'flex',
-                alignItems:'center',
-                justifyContent:'center',
-                cursor:'pointer',
-                fontSize:'16px',
-                fontWeight:'bold',
-                transition:'all 0.2s ease'
+                background: '#dc3545',
+                color: 'white',
+                border: 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                transition: 'all 0.2s ease'
               }}
               onMouseEnter={(e) => e.currentTarget.style.background = '#c82333'}
               onMouseLeave={(e) => e.currentTarget.style.background = '#dc3545'}
@@ -1296,56 +1296,56 @@ export default function MasterPage() {
               ×
             </button>
           </div>
-          
-          <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))', gap:16, alignItems:'flex-end'}}>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, alignItems: 'flex-end' }}>
             <div>
-              <label style={{display:'block', marginBottom:6, fontWeight:'500', color:'#495057', fontSize:'14px'}}>社員番号</label>
-              <input 
-                value={newCode} 
-                onChange={e=>setNewCode(e.target.value)} 
+              <label style={{ display: 'block', marginBottom: 6, fontWeight: '500', color: '#495057', fontSize: '14px' }}>社員番号</label>
+              <input
+                value={newCode}
+                onChange={e => setNewCode(e.target.value)}
                 placeholder="例: 000"
                 style={{
-                  width:'100%',
-                  padding:'10px 12px', 
-                  border:'1px solid #ced4da', 
-                  borderRadius:8,
-                  fontSize:'14px',
-                  transition:'all 0.2s ease'
+                  width: '100%',
+                  padding: '10px 12px',
+                  border: '1px solid #ced4da',
+                  borderRadius: 8,
+                  fontSize: '14px',
+                  transition: 'all 0.2s ease'
                 }}
                 onFocus={(e) => e.target.style.borderColor = '#28a745'}
                 onBlur={(e) => e.target.style.borderColor = '#ced4da'}
               />
             </div>
             <div>
-              <label style={{display:'block', marginBottom:6, fontWeight:'500', color:'#495057', fontSize:'14px'}}>氏名</label>
-              <input 
-                value={newName} 
-                onChange={e=>setNewName(e.target.value)} 
+              <label style={{ display: 'block', marginBottom: 6, fontWeight: '500', color: '#495057', fontSize: '14px' }}>氏名</label>
+              <input
+                value={newName}
+                onChange={e => setNewName(e.target.value)}
                 placeholder="例: ザット 太郎"
                 style={{
-                  width:'100%',
-                  padding:'10px 12px', 
-                  border:'1px solid #ced4da', 
-                  borderRadius:8,
-                  fontSize:'14px',
-                  transition:'all 0.2s ease'
+                  width: '100%',
+                  padding: '10px 12px',
+                  border: '1px solid #ced4da',
+                  borderRadius: 8,
+                  fontSize: '14px',
+                  transition: 'all 0.2s ease'
                 }}
                 onFocus={(e) => e.target.style.borderColor = '#28a745'}
                 onBlur={(e) => e.target.style.borderColor = '#ced4da'}
               />
             </div>
             <div>
-              <label style={{display:'block', marginBottom:6, fontWeight:'500', color:'#495057', fontSize:'14px'}}>所属部署</label>
-              <select 
-                value={newDepartment} 
-                onChange={e=>setNewDepartment(e.target.value)}
+              <label style={{ display: 'block', marginBottom: 6, fontWeight: '500', color: '#495057', fontSize: '14px' }}>所属部署</label>
+              <select
+                value={newDepartment}
+                onChange={e => setNewDepartment(e.target.value)}
                 style={{
-                  width:'100%',
-                  padding:'10px 12px', 
-                  border:'1px solid #ced4da', 
-                  borderRadius:8,
-                  fontSize:'14px',
-                  transition:'all 0.2s ease'
+                  width: '100%',
+                  padding: '10px 12px',
+                  border: '1px solid #ced4da',
+                  borderRadius: 8,
+                  fontSize: '14px',
+                  transition: 'all 0.2s ease'
                 }}
                 onFocus={(e) => e.target.style.borderColor = '#28a745'}
                 onBlur={(e) => e.target.style.borderColor = '#ced4da'}
@@ -1358,19 +1358,19 @@ export default function MasterPage() {
                 ))}
               </select>
             </div>
-            <button 
-              onClick={onCreate} 
+            <button
+              onClick={onCreate}
               style={{
-                padding:'12px 24px', 
-                background:'#28a745', 
-                color:'white', 
-                border:'none', 
-                borderRadius:8,
-                fontWeight:'500',
-                fontSize:'14px',
-                cursor:'pointer',
-                transition:'all 0.2s ease',
-                boxShadow:'0 2px 4px rgba(40,167,69,0.3)'
+                padding: '12px 24px',
+                background: '#28a745',
+                color: 'white',
+                border: 'none',
+                borderRadius: 8,
+                fontWeight: '500',
+                fontSize: '14px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 2px 4px rgba(40,167,69,0.3)'
               }}
               onMouseEnter={(e) => e.currentTarget.style.background = '#218838'}
               onMouseLeave={(e) => e.currentTarget.style.background = '#28a745'}
@@ -1378,16 +1378,16 @@ export default function MasterPage() {
               社員を登録
             </button>
           </div>
-          
+
           {msg && (
             <div style={{
-              marginTop:16, 
-              padding:12, 
-              background:'#fff3cd', 
-              border:'1px solid #ffeaa7', 
-              borderRadius:8, 
-              color:'#856404',
-              fontSize:'14px'
+              marginTop: 16,
+              padding: 12,
+              background: '#fff3cd',
+              border: '1px solid #ffeaa7',
+              borderRadius: 8,
+              color: '#856404',
+              fontSize: '14px'
             }}>
               {msg}
             </div>
@@ -1397,25 +1397,25 @@ export default function MasterPage() {
 
       {/* 社員情報変更メニュー */}
       {showEmployeeEditMenu && (
-        <div style={{marginBottom:24, padding:24, border:'1px solid #ffc107', borderRadius:12, background:'linear-gradient(135deg, #fffdf0 0%, #fff3cd 100%)', boxShadow:'0 4px 12px rgba(255,193,7,0.1)'}}>
-          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20}}>
-            <h3 style={{margin:0, color:'#856404', fontSize:'18px', fontWeight:'600'}}>✏️ 社員情報変更</h3>
+        <div style={{ marginBottom: 24, padding: 24, border: '1px solid #ffc107', borderRadius: 12, background: 'linear-gradient(135deg, #fffdf0 0%, #fff3cd 100%)', boxShadow: '0 4px 12px rgba(255,193,7,0.1)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <h3 style={{ margin: 0, color: '#856404', fontSize: '18px', fontWeight: '600' }}>✏️ 社員情報変更</h3>
             <button
               onClick={() => setShowEmployeeEditMenu(false)}
               style={{
-                background:'#dc3545',
-                color:'white',
-                border:'none',
-                borderRadius:'50%',
-                width:'32px',
-                height:'32px',
-                display:'flex',
-                alignItems:'center',
-                justifyContent:'center',
-                cursor:'pointer',
-                fontSize:'16px',
-                fontWeight:'bold',
-                transition:'all 0.2s ease'
+                background: '#dc3545',
+                color: 'white',
+                border: 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                transition: 'all 0.2s ease'
               }}
               onMouseEnter={(e) => e.currentTarget.style.background = '#c82333'}
               onMouseLeave={(e) => e.currentTarget.style.background = '#dc3545'}
@@ -1423,10 +1423,10 @@ export default function MasterPage() {
               ×
             </button>
           </div>
-          
-          <div style={{marginBottom:20}}>
-            <label style={{display:'block', marginBottom:8, fontWeight:'500', color:'#495057', fontSize:'14px'}}>変更する社員を選択</label>
-            <select 
+
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: 'block', marginBottom: 8, fontWeight: '500', color: '#495057', fontSize: '14px' }}>変更する社員を選択</label>
+            <select
               value={editingEmployee?.code || ''}
               onChange={(e) => {
                 const employee = data.find(emp => emp.code === e.target.value);
@@ -1435,13 +1435,13 @@ export default function MasterPage() {
                 }
               }}
               style={{
-                width:'100%',
-                maxWidth:'400px',
-                padding:'10px 12px',
-                border:'1px solid #ced4da',
-                borderRadius:6,
-                fontSize:'14px',
-                background:'white'
+                width: '100%',
+                maxWidth: '400px',
+                padding: '10px 12px',
+                border: '1px solid #ced4da',
+                borderRadius: 6,
+                fontSize: '14px',
+                background: 'white'
               }}
             >
               <option value="">社員を選択してください</option>
@@ -1454,54 +1454,54 @@ export default function MasterPage() {
           </div>
 
           {editingEmployee && (
-            <div style={{padding:20, border:'1px solid #e9ecef', borderRadius:8, background:'white'}}>
-              <h4 style={{marginTop:0, marginBottom:16, color:'#495057', fontSize:'16px', fontWeight:'600'}}>
+            <div style={{ padding: 20, border: '1px solid #e9ecef', borderRadius: 8, background: 'white' }}>
+              <h4 style={{ marginTop: 0, marginBottom: 16, color: '#495057', fontSize: '16px', fontWeight: '600' }}>
                 {editingEmployee.name} の情報を変更
               </h4>
-              
-              <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))', gap:16, alignItems:'flex-end'}}>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, alignItems: 'flex-end' }}>
                 <div>
-                  <label style={{display:'block', marginBottom:6, fontWeight:'500', color:'#495057', fontSize:'14px'}}>社員番号</label>
-                  <input 
-                    value={editEmployeeCode} 
-                    onChange={e=>setEditEmployeeCode(e.target.value)} 
+                  <label style={{ display: 'block', marginBottom: 6, fontWeight: '500', color: '#495057', fontSize: '14px' }}>社員番号</label>
+                  <input
+                    value={editEmployeeCode}
+                    onChange={e => setEditEmployeeCode(e.target.value)}
                     placeholder="例: 001"
                     style={{
-                      width:'100%',
-                      padding:'8px 12px',
-                      border:'1px solid #ced4da',
-                      borderRadius:6,
-                      fontSize:'14px'
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #ced4da',
+                      borderRadius: 6,
+                      fontSize: '14px'
                     }}
                   />
                 </div>
                 <div>
-                  <label style={{display:'block', marginBottom:6, fontWeight:'500', color:'#495057', fontSize:'14px'}}>氏名</label>
-                  <input 
-                    value={editEmployeeName} 
-                    onChange={e=>setEditEmployeeName(e.target.value)} 
+                  <label style={{ display: 'block', marginBottom: 6, fontWeight: '500', color: '#495057', fontSize: '14px' }}>氏名</label>
+                  <input
+                    value={editEmployeeName}
+                    onChange={e => setEditEmployeeName(e.target.value)}
                     placeholder="例: 田中太郎"
                     style={{
-                      width:'100%',
-                      padding:'8px 12px',
-                      border:'1px solid #ced4da',
-                      borderRadius:6,
-                      fontSize:'14px'
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #ced4da',
+                      borderRadius: 6,
+                      fontSize: '14px'
                     }}
                   />
                 </div>
                 <div>
-                  <label style={{display:'block', marginBottom:6, fontWeight:'500', color:'#495057', fontSize:'14px'}}>所属部署</label>
-                  <select 
-                    value={editEmployeeDept} 
-                    onChange={e=>setEditEmployeeDept(parseInt(e.target.value))}
+                  <label style={{ display: 'block', marginBottom: 6, fontWeight: '500', color: '#495057', fontSize: '14px' }}>所属部署</label>
+                  <select
+                    value={editEmployeeDept}
+                    onChange={e => setEditEmployeeDept(parseInt(e.target.value))}
                     style={{
-                      width:'100%',
-                      padding:'8px 12px',
-                      border:'1px solid #ced4da',
-                      borderRadius:6,
-                      fontSize:'14px',
-                      background:'white'
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #ced4da',
+                      borderRadius: 6,
+                      fontSize: '14px',
+                      background: 'white'
                     }}
                   >
                     <option value={0}>部署を選択</option>
@@ -1512,35 +1512,35 @@ export default function MasterPage() {
                     ))}
                   </select>
                 </div>
-                <button 
+                <button
                   onClick={saveEmployeeEdit}
                   disabled={loading}
                   style={{
-                    padding:'10px 20px',
+                    padding: '10px 20px',
                     background: loading ? '#6c757d' : '#ffc107',
                     color: loading ? 'white' : '#212529',
-                    border:'none',
-                    borderRadius:6,
+                    border: 'none',
+                    borderRadius: 6,
                     cursor: loading ? 'not-allowed' : 'pointer',
-                    fontWeight:'500',
-                    fontSize:'14px',
-                    transition:'all 0.2s ease'
+                    fontWeight: '500',
+                    fontSize: '14px',
+                    transition: 'all 0.2s ease'
                   }}
                 >
                   {loading ? '更新中...' : '✏️ 更新'}
                 </button>
-                <button 
+                <button
                   onClick={cancelEditEmployee}
                   style={{
-                    padding:'10px 20px',
-                    background:'#6c757d',
-                    color:'white',
-                    border:'none',
-                    borderRadius:6,
-                    cursor:'pointer',
-                    fontWeight:'500',
-                    fontSize:'14px',
-                    transition:'all 0.2s ease'
+                    padding: '10px 20px',
+                    background: '#6c757d',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                    fontWeight: '500',
+                    fontSize: '14px',
+                    transition: 'all 0.2s ease'
                   }}
                 >
                   キャンセル
@@ -1551,13 +1551,13 @@ export default function MasterPage() {
 
           {msg && (
             <div style={{
-              marginTop:16, 
-              padding:12, 
-              background:'#fff3cd', 
-              border:'1px solid #ffeaa7', 
-              borderRadius:8, 
-              color:'#856404',
-              fontSize:'14px'
+              marginTop: 16,
+              padding: 12,
+              background: '#fff3cd',
+              border: '1px solid #ffeaa7',
+              borderRadius: 8,
+              color: '#856404',
+              fontSize: '14px'
             }}>
               {msg}
             </div>
@@ -1566,22 +1566,22 @@ export default function MasterPage() {
       )}
 
       {/* 部署フィルターボタン群 */}
-      <div style={{marginBottom:24, padding:20, border:'1px solid #e9ecef', borderRadius:12, background:'white', boxShadow:'0 2px 8px rgba(0,0,0,0.1)'}}>
-        <div style={{display:'flex', gap:12, flexWrap:'wrap', alignItems:'center'}}>
-          <span style={{fontWeight:'600', color:'#495057', fontSize:'16px'}}>部署フィルター:</span>
-          <button 
-            onClick={()=>setDepFilter(null)} 
+      <div style={{ marginBottom: 24, padding: 20, border: '1px solid #e9ecef', borderRadius: 12, background: 'white', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontWeight: '600', color: '#495057', fontSize: '16px' }}>部署フィルター:</span>
+          <button
+            onClick={() => setDepFilter(null)}
             style={{
-              padding:'8px 16px', 
-              borderRadius:20, 
-              border:'1px solid #ced4da', 
-              background: depFilter===null?'#007bff':'#fff',
-              color: depFilter===null?'white':'#495057',
-              fontWeight:'500',
-              fontSize:'14px',
-              cursor:'pointer',
-              transition:'all 0.2s ease',
-              boxShadow: depFilter===null ? '0 2px 4px rgba(0,123,255,0.3)' : 'none'
+              padding: '8px 16px',
+              borderRadius: 20,
+              border: '1px solid #ced4da',
+              background: depFilter === null ? '#007bff' : '#fff',
+              color: depFilter === null ? 'white' : '#495057',
+              fontWeight: '500',
+              fontSize: '14px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: depFilter === null ? '0 2px 4px rgba(0,123,255,0.3)' : 'none'
             }}
             onMouseEnter={(e) => {
               if (depFilter !== null) {
@@ -1598,21 +1598,21 @@ export default function MasterPage() {
           >
             すべて
           </button>
-          {deps.map(d=>(
-            <button 
-              key={d.id} 
-              onClick={()=>setDepFilter(d.id)}
+          {deps.map(d => (
+            <button
+              key={d.id}
+              onClick={() => setDepFilter(d.id)}
               style={{
-                padding:'8px 16px', 
-                borderRadius:20, 
-                border:'1px solid #ced4da', 
-                background: depFilter===d.id?'#007bff':'#fff',
-                color: depFilter===d.id?'white':'#495057',
-                fontWeight:'500',
-                fontSize:'14px',
-                cursor:'pointer',
-                transition:'all 0.2s ease',
-                boxShadow: depFilter===d.id ? '0 2px 4px rgba(0,123,255,0.3)' : 'none'
+                padding: '8px 16px',
+                borderRadius: 20,
+                border: '1px solid #ced4da',
+                background: depFilter === d.id ? '#007bff' : '#fff',
+                color: depFilter === d.id ? 'white' : '#495057',
+                fontWeight: '500',
+                fontSize: '14px',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: depFilter === d.id ? '0 2px 4px rgba(0,123,255,0.3)' : 'none'
               }}
               title="所属ユーザーを表示"
               onMouseEnter={(e) => {
@@ -1635,86 +1635,86 @@ export default function MasterPage() {
       </div>
 
       {/* 日次表示：グループ化された社員一覧 */}
-      <div style={{background:'white', borderRadius:12, boxShadow:'0 2px 8px rgba(0,0,0,0.1)', padding:24}}>
-        <h3 style={{marginTop:0, marginBottom:20, fontSize:'20px', fontWeight:'600', color:'#2c3e50'}}>社員一覧（クリックで詳細表示）</h3>
-          
-          {/* シンプルな社員一覧 */}
-          <div style={{maxHeight:'400px', overflowY:'auto'}}>
-            <div style={{display:'flex', flexWrap:'wrap', gap:12}}>
-              {sorted?.map(r => (
-                <div
-                  key={r.id}
+      <div style={{ background: 'white', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', padding: 24 }}>
+        <h3 style={{ marginTop: 0, marginBottom: 20, fontSize: '20px', fontWeight: '600', color: '#2c3e50' }}>社員一覧（クリックで詳細表示）</h3>
+
+        {/* シンプルな社員一覧 */}
+        <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+            {sorted?.map(r => (
+              <div
+                key={r.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '12px 16px',
+                  border: '1px solid #e9ecef',
+                  borderRadius: '8px',
+                  background: selectedEmployee?.code === r.code ? 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)' : 'white',
+                  boxShadow: selectedEmployee?.code === r.code ? '0 4px 12px rgba(25,118,210,0.2)' : '0 2px 4px rgba(0,0,0,0.1)',
+                  transition: 'all 0.2s ease',
+                  borderColor: selectedEmployee?.code === r.code ? '#1976d2' : '#e9ecef'
+                }}
+              >
+                <button
+                  onClick={() => selectEmployee(r)}
+                  title={`社員名: ${r.name}\n社員番号: ${r.code}\n部署: ${r.dept || (r as any).department_name || '未所属'}`}
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '12px 16px',
-                    border: '1px solid #e9ecef',
-                    borderRadius: '8px',
-                    background: selectedEmployee?.code === r.code ? 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)' : 'white',
-                    boxShadow: selectedEmployee?.code === r.code ? '0 4px 12px rgba(25,118,210,0.2)' : '0 2px 4px rgba(0,0,0,0.1)',
-                    transition: 'all 0.2s ease',
-                    borderColor: selectedEmployee?.code === r.code ? '#1976d2' : '#e9ecef'
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: selectedEmployee?.code === r.code ? '#1976d2' : '#495057',
+                    padding: 0,
+                    flex: 1,
+                    textAlign: 'left'
                   }}
                 >
-                  <button
-                    onClick={() => selectEmployee(r)}
-                    title={`社員名: ${r.name}\n社員番号: ${r.code}\n部署: ${r.dept || (r as any).department_name || '未所属'}`}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      fontWeight: '500',
-                      color: selectedEmployee?.code === r.code ? '#1976d2' : '#495057',
-                      padding: 0,
-                      flex: 1,
-                      textAlign: 'left'
-                    }}
-                  >
-                    {r.name} ({r.code})
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      startEditEmployee(r);
-                    }}
-                    title="社員情報を編集"
-                    style={{
-                      background: '#ffc107',
-                      border: 'none',
-                      borderRadius: '4px',
-                      padding: '4px 8px',
-                      cursor: 'pointer',
-                      fontSize: '12px',
-                      color: '#212529',
-                      transition: 'all 0.2s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = '#e0a800';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = '#ffc107';
-                    }}
-                  >
-                    編集
-                  </button>
-                </div>
-              ))}
-            </div>
-            {!sorted?.length && (
-              <div style={{padding:32, color:'#6c757d', textAlign:'center', fontSize:'16px'}}>
-                <div style={{fontSize:'48px', marginBottom:16}}>📋</div>
-                データがありません
+                  {r.name} ({r.code})
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startEditEmployee(r);
+                  }}
+                  title="社員情報を編集"
+                  style={{
+                    background: '#ffc107',
+                    border: 'none',
+                    borderRadius: '4px',
+                    padding: '4px 8px',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    color: '#212529',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#e0a800';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#ffc107';
+                  }}
+                >
+                  編集
+                </button>
               </div>
-            )}
+            ))}
           </div>
+          {!sorted?.length && (
+            <div style={{ padding: 32, color: '#6c757d', textAlign: 'center', fontSize: '16px' }}>
+              <div style={{ fontSize: '48px', marginBottom: 16 }}>📋</div>
+              データがありません
+            </div>
+          )}
         </div>
+      </div>
 
       {/* 月別勤怠記録セクション */}
-      <div style={{marginTop: 32, background: 'white', borderRadius: 16, boxShadow: '0 4px 6px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', padding: 24}}>
-        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20}}>
-          <h3 style={{margin: 0, fontSize: 20, fontWeight: 700, color: '#374151'}}>
+      <div style={{ marginTop: 32, background: 'white', borderRadius: 16, boxShadow: '0 4px 6px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', padding: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#374151' }}>
             📅 月別勤怠カレンダー ({date.slice(0, 7)})
           </h3>
           <input
@@ -1794,25 +1794,25 @@ export default function MasterPage() {
                     const currentDate = new Date(year, monthNum, day);
                     const dayOfWeek = currentDate.getDay();
                     const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
-                    
+
                     const isWeekendDay = dayOfWeek === 0 || dayOfWeek === 6;
                     const isSundayDay = dayOfWeek === 0;
                     const holidayName = isHolidaySync(dateStr) ? getHolidayNameSync(dateStr) : null;
 
-                    const backgroundStyle = holidayName || isSundayDay 
+                    const backgroundStyle = holidayName || isSundayDay
                       ? { background: '#fef2f2' } // 祝日・日曜は薄い赤背景
-                      : dayOfWeek === 6 
-                      ? { background: '#eff6ff' } // 土曜は薄い青背景
-                      : {};
+                      : dayOfWeek === 6
+                        ? { background: '#eff6ff' } // 土曜は薄い青背景
+                        : {};
 
                     rows.push(
-                      <tr key={day} style={{borderBottom: '1px solid #f3f4f6', background: day % 2 === 0 ? '#ffffff' : '#fafbfc'}}>
-                        <td style={{padding: 8, fontSize: 13, borderRight: '1px solid #f3f4f6', fontWeight: 600, ...backgroundStyle}}>
-                          <div style={{display: 'flex', flexDirection: 'column', alignItems: 'flex-start'}}>
+                      <tr key={day} style={{ borderBottom: '1px solid #f3f4f6', background: day % 2 === 0 ? '#ffffff' : '#fafbfc' }}>
+                        <td style={{ padding: 8, fontSize: 13, borderRight: '1px solid #f3f4f6', fontWeight: 600, ...backgroundStyle }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                             <div>{day}日({dayNames[dayOfWeek]})</div>
                             {holidayName && (
                               <div style={{
-                                fontSize: '10px', 
+                                fontSize: '10px',
                                 color: '#dc2626',
                                 fontWeight: 'bold',
                                 marginTop: '2px'
@@ -1821,8 +1821,8 @@ export default function MasterPage() {
                               </div>
                             )}
                             {isWeekendDay && !holidayName && (
-                              <div style={{ 
-                                fontSize: '10px', 
+                              <div style={{
+                                fontSize: '10px',
                                 color: isSundayDay ? '#dc2626' : '#2563eb',
                                 fontWeight: 'bold',
                                 marginTop: '2px'
@@ -2022,8 +2022,8 @@ export default function MasterPage() {
                 ✏️ 社員情報の編集
               </h3>
 
-              <div style={{marginBottom: 16}}>
-                <label style={{display: 'block', marginBottom: 6, fontWeight: 500, color: '#495057'}}>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', marginBottom: 6, fontWeight: 500, color: '#495057' }}>
                   社員コード
                 </label>
                 <input
@@ -2042,8 +2042,8 @@ export default function MasterPage() {
                 />
               </div>
 
-              <div style={{marginBottom: 16}}>
-                <label style={{display: 'block', marginBottom: 6, fontWeight: 500, color: '#495057'}}>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', marginBottom: 6, fontWeight: 500, color: '#495057' }}>
                   社員名
                 </label>
                 <input
@@ -2062,8 +2062,8 @@ export default function MasterPage() {
                 />
               </div>
 
-              <div style={{marginBottom: 24}}>
-                <label style={{display: 'block', marginBottom: 6, fontWeight: 500, color: '#495057'}}>
+              <div style={{ marginBottom: 24 }}>
+                <label style={{ display: 'block', marginBottom: 6, fontWeight: 500, color: '#495057' }}>
                   部署
                 </label>
                 <select
@@ -2088,7 +2088,7 @@ export default function MasterPage() {
                 </select>
               </div>
 
-              <div style={{display: 'flex', gap: 12, justifyContent: 'flex-end'}}>
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
                 <button
                   onClick={cancelEditEmployee}
                   style={{
@@ -2145,25 +2145,25 @@ export default function MasterPage() {
 
         {/* 社員削除メニュー */}
         {showEmployeeDeleteMenu && (
-          <div style={{marginBottom:24, padding:24, border:'2px solid #dc3545', borderRadius:12, background:'linear-gradient(135deg, #fff5f5 0%, #f8d7da 100%)', boxShadow:'0 4px 12px rgba(220,53,69,0.1)'}}>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20}}>
-              <h3 style={{margin:0, color:'#721c24', fontSize:'18px', fontWeight:'600'}}>🗑️ 社員削除</h3>
+          <div style={{ marginBottom: 24, padding: 24, border: '2px solid #dc3545', borderRadius: 12, background: 'linear-gradient(135deg, #fff5f5 0%, #f8d7da 100%)', boxShadow: '0 4px 12px rgba(220,53,69,0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h3 style={{ margin: 0, color: '#721c24', fontSize: '18px', fontWeight: '600' }}>🗑️ 社員削除</h3>
               <button
                 onClick={() => setShowEmployeeDeleteMenu(false)}
                 style={{
-                  background:'#dc3545',
-                  color:'white',
-                  border:'none',
-                  borderRadius:'50%',
-                  width:'32px',
-                  height:'32px',
-                  display:'flex',
-                  alignItems:'center',
-                  justifyContent:'center',
-                  cursor:'pointer',
-                  fontSize:'16px',
-                  fontWeight:'bold',
-                  transition:'all 0.2s ease'
+                  background: '#dc3545',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  transition: 'all 0.2s ease'
                 }}
                 onMouseEnter={(e) => e.currentTarget.style.background = '#c82333'}
                 onMouseLeave={(e) => e.currentTarget.style.background = '#dc3545'}
@@ -2171,23 +2171,23 @@ export default function MasterPage() {
                 ×
               </button>
             </div>
-            
-            <div style={{marginBottom:20}}>
-              <label style={{display:'block', marginBottom:8, fontWeight:'500', color:'#495057', fontSize:'14px'}}>削除する社員を選択</label>
-              <select 
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', marginBottom: 8, fontWeight: '500', color: '#495057', fontSize: '14px' }}>削除する社員を選択</label>
+              <select
                 value={deleteTargetEmployee?.code || ''}
                 onChange={(e) => {
                   const employee = data.find(emp => emp.code === e.target.value);
                   setDeleteTargetEmployee(employee || null);
                 }}
                 style={{
-                  width:'100%',
-                  maxWidth:'400px',
-                  padding:'10px 12px',
-                  border:'1px solid #ced4da',
-                  borderRadius:6,
-                  fontSize:'14px',
-                  background:'white'
+                  width: '100%',
+                  maxWidth: '400px',
+                  padding: '10px 12px',
+                  border: '1px solid #ced4da',
+                  borderRadius: 6,
+                  fontSize: '14px',
+                  background: 'white'
                 }}
               >
                 <option value="">社員を選択してください</option>
@@ -2200,52 +2200,52 @@ export default function MasterPage() {
             </div>
 
             {deleteTargetEmployee && (
-              <div style={{marginBottom:20, padding:16, background:'#fff', border:'1px solid #dee2e6', borderRadius:8}}>
-                <h4 style={{margin:'0 0 12px 0', color:'#495057', fontSize:'16px'}}>削除対象の社員情報</h4>
-                <p style={{margin:'4px 0', fontSize:'14px', color:'#6c757d'}}>社員コード: <strong>{deleteTargetEmployee.code}</strong></p>
-                <p style={{margin:'4px 0', fontSize:'14px', color:'#6c757d'}}>氏名: <strong>{deleteTargetEmployee.name}</strong></p>
-                <p style={{margin:'4px 0', fontSize:'14px', color:'#6c757d'}}>所属: <strong>{deleteTargetEmployee.dept || '未所属'}</strong></p>
-                <div style={{marginTop:12, padding:12, background:'#fff3cd', border:'1px solid #ffeaa7', borderRadius:6}}>
-                  <p style={{margin:0, fontSize:'13px', color:'#856404', fontWeight:'500'}}>
+              <div style={{ marginBottom: 20, padding: 16, background: '#fff', border: '1px solid #dee2e6', borderRadius: 8 }}>
+                <h4 style={{ margin: '0 0 12px 0', color: '#495057', fontSize: '16px' }}>削除対象の社員情報</h4>
+                <p style={{ margin: '4px 0', fontSize: '14px', color: '#6c757d' }}>社員コード: <strong>{deleteTargetEmployee.code}</strong></p>
+                <p style={{ margin: '4px 0', fontSize: '14px', color: '#6c757d' }}>氏名: <strong>{deleteTargetEmployee.name}</strong></p>
+                <p style={{ margin: '4px 0', fontSize: '14px', color: '#6c757d' }}>所属: <strong>{deleteTargetEmployee.dept || '未所属'}</strong></p>
+                <div style={{ marginTop: 12, padding: 12, background: '#fff3cd', border: '1px solid #ffeaa7', borderRadius: 6 }}>
+                  <p style={{ margin: 0, fontSize: '13px', color: '#856404', fontWeight: '500' }}>
                     ⚠️ 削除すると、この社員に関連する勤怠データも全て削除されます。この操作は取り消せません。
                   </p>
                 </div>
               </div>
             )}
 
-            <div style={{display:'flex', gap:12}}>
-              <button 
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
                 onClick={() => {
                   setShowEmployeeDeleteMenu(false);
                   setDeleteTargetEmployee(null);
                 }}
                 style={{
-                  padding:'10px 20px',
-                  background:'#6c757d',
-                  color:'white',
-                  border:'none',
-                  borderRadius:6,
-                  cursor:'pointer',
-                  fontWeight:'500',
-                  fontSize:'14px',
-                  transition:'all 0.2s ease'
+                  padding: '10px 20px',
+                  background: '#6c757d',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  fontWeight: '500',
+                  fontSize: '14px',
+                  transition: 'all 0.2s ease'
                 }}
               >
                 キャンセル
               </button>
-              <button 
+              <button
                 onClick={deleteEmployee}
                 disabled={!deleteTargetEmployee || loading}
                 style={{
-                  padding:'10px 20px',
+                  padding: '10px 20px',
                   background: !deleteTargetEmployee || loading ? '#6c757d' : '#dc3545',
-                  color:'white',
-                  border:'none',
-                  borderRadius:6,
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 6,
                   cursor: !deleteTargetEmployee || loading ? 'not-allowed' : 'pointer',
-                  fontWeight:'500',
-                  fontSize:'14px',
-                  transition:'all 0.2s ease'
+                  fontWeight: '500',
+                  fontSize: '14px',
+                  transition: 'all 0.2s ease'
                 }}
               >
                 {loading ? '削除中...' : '🗑️ 削除実行'}
@@ -2256,25 +2256,25 @@ export default function MasterPage() {
 
         {/* バックアップ管理メニュー */}
         {showBackupManagement && (
-          <div style={{marginBottom:24, padding:24, border:'2px solid #17a2b8', borderRadius:12, background:'linear-gradient(135deg, #e6f7ff 0%, #b3e5fc 100%)', boxShadow:'0 4px 12px rgba(23,162,184,0.1)'}}>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20}}>
-              <h3 style={{margin:0, color:'#0c5460', fontSize:'18px', fontWeight:'600'}}>💾 バックアップ管理</h3>
+          <div style={{ marginBottom: 24, padding: 24, border: '2px solid #17a2b8', borderRadius: 12, background: 'linear-gradient(135deg, #e6f7ff 0%, #b3e5fc 100%)', boxShadow: '0 4px 12px rgba(23,162,184,0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h3 style={{ margin: 0, color: '#0c5460', fontSize: '18px', fontWeight: '600' }}>💾 バックアップ管理</h3>
               <button
                 onClick={() => setShowBackupManagement(false)}
                 style={{
-                  background:'#17a2b8',
-                  color:'white',
-                  border:'none',
-                  borderRadius:'50%',
-                  width:'32px',
-                  height:'32px',
-                  display:'flex',
-                  alignItems:'center',
-                  justifyContent:'center',
-                  cursor:'pointer',
-                  fontSize:'16px',
-                  fontWeight:'bold',
-                  transition:'all 0.2s ease'
+                  background: '#17a2b8',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  transition: 'all 0.2s ease'
                 }}
                 onMouseEnter={(e) => e.currentTarget.style.background = '#138496'}
                 onMouseLeave={(e) => e.currentTarget.style.background = '#17a2b8'}
@@ -2282,29 +2282,29 @@ export default function MasterPage() {
                 ×
               </button>
             </div>
-            
+
             {/* 手動バックアップ作成ボタン */}
-            <div style={{marginBottom:20, padding:16, background:'#fff', border:'1px solid #bee5eb', borderRadius:8}}>
-              <h4 style={{margin:'0 0 12px 0', color:'#0c5460', fontSize:'16px'}}>📸 手動バックアップ作成</h4>
-              <p style={{margin:'0 0 16px 0', fontSize:'14px', color:'#6c757d'}}>
+            <div style={{ marginBottom: 20, padding: 16, background: '#fff', border: '1px solid #bee5eb', borderRadius: 8 }}>
+              <h4 style={{ margin: '0 0 12px 0', color: '#0c5460', fontSize: '16px' }}>📸 手動バックアップ作成</h4>
+              <p style={{ margin: '0 0 16px 0', fontSize: '14px', color: '#6c757d' }}>
                 現在のデータの状態を手動でバックアップします。重要な作業前の保存にご利用ください。
               </p>
               <button
                 onClick={createManualBackup}
                 disabled={backupLoading}
                 style={{
-                  padding:'12px 24px',
+                  padding: '12px 24px',
                   background: backupLoading ? '#6c757d' : '#17a2b8',
-                  color:'white',
-                  border:'none',
-                  borderRadius:6,
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 6,
                   cursor: backupLoading ? 'not-allowed' : 'pointer',
-                  fontWeight:'500',
-                  fontSize:'14px',
-                  transition:'all 0.2s ease',
-                  display:'flex',
-                  alignItems:'center',
-                  gap:8
+                  fontWeight: '500',
+                  fontSize: '14px',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8
                 }}
               >
                 {backupLoading ? '⏳ 作成中...' : '📸 バックアップ作成'}
@@ -2312,50 +2312,50 @@ export default function MasterPage() {
             </div>
 
             {/* バックアップ一覧 */}
-            <div style={{marginBottom:20}}>
-              <h4 style={{margin:'0 0 12px 0', color:'#0c5460', fontSize:'16px'}}>📋 バックアップ一覧</h4>
+            <div style={{ marginBottom: 20 }}>
+              <h4 style={{ margin: '0 0 12px 0', color: '#0c5460', fontSize: '16px' }}>📋 バックアップ一覧</h4>
               {backupLoading ? (
-                <div style={{padding:20, textAlign:'center', color:'#6c757d'}}>
+                <div style={{ padding: 20, textAlign: 'center', color: '#6c757d' }}>
                   ⏳ バックアップ一覧を読み込み中...
                 </div>
               ) : backups.length === 0 ? (
-                <div style={{padding:20, textAlign:'center', color:'#6c757d', background:'#f8f9fa', borderRadius:8}}>
+                <div style={{ padding: 20, textAlign: 'center', color: '#6c757d', background: '#f8f9fa', borderRadius: 8 }}>
                   バックアップがありません
                 </div>
               ) : (
-                <div style={{maxHeight:'300px', overflowY:'auto', border:'1px solid #bee5eb', borderRadius:8}}>
+                <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #bee5eb', borderRadius: 8 }}>
                   {backups.map((backup, index) => (
                     <div key={backup.name} style={{
-                      padding:'12px 16px',
+                      padding: '12px 16px',
                       borderBottom: index < backups.length - 1 ? '1px solid #e9ecef' : 'none',
                       background: index % 2 === 0 ? '#fff' : '#f8f9fa',
-                      display:'flex',
-                      justifyContent:'space-between',
-                      alignItems:'center'
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
                     }}>
-                      <div style={{flex:1}}>
-                        <div style={{fontWeight:'500', color:'#495057', fontSize:'14px'}}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: '500', color: '#495057', fontSize: '14px' }}>
                           {backup.name}
                         </div>
-                        <div style={{fontSize:'12px', color:'#6c757d', marginTop:2}}>
-                          📅 {new Date(backup.date).toLocaleString('ja-JP')} | 
+                        <div style={{ fontSize: '12px', color: '#6c757d', marginTop: 2 }}>
+                          📅 {new Date(backup.date).toLocaleString('ja-JP')} |
                           💾 {backup.size}KB
                         </div>
                       </div>
-                      <div style={{display:'flex', gap:8}}>
+                      <div style={{ display: 'flex', gap: 8 }}>
                         <button
                           onClick={() => restoreBackup(backup.name)}
                           disabled={backupLoading}
                           style={{
-                            padding:'6px 12px',
+                            padding: '6px 12px',
                             background: backupLoading ? '#6c757d' : '#28a745',
-                            color:'white',
-                            border:'none',
-                            borderRadius:4,
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: 4,
                             cursor: backupLoading ? 'not-allowed' : 'pointer',
-                            fontSize:'12px',
-                            fontWeight:'500',
-                            transition:'all 0.2s ease'
+                            fontSize: '12px',
+                            fontWeight: '500',
+                            transition: 'all 0.2s ease'
                           }}
                         >
                           🔄 復元
@@ -2364,15 +2364,15 @@ export default function MasterPage() {
                           onClick={() => deleteBackup(backup.name)}
                           disabled={backupLoading}
                           style={{
-                            padding:'6px 12px',
+                            padding: '6px 12px',
                             background: backupLoading ? '#6c757d' : '#dc3545',
-                            color:'white',
-                            border:'none',
-                            borderRadius:4,
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: 4,
                             cursor: backupLoading ? 'not-allowed' : 'pointer',
-                            fontSize:'12px',
-                            fontWeight:'500',
-                            transition:'all 0.2s ease'
+                            fontSize: '12px',
+                            fontWeight: '500',
+                            transition: 'all 0.2s ease'
                           }}
                         >
                           🗑️ 削除
@@ -2385,7 +2385,7 @@ export default function MasterPage() {
             </div>
 
             {/* リアルタイム更新ボタン */}
-            <div style={{display:'flex', gap:12, justifyContent:'center'}}>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
               <button
                 onClick={() => {
                   loadBackups();
@@ -2393,18 +2393,18 @@ export default function MasterPage() {
                 }}
                 disabled={backupLoading}
                 style={{
-                  padding:'10px 20px',
+                  padding: '10px 20px',
                   background: backupLoading ? '#6c757d' : '#6f42c1',
-                  color:'white',
-                  border:'none',
-                  borderRadius:6,
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 6,
                   cursor: backupLoading ? 'not-allowed' : 'pointer',
-                  fontWeight:'500',
-                  fontSize:'14px',
-                  transition:'all 0.2s ease',
-                  display:'flex',
-                  alignItems:'center',
-                  gap:8
+                  fontWeight: '500',
+                  fontSize: '14px',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8
                 }}
               >
                 🔄 リアルタイム更新
@@ -2416,18 +2416,18 @@ export default function MasterPage() {
         {/* 月別集計（1列表示） - ユーザー選択時のみ表示 */}
         {selectedEmployee && (
           <div style={{
-            marginTop: 32, 
-            padding: '20px 24px', 
-            background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)', 
-            borderRadius: 12, 
+            marginTop: 32,
+            padding: '20px 24px',
+            background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+            borderRadius: 12,
             border: '2px solid #495057',
             boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
           }}>
-            <div style={{marginBottom: 16}}>
+            <div style={{ marginBottom: 16 }}>
               <h3 style={{
-                margin: 0, 
-                fontSize: 20, 
-                fontWeight: 700, 
+                margin: 0,
+                fontSize: 20,
+                fontWeight: 700,
                 color: '#495057',
                 textAlign: 'center',
                 display: 'flex',
@@ -2435,11 +2435,11 @@ export default function MasterPage() {
                 justifyContent: 'center',
                 gap: 8
               }}>
-                <span style={{fontSize: 24}}>📊</span>
+                <span style={{ fontSize: 24 }}>📊</span>
                 {selectedEmployee.name} の月別勤怠集計 ({date.slice(0, 7)})
               </h3>
             </div>
-            
+
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -2452,9 +2452,9 @@ export default function MasterPage() {
               border: '1px solid #e5e7eb'
             }}>
               {/* 集計計算 - 選択された社員のデータのみ */}
-              <div style={{fontSize: 14, color: '#495057', display: 'flex', alignItems: 'center', gap: 8}}>
-                <span style={{color: '#28a745', fontWeight: 600}}>勤務時間:</span>
-                <strong style={{color: '#28a745', fontSize: 16}}>
+              <div style={{ fontSize: 14, color: '#495057', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ color: '#28a745', fontWeight: 600 }}>勤務時間:</span>
+                <strong style={{ color: '#28a745', fontSize: 16 }}>
                   {(() => {
                     const totalMinutes = employeeDetails.reduce((sum, r) => {
                       if (r.clock_in && r.clock_out) {
@@ -2472,9 +2472,9 @@ export default function MasterPage() {
                   })()}
                 </strong>
               </div>
-              <div style={{fontSize: 14, color: '#495057', display: 'flex', alignItems: 'center', gap: 8}}>
-                <span style={{color: '#ffc107', fontWeight: 600}}>遅刻・早退:</span>
-                <strong style={{color: '#ffc107', fontSize: 16}}>
+              <div style={{ fontSize: 14, color: '#495057', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ color: '#ffc107', fontWeight: 600 }}>遅刻・早退:</span>
+                <strong style={{ color: '#ffc107', fontSize: 16 }}>
                   {(() => {
                     const totalMinutes = employeeDetails.reduce((sum, r) => sum + (r.late || 0) + (r.early || 0), 0);
                     const hours = Math.floor(totalMinutes / 60);
@@ -2483,9 +2483,9 @@ export default function MasterPage() {
                   })()}
                 </strong>
               </div>
-              <div style={{fontSize: 14, color: '#495057', display: 'flex', alignItems: 'center', gap: 8}}>
-                <span style={{color: '#6f42c1', fontWeight: 600}}>残業:</span>
-                <strong style={{color: '#6f42c1', fontSize: 16}}>
+              <div style={{ fontSize: 14, color: '#495057', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ color: '#6f42c1', fontWeight: 600 }}>残業:</span>
+                <strong style={{ color: '#6f42c1', fontSize: 16 }}>
                   {(() => {
                     const totalMinutes = employeeDetails.reduce((sum, r) => {
                       if (r.clock_in && r.clock_out) {
@@ -2503,9 +2503,9 @@ export default function MasterPage() {
                   })()}
                 </strong>
               </div>
-              <div style={{fontSize: 14, color: '#495057', display: 'flex', alignItems: 'center', gap: 8}}>
-                <span style={{color: '#6c757d', fontWeight: 600}}>深夜勤務:</span>
-                <strong style={{color: '#6c757d', fontSize: 16}}>
+              <div style={{ fontSize: 14, color: '#495057', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ color: '#6c757d', fontWeight: 600 }}>深夜勤務:</span>
+                <strong style={{ color: '#6c757d', fontSize: 16 }}>
                   {(() => {
                     const totalMinutes = employeeDetails.reduce((sum, r) => {
                       if (r.clock_in && r.clock_out) {
@@ -2523,9 +2523,9 @@ export default function MasterPage() {
                   })()}
                 </strong>
               </div>
-              <div style={{fontSize: 14, color: '#495057', display: 'flex', alignItems: 'center', gap: 8}}>
-                <span style={{color: '#0ea5e9', fontWeight: 600}}>法定内時間外:</span>
-                <strong style={{color: '#0ea5e9', fontSize: 16}}>
+              <div style={{ fontSize: 14, color: '#495057', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ color: '#0ea5e9', fontWeight: 600 }}>法定内時間外:</span>
+                <strong style={{ color: '#0ea5e9', fontSize: 16 }}>
                   {(() => {
                     const totalMinutes = employeeDetails.reduce((sum, r) => {
                       if (r.clock_in && r.clock_out) {
@@ -2543,9 +2543,9 @@ export default function MasterPage() {
                   })()}
                 </strong>
               </div>
-              <div style={{fontSize: 14, color: '#495057', display: 'flex', alignItems: 'center', gap: 8}}>
-                <span style={{color: '#ef4444', fontWeight: 600}}>法定外時間外:</span>
-                <strong style={{color: '#ef4444', fontSize: 16}}>
+              <div style={{ fontSize: 14, color: '#495057', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ color: '#ef4444', fontWeight: 600 }}>法定外時間外:</span>
+                <strong style={{ color: '#ef4444', fontSize: 16 }}>
                   {(() => {
                     const totalMinutes = employeeDetails.reduce((sum, r) => {
                       if (r.clock_in && r.clock_out) {
@@ -2592,22 +2592,22 @@ export default function MasterPage() {
               <h3 style={{ marginBottom: '20px', color: '#333', textAlign: 'center' }}>
                 📅 勤怠時間修正
               </h3>
-              
-              <div style={{ 
-                marginBottom: '20px', 
-                padding: '12px', 
-                backgroundColor: '#f8f9fa', 
+
+              <div style={{
+                marginBottom: '20px',
+                padding: '12px',
+                backgroundColor: '#f8f9fa',
                 borderRadius: '6px',
                 border: '1px solid #e9ecef'
               }}>
                 <div style={{ marginBottom: '8px' }}>
-                  <strong style={{ color: '#495057' }}>社員名:</strong> 
+                  <strong style={{ color: '#495057' }}>社員名:</strong>
                   <span style={{ marginLeft: '8px', color: '#2563eb', fontWeight: '600' }}>
                     {editingTimeData.employee.name}
                   </span>
                 </div>
                 <div>
-                  <strong style={{ color: '#495057' }}>対象日:</strong> 
+                  <strong style={{ color: '#495057' }}>対象日:</strong>
                   <span style={{ marginLeft: '8px', color: '#dc3545', fontWeight: '600' }}>
                     {new Date(editingTimeData.date).toLocaleDateString('ja-JP', {
                       year: 'numeric',
@@ -2618,7 +2618,7 @@ export default function MasterPage() {
                   </span>
                 </div>
               </div>
-              
+
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
                   出勤時間:
@@ -2863,12 +2863,12 @@ export default function MasterPage() {
   );
 }
 
-const th: React.CSSProperties = { textAlign:'left', padding:'8px 6px', fontWeight:600 };
-const td: React.CSSProperties = { padding:'6px' };
+const th: React.CSSProperties = { textAlign: 'left', padding: '8px 6px', fontWeight: 600 };
+const td: React.CSSProperties = { padding: '6px' };
 
 // 状況に応じて薄い色分け
-function rowBg(r: MasterRow){
+function rowBg(r: MasterRow) {
   if (r.status === '出勤中') return '#f0fff4'; // 薄緑
-  if ((r.late||0) + (r.early||0) + (r.overtime||0) + (r.night||0) > 0) return '#fffdf0'; // 薄黄
+  if ((r.late || 0) + (r.early || 0) + (r.overtime || 0) + (r.night || 0) > 0) return '#fffdf0'; // 薄黄
   return 'transparent';
 }

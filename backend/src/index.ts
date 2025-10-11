@@ -3,9 +3,9 @@ import dotenv from 'dotenv';
 dotenv.config({ override: true });
 
 import express from 'express';
+import { existsSync, readFileSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { existsSync, readFileSync } from 'fs';
 import { writeJsonAtomic } from './helpers/writeJsonAtomic.js';
 
 // （任意）バックアップ健康チェックだけ別ファイルなら使う
@@ -23,8 +23,8 @@ app.get('/api/health', (_req, res) =>
 // 管理者用ヘルスチェック
 app.get('/api/admin/health', (_req, res) => {
   try {
-    res.json({ 
-      ok: true, 
+    res.json({
+      ok: true,
       status: 'healthy',
       timestamp: new Date().toISOString(),
       version: '1.0.0',
@@ -32,8 +32,8 @@ app.get('/api/admin/health', (_req, res) => {
     });
   } catch (error) {
     console.error('Health check error:', error);
-    res.status(500).json({ 
-      ok: false, 
+    res.status(500).json({
+      ok: false,
       status: 'unhealthy',
       error: 'Internal server error',
       timestamp: new Date().toISOString()
@@ -123,7 +123,7 @@ app.get('/api/admin/master', (req, res) => {
     const dept = (e.department_id != null)
       ? (deptIndex.get(e.department_id)?.name ?? '未所属')
       : (e.dept ?? '未所属');
-    
+
     return {
       id: e.id,
       code: e.code,
@@ -155,7 +155,7 @@ app.get('/api/admin/attendance', (req, res) => {
     const dept = (e.department_id != null)
       ? (deptIndex.get(e.department_id)?.name ?? '未所属')
       : (e.dept ?? '未所属');
-      return {
+    return {
       id: e.id,
       code: e.code,
       name: e.name,
@@ -165,8 +165,8 @@ app.get('/api/admin/attendance', (req, res) => {
       clock_out: at.clock_out ?? null,
       status: at.clock_in && at.clock_out ? '退勤' : at.clock_in ? '出勤中' : '未出勤',
       remark: ''
-      };
-    });
+    };
+  });
   res.json({ ok: true, date, list });
 });
 
@@ -189,7 +189,7 @@ app.post('/api/admin/backup', async (req, res) => {
   try {
     const timestamp = new Date().toISOString();
     const backupId = `backup_${Date.now()}`;
-    
+
     // 現在の全データを取得
     const backupData = {
       id: backupId,
@@ -200,31 +200,31 @@ app.post('/api/admin/backup', async (req, res) => {
       holidays: { ...holidays },
       remarks: { ...remarksData }
     };
-    
+
     // バックアップディレクトリを作成
     const backupDir = path.join(DATA_DIR, '..', 'backups', backupId);
     const fs = await import('fs');
     if (!fs.existsSync(backupDir)) {
       fs.mkdirSync(backupDir, { recursive: true });
     }
-    
+
     // バックアップファイルを保存
     const backupFile = path.join(backupDir, 'backup.json');
     writeJsonAtomic(backupFile, backupData);
-    
+
     // バックアップメタデータを保存
     const metaFile = path.join(DATA_DIR, '..', 'backups', 'backup_metadata.json');
-    const existingMeta = safeReadJSON(metaFile, { backups: [] }) as { backups: Array<{id: string, timestamp: string, size: number}> };
+    const existingMeta = safeReadJSON(metaFile, { backups: [] }) as { backups: Array<{ id: string, timestamp: string, size: number }> };
     existingMeta.backups.push({
       id: backupId,
       timestamp,
       size: JSON.stringify(backupData).length
     });
     writeJsonAtomic(metaFile, existingMeta);
-    
-    res.json({ 
-      ok: true, 
-      backupId, 
+
+    res.json({
+      ok: true,
+      backupId,
       timestamp,
       message: 'バックアップが正常に作成されました'
     });
@@ -238,19 +238,19 @@ app.post('/api/admin/backup', async (req, res) => {
 app.get('/api/admin/backups', (_req, res) => {
   try {
     const metaFile = path.join(DATA_DIR, '..', 'backups', 'backup_metadata.json');
-    const metadata = safeReadJSON(metaFile, { backups: [] }) as { backups: Array<{id: string, timestamp: string, size: number}> };
-    
+    const metadata = safeReadJSON(metaFile, { backups: [] }) as { backups: Array<{ id: string, timestamp: string, size: number }> };
+
     // バックアップを新しい順にソート
-    const sortedBackups = metadata.backups.sort((a, b) => 
+    const sortedBackups = metadata.backups.sort((a, b) =>
       new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );
-    
+
     // 古いバックアップを自動削除（最新10個を保持）
     const maxKeep = parseInt(process.env.BACKUP_MAX_KEEP || '10', 10);
     if (sortedBackups.length > maxKeep) {
       const toDelete = sortedBackups.slice(maxKeep);
       const fs = require('fs');
-      
+
       toDelete.forEach(async (backup) => {
         try {
           const backupDir = path.join(DATA_DIR, '..', 'backups', backup.id);
@@ -262,15 +262,15 @@ app.get('/api/admin/backups', (_req, res) => {
           console.error(`Failed to delete backup ${backup.id}:`, deleteError);
         }
       });
-      
+
       // メタデータを更新
       const remainingBackups = sortedBackups.slice(0, maxKeep);
       const updatedMetadata = { backups: remainingBackups };
       fs.writeFileSync(metaFile, JSON.stringify(updatedMetadata, null, 2));
-      
+
       console.log(`Cleaned up ${toDelete.length} old backups, keeping ${remainingBackups.length} latest`);
     }
-    
+
     res.json({ ok: true, backups: sortedBackups.slice(0, maxKeep) });
   } catch (e) {
     console.error('Backup list error:', e);
@@ -283,16 +283,16 @@ app.get('/api/admin/backups/:backupId', (req, res) => {
   try {
     const { backupId } = req.params;
     const backupFile = path.join(DATA_DIR, '..', 'backups', backupId, 'backup.json');
-    
+
     if (!existsSync(backupFile)) {
       return res.status(404).json({ ok: false, error: 'Backup not found' });
     }
-    
+
     const backupData = safeReadJSON(backupFile, null);
     if (!backupData) {
       return res.status(404).json({ ok: false, error: 'Backup data corrupted' });
     }
-    
+
     res.json({ ok: true, backup: backupData });
   } catch (e) {
     console.error('Backup detail error:', e);
@@ -305,19 +305,19 @@ app.get('/api/admin/backups/:backupId/preview', (req, res) => {
   try {
     const { backupId } = req.params;
     const backupFile = path.join(DATA_DIR, '..', 'backups', backupId, 'backup.json');
-    
+
     if (!existsSync(backupFile)) {
       return res.status(404).json({ ok: false, error: 'Backup not found' });
     }
-    
+
     const backupData = safeReadJSON(backupFile, null);
     if (!backupData) {
       return res.status(404).json({ ok: false, error: 'Backup data corrupted' });
     }
-    
+
     // プレビューモード用のデータを返す（復元はしない）
-    res.json({ 
-      ok: true, 
+    res.json({
+      ok: true,
       preview: true,
       backup: backupData,
       message: 'プレビューモード：データは復元されません'
@@ -333,16 +333,16 @@ app.post('/api/admin/backups/:backupId/restore', (req, res) => {
   try {
     const { backupId } = req.params;
     const backupFile = path.join(DATA_DIR, '..', 'backups', backupId, 'backup.json');
-    
+
     if (!existsSync(backupFile)) {
       return res.status(404).json({ ok: false, error: 'Backup not found' });
     }
-    
+
     const backupData = safeReadJSON(backupFile, null) as any;
     if (!backupData) {
       return res.status(404).json({ ok: false, error: 'Backup data corrupted' });
     }
-    
+
     // 現在のデータをバックアップ（復元前の安全策）
     const currentBackup = {
       employees: [...employees],
@@ -351,7 +351,7 @@ app.post('/api/admin/backups/:backupId/restore', (req, res) => {
       holidays: { ...holidays },
       remarks: { ...remarksData }
     };
-    
+
     // バックアップデータで復元
     employees.length = 0;
     employees.push(...backupData.employees);
@@ -360,16 +360,16 @@ app.post('/api/admin/backups/:backupId/restore', (req, res) => {
     Object.assign(attendanceData, backupData.attendance);
     Object.assign(holidays, backupData.holidays);
     Object.assign(remarksData, backupData.remarks);
-    
+
     // ファイルに保存
     writeJsonAtomic(EMPLOYEES_FILE, employees);
     writeJsonAtomic(DEPARTMENTS_FILE, departments);
     writeJsonAtomic(ATTENDANCE_FILE, attendanceData);
     writeJsonAtomic(HOLIDAYS_FILE, holidays);
     writeJsonAtomic(REMARKS_FILE, remarksData);
-    
-    res.json({ 
-      ok: true, 
+
+    res.json({
+      ok: true,
       message: `バックアップ ${backupId} から復元しました`,
       restoredAt: new Date().toISOString()
     });
@@ -384,21 +384,21 @@ app.delete('/api/admin/backups/:backupId', async (req, res) => {
   try {
     const { backupId } = req.params;
     const backupDir = path.join(DATA_DIR, '..', 'backups', backupId);
-    
+
     if (!existsSync(backupDir)) {
       return res.status(404).json({ ok: false, error: 'Backup not found' });
     }
-    
+
     // バックアップディレクトリを削除
     const fs = await import('fs');
     fs.rmSync(backupDir, { recursive: true, force: true });
-    
+
     // メタデータから削除
     const metaFile = path.join(DATA_DIR, '..', 'backups', 'backup_metadata.json');
-    const existingMeta = safeReadJSON(metaFile, { backups: [] }) as { backups: Array<{id: string, timestamp: string, size: number}> };
+    const existingMeta = safeReadJSON(metaFile, { backups: [] }) as { backups: Array<{ id: string, timestamp: string, size: number }> };
     existingMeta.backups = existingMeta.backups.filter((b) => b.id !== backupId);
     writeJsonAtomic(metaFile, existingMeta);
-    
+
     res.json({ ok: true, message: `バックアップ ${backupId} を削除しました` });
   } catch (e) {
     console.error('Backup delete error:', e);
@@ -411,26 +411,26 @@ app.post('/api/admin/backups/cleanup', async (req, res) => {
   try {
     const { maxKeep = 10 } = req.body;
     const metaFile = path.join(DATA_DIR, '..', 'backups', 'backup_metadata.json');
-    const metadata = safeReadJSON(metaFile, { backups: [] }) as { backups: Array<{id: string, timestamp: string, size: number}> };
-    
+    const metadata = safeReadJSON(metaFile, { backups: [] }) as { backups: Array<{ id: string, timestamp: string, size: number }> };
+
     // バックアップを新しい順にソート
-    const sortedBackups = metadata.backups.sort((a, b) => 
+    const sortedBackups = metadata.backups.sort((a, b) =>
       new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );
-    
+
     if (sortedBackups.length <= maxKeep) {
-      return res.json({ 
-        ok: true, 
+      return res.json({
+        ok: true,
         message: `No cleanup needed. Current backups: ${sortedBackups.length}, max keep: ${maxKeep}`,
         deletedCount: 0,
         remainingCount: sortedBackups.length
       });
     }
-    
+
     const toDelete = sortedBackups.slice(maxKeep);
     const fs = await import('fs');
     let deletedCount = 0;
-    
+
     for (const backup of toDelete) {
       try {
         const backupDir = path.join(DATA_DIR, '..', 'backups', backup.id);
@@ -443,14 +443,14 @@ app.post('/api/admin/backups/cleanup', async (req, res) => {
         console.error(`Failed to delete backup ${backup.id}:`, deleteError);
       }
     }
-    
+
     // メタデータを更新
     const remainingBackups = sortedBackups.slice(0, maxKeep);
     const updatedMetadata = { backups: remainingBackups };
     fs.writeFileSync(metaFile, JSON.stringify(updatedMetadata, null, 2));
-    
-    res.json({ 
-      ok: true, 
+
+    res.json({
+      ok: true,
       message: `Cleanup completed. Deleted ${deletedCount} old backups, keeping ${remainingBackups.length} latest`,
       deletedCount,
       remainingCount: remainingBackups.length
@@ -529,7 +529,7 @@ app.post('/api/public/clock-out', (req, res) => {
 // ---- 静的配信（SPA） ----
 const FRONTEND_PATH =
   process.env.FRONTEND_PATH
-  || path.resolve(__dirname, '../../public');
+  || path.resolve(__dirname, '../../frontend/dist');
 
 if (existsSync(path.join(FRONTEND_PATH, 'index.html'))) {
   app.use(express.static(FRONTEND_PATH, {
@@ -541,13 +541,13 @@ if (existsSync(path.join(FRONTEND_PATH, 'index.html'))) {
   }));
 
   // SPAのルーティング：/api 以外は index.html
-app.get('*', (req, res) => {
+  app.get('*', (req, res) => {
     if (req.path.startsWith('/api/')) {
       return res.status(404).json({ error: 'API endpoint not implemented' });
     }
-    res.sendFile(path.join(FRONTEND_PATH, 'index.html'));
+    res.sendFile(path.resolve(FRONTEND_PATH, 'index.html'));
   });
-  } else {
+} else {
   console.warn('⚠️ FRONTEND not found:', FRONTEND_PATH);
 }
 
