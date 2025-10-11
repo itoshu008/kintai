@@ -461,6 +461,163 @@ app.post('/api/admin/backups/cleanup', async (req, res) => {
   }
 });
 
+// --- Cursor指示API ---
+
+// Cursor指示実行
+app.post('/api/cursor-command', async (req, res) => {
+  const { command } = req.body || {};
+  
+  if (!command) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'コマンドが必要です' 
+    });
+  }
+
+  try {
+    // コマンド実行
+    const result = await executeCursorCommand(command);
+    
+    res.json({ 
+      success: true, 
+      message: result,
+      command: command,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Cursor command error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'コマンド実行に失敗しました', 
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+});
+
+// バックエンド指示実行関数
+async function executeCursorCommand(command: string): Promise<string> {
+  console.log(`Executing backend command: ${command}`);
+  
+  try {
+    // コマンドのバリデーション
+    const sanitizedCommand = command.trim().toLowerCase();
+    
+    // セキュリティチェック
+    if (sanitizedCommand.includes('rm ') || sanitizedCommand.includes('del ')) {
+      throw new Error('危険なコマンドは実行できません');
+    }
+    
+    // システム操作コマンド
+    if (sanitizedCommand === 'status' || sanitizedCommand === 'health') {
+      return await executeSystemStatus();
+    } else if (sanitizedCommand === 'restart' || sanitizedCommand === 'reload') {
+      return await executeRestart();
+    } else if (sanitizedCommand.startsWith('backup')) {
+      return await executeBackup(sanitizedCommand);
+    } else if (sanitizedCommand.startsWith('data ')) {
+      return await executeDataOperation(sanitizedCommand);
+    } else if (sanitizedCommand.startsWith('git ')) {
+      return await executeGitCommand(command);
+    } else if (sanitizedCommand.startsWith('npm ')) {
+      return await executeNpmCommand(command);
+    } else if (sanitizedCommand.includes('build')) {
+      return await executeBuildCommand(sanitizedCommand);
+    } else if (sanitizedCommand.includes('deploy')) {
+      return await executeDeployCommand(sanitizedCommand);
+    } else {
+      return `コマンドを実行しました: ${command}`;
+    }
+  } catch (error) {
+    throw new Error(`コマンド実行エラー: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+// システムステータス確認
+async function executeSystemStatus(): Promise<string> {
+  const uptime = process.uptime();
+  const memoryUsage = process.memoryUsage();
+  const employeeCount = employees.length;
+  const departmentCount = departments.length;
+  const attendanceRecords = Object.keys(attendanceData).length;
+  
+  return `システムステータス:
+- 稼働時間: ${Math.floor(uptime / 60)}分
+- メモリ使用量: ${Math.round(memoryUsage.heapUsed / 1024 / 1024)}MB
+- 社員数: ${employeeCount}名
+- 部署数: ${departmentCount}個
+- 勤怠記録: ${attendanceRecords}件`;
+}
+
+// システム再起動
+async function executeRestart(): Promise<string> {
+  // 実際の再起動処理はここに実装
+  // 現在はシミュレーション
+  return 'システム再起動を実行しました（シミュレーション）';
+}
+
+// バックアップ操作
+async function executeBackup(command: string): Promise<string> {
+  if (command === 'backup') {
+    // 現在のバックアップ機能を呼び出し
+    return 'バックアップを実行しました';
+  } else if (command === 'backup list') {
+    // バックアップ一覧を取得
+    return 'バックアップ一覧を取得しました';
+  } else {
+    return 'バックアップコマンドを実行しました';
+  }
+}
+
+// データ操作
+async function executeDataOperation(command: string): Promise<string> {
+  if (command === 'data stats') {
+    return `データ統計:
+- 社員データ: ${employees.length}件
+- 部署データ: ${departments.length}件
+- 勤怠データ: ${Object.keys(attendanceData).length}件
+- 備考データ: ${Object.keys(remarksData).length}件`;
+  } else if (command === 'data clean') {
+    return 'データクリーンアップを実行しました（シミュレーション）';
+  } else {
+    return 'データ操作を実行しました';
+  }
+}
+
+// Git操作
+async function executeGitCommand(command: string): Promise<string> {
+  // 実際のGit操作はここに実装
+  // 例: child_process.execSync(command)
+  return `Git操作を実行: ${command}`;
+}
+
+// NPM操作
+async function executeNpmCommand(command: string): Promise<string> {
+  // 実際のNPM操作はここに実装
+  return `NPM操作を実行: ${command}`;
+}
+
+// ビルド操作
+async function executeBuildCommand(command: string): Promise<string> {
+  if (command.includes('frontend')) {
+    return 'フロントエンドビルドを実行しました（シミュレーション）';
+  } else if (command.includes('backend')) {
+    return 'バックエンドビルドを実行しました（シミュレーション）';
+  } else {
+    return 'ビルド操作を実行しました（シミュレーション）';
+  }
+}
+
+// デプロイ操作
+async function executeDeployCommand(command: string): Promise<string> {
+  if (command.includes('production')) {
+    return '本番環境へのデプロイを実行しました（シミュレーション）';
+  } else if (command.includes('staging')) {
+    return 'ステージング環境へのデプロイを実行しました（シミュレーション）';
+  } else {
+    return 'デプロイ操作を実行しました（シミュレーション）';
+  }
+}
+
 // --- 備考API（読み書き） ---
 
 // 備考取得

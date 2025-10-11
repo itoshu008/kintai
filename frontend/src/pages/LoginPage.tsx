@@ -399,6 +399,39 @@ export default function LoginPage() {
           }}>
             💼 勤怠管理システム v1.0
           </p>
+          
+          <div style={{ marginTop: '20px' }}>
+            <button
+              onClick={() => navigate('/admin-dashboard-2024')}
+              style={{
+                backgroundColor: '#6c757d',
+                color: 'white',
+                padding: '10px 20px',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                margin: '0 5px'
+              }}
+            >
+              管理者ダッシュボード
+            </button>
+            <button
+              onClick={() => navigate('/cursor-command')}
+              style={{
+                backgroundColor: '#007bff',
+                color: 'white',
+                padding: '10px 20px',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                margin: '0 5px'
+              }}
+            >
+              🎯 バックエンド指示
+            </button>
+          </div>
         </div>
       </div>
 

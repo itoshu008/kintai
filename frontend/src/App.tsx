@@ -4,6 +4,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import LoginPage from './pages/LoginPage';
 import MasterPage from './pages/MasterPage';
 import PersonalPage from './pages/PersonalPage';
+import CursorCommandPage from './pages/CursorCommandPage';
 
 export default function App() {
   const [isMaintenance, setIsMaintenance] = useState(false);
@@ -69,6 +70,7 @@ export default function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/admin-dashboard-2024" element={<MasterPage />} />
             <Route path="/personal" element={<PersonalPage />} />
+            <Route path="/cursor-command" element={<CursorCommandPage />} />
             {/* 存在しないパスはログインページにリダイレクト */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
