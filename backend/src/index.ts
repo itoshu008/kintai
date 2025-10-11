@@ -352,7 +352,182 @@ app.get('/api/admin/employees', (_req, res) => {
       : (e.dept ?? '未所属');
     return { ...e, dept };
   });
-  res.json({ list });
+  res.json({ ok: true, employees: list });
+});
+
+// 社員作成
+app.post('/api/admin/employees', (req, res) => {
+  try {
+    const { code, name, department_id } = req.body;
+    
+    if (!code || !name) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: '社員コードと名前は必須です' 
+      });
+    }
+    
+    // 重複チェック
+    const existingEmployee = employees.find(e => e.code === code);
+    if (existingEmployee) {
+      return res.status(409).json({ 
+        ok: false, 
+        error: '同じ社員コードの社員が既に存在します' 
+      });
+    }
+    
+    // 部署IDの検証
+    if (department_id && !deptIndex.has(department_id)) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: '指定された部署が存在しません' 
+      });
+    }
+    
+    // 新しい社員を作成
+    const newEmployee = {
+      id: employees.length + 1,
+      code: code.trim(),
+      name: name.trim(),
+      department_id: department_id || null,
+      dept: department_id ? deptIndex.get(department_id)?.name : null
+    };
+    
+    employees.push(newEmployee);
+    
+    // ファイルに保存
+    writeJsonAtomic(EMPLOYEES_FILE, employees);
+    
+    res.status(201).json({ 
+      ok: true, 
+      employee: newEmployee,
+      message: '社員が作成されました' 
+    });
+  } catch (error) {
+    console.error('Employee creation error:', error);
+    res.status(500).json({ 
+      ok: false, 
+      error: '社員の作成に失敗しました' 
+    });
+  }
+});
+
+// 社員更新
+app.put('/api/admin/employees/:code', (req, res) => {
+  try {
+    const { code } = req.params;
+    const { code: newCode, name, department_id } = req.body;
+    
+    if (!newCode || !name) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: '社員コードと名前は必須です' 
+      });
+    }
+    
+    const employeeIndex = employees.findIndex(e => e.code === code);
+    if (employeeIndex === -1) {
+      return res.status(404).json({ 
+        ok: false, 
+        error: '社員が見つかりません' 
+      });
+    }
+    
+    // 部署IDの検証
+    if (department_id && !deptIndex.has(department_id)) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: '指定された部署が存在しません' 
+      });
+    }
+    
+    // 社員コードの重複チェック（自分以外）
+    if (newCode !== code) {
+      const existingEmployee = employees.find(e => e.code === newCode);
+      if (existingEmployee) {
+        return res.status(409).json({ 
+          ok: false, 
+          error: '同じ社員コードの社員が既に存在します' 
+        });
+      }
+    }
+    
+    // 社員を更新
+    employees[employeeIndex] = {
+      ...employees[employeeIndex],
+      code: newCode.trim(),
+      name: name.trim(),
+      department_id: department_id || null,
+      dept: department_id ? deptIndex.get(department_id)?.name : null
+    };
+    
+    // ファイルに保存
+    writeJsonAtomic(EMPLOYEES_FILE, employees);
+    
+    res.json({ 
+      ok: true, 
+      employee: employees[employeeIndex],
+      message: '社員が更新されました' 
+    });
+  } catch (error) {
+    console.error('Employee update error:', error);
+    res.status(500).json({ 
+      ok: false, 
+      error: '社員の更新に失敗しました' 
+    });
+  }
+});
+
+// 社員削除
+app.delete('/api/admin/employees/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const employeeId = parseInt(id);
+    
+    if (isNaN(employeeId)) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: '無効な社員IDです' 
+      });
+    }
+    
+    const employeeIndex = employees.findIndex(e => e.id === employeeId);
+    if (employeeIndex === -1) {
+      return res.status(404).json({ 
+        ok: false, 
+        error: '社員が見つかりません' 
+      });
+    }
+    
+    // 勤怠データがあるかチェック
+    const hasAttendance = Object.values(attendanceData).some(dayData => 
+      Object.values(dayData).some(empData => empData.code === employees[employeeIndex].code)
+    );
+    
+    if (hasAttendance) {
+      return res.status(409).json({ 
+        ok: false, 
+        error: 'この社員には勤怠データが存在します。先に勤怠データを削除してください。' 
+      });
+    }
+    
+    // 社員を削除
+    employees.splice(employeeIndex, 1);
+    
+    // ファイルに保存
+    writeJsonAtomic(EMPLOYEES_FILE, employees);
+    
+    res.json({ 
+      ok: true, 
+      message: '社員が削除されました' 
+    });
+  } catch (error) {
+    console.error('Employee deletion error:', error);
+    res.status(500).json({ 
+      ok: false, 
+      error: '社員の削除に失敗しました' 
+    });
+  }
 });
 
 // マスター（指定日の勤怠まとめ）
@@ -899,6 +1074,107 @@ app.post('/api/public/clock-in', (req, res) => {
   res.json({ ok: true, late });
 });
 
+// 出勤打刻（管理用）
+app.post('/api/attendance/checkin', (req, res) => {
+  try {
+    const { code, note } = req.body;
+    if (!code) {
+      return res.status(400).json({ ok: false, error: '社員コードが必要です' });
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+    const key = `${today}-${code}`;
+    const existing = attendanceData[key] || {};
+
+    if (existing.checkin) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: '既に出勤打刻済みです' 
+      });
+    }
+
+    const now = new Date();
+    const checkinTime = now.toISOString();
+
+    attendanceData[key] = {
+      ...existing,
+      code,
+      checkin: checkinTime,
+      note: note || null
+    };
+
+    writeJsonAtomic(ATTENDANCE_FILE, attendanceData);
+
+    res.json({
+      ok: true,
+      message: '出勤打刻が完了しました',
+      checkin: checkinTime
+    });
+  } catch (error) {
+    console.error('Clock in error:', error);
+    res.status(500).json({ ok: false, error: '出勤打刻に失敗しました' });
+  }
+});
+
+// 退勤打刻（管理用）
+app.post('/api/attendance/checkout', (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code) {
+      return res.status(400).json({ ok: false, error: '社員コードが必要です' });
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+    const key = `${today}-${code}`;
+    const existing = attendanceData[key] || {};
+
+    if (!existing.checkin) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: '出勤打刻がされていません' 
+      });
+    }
+
+    if (existing.checkout) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: '既に退勤打刻済みです' 
+      });
+    }
+
+    const now = new Date();
+    const checkoutTime = now.toISOString();
+    
+    // 出勤時間との差を計算
+    const checkinTime = new Date(existing.checkin);
+    const workMinutes = Math.floor((now.getTime() - checkinTime.getTime()) / (1000 * 60));
+    const workHours = Math.floor(workMinutes / 60);
+    const remainingMinutes = workMinutes % 60;
+
+    attendanceData[key] = {
+      ...existing,
+      checkout: checkoutTime,
+      work_hours: workHours,
+      work_minutes: remainingMinutes,
+      total_minutes: workMinutes
+    };
+
+    writeJsonAtomic(ATTENDANCE_FILE, attendanceData);
+
+    res.json({
+      ok: true,
+      message: '退勤打刻が完了しました',
+      checkout: checkoutTime,
+      work_hours: workHours,
+      work_minutes: remainingMinutes,
+      total_minutes: workMinutes
+    });
+  } catch (error) {
+    console.error('Clock out error:', error);
+    res.status(500).json({ ok: false, error: '退勤打刻に失敗しました' });
+  }
+});
+
 // 退勤打刻
 app.post('/api/public/clock-out', (req, res) => {
   const { code } = req.body || {};
@@ -938,6 +1214,125 @@ if (existsSync(path.join(FRONTEND_PATH, 'index.html'))) {
     lastModified: false,
     maxAge: 0
   }));
+
+  // 祝日管理API
+  app.get('/api/admin/holidays', (req, res) => {
+    try {
+      res.json({ 
+        ok: true, 
+        holidays: holidays 
+      });
+    } catch (error) {
+      console.error('Holidays API error:', error);
+      res.status(500).json({ 
+        ok: false, 
+        error: '祝日データの取得に失敗しました' 
+      });
+    }
+  });
+
+  app.get('/api/admin/holidays/:date', (req, res) => {
+    try {
+      const { date } = req.params;
+      const isHoliday = holidays[date] !== undefined;
+      
+      res.json({ 
+        ok: true, 
+        date,
+        isHoliday,
+        holidayName: holidays[date] || null
+      });
+    } catch (error) {
+      console.error('Holiday check error:', error);
+      res.status(500).json({ 
+        ok: false, 
+        error: '祝日チェックに失敗しました' 
+      });
+    }
+  });
+
+  // 週次レポートAPI
+  app.get('/api/admin/weekly', (req, res) => {
+    try {
+      const { start } = req.query;
+      const startDate = start ? new Date(start as string) : new Date();
+      
+      // 週の開始日（月曜日）を計算
+      const dayOfWeek = startDate.getDay();
+      const monday = new Date(startDate);
+      monday.setDate(startDate.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+      
+      const weekData = [];
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(monday);
+        date.setDate(monday.getDate() + i);
+        const dateStr = date.toISOString().slice(0, 10);
+        
+        const dayAttendance = attendanceData[dateStr] || {};
+        const dayEmployees = Object.values(dayAttendance);
+        
+        const summary = {
+          date: dateStr,
+          totalEmployees: employees.length,
+          presentEmployees: dayEmployees.length,
+          lateEmployees: dayEmployees.filter(emp => emp.late > 0).length,
+          absentEmployees: employees.length - dayEmployees.length
+        };
+        
+        weekData.push(summary);
+      }
+      
+      res.json({ 
+        ok: true, 
+        weekData,
+        startDate: monday.toISOString().slice(0, 10)
+      });
+    } catch (error) {
+      console.error('Weekly report error:', error);
+      res.status(500).json({ 
+        ok: false, 
+        error: '週次レポートの取得に失敗しました' 
+      });
+    }
+  });
+
+  // 月別備考取得API
+  app.get('/api/admin/remarks/:employeeCode', (req, res) => {
+    try {
+      const { employeeCode } = req.params;
+      const { month } = req.query;
+      
+      const targetMonth = month || new Date().toISOString().slice(0, 7); // YYYY-MM形式
+      const remarks = [];
+      
+      // 指定月の備考を取得
+      for (const [date, dayData] of Object.entries(attendanceData)) {
+        if (date.startsWith(targetMonth)) {
+          for (const [empCode, empData] of Object.entries(dayData)) {
+            if (empCode === employeeCode && empData.remark) {
+              remarks.push({
+                date,
+                remark: empData.remark
+              });
+            }
+          }
+        }
+      }
+      
+      res.json({ 
+        ok: true, 
+        employeeCode,
+        month: targetMonth,
+        remarks
+      });
+    } catch (error) {
+      console.error('Monthly remarks error:', error);
+      res.status(500).json({ 
+        ok: false, 
+        error: '月別備考の取得に失敗しました' 
+      });
+    }
+  });
 
   // SPAのルーティング：/api 以外は index.html
   app.get('*', (req, res) => {
