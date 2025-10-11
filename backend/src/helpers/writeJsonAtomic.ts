@@ -1,5 +1,4 @@
 import { writeFileSync, renameSync } from 'fs';
-import path from 'path';
 
 export function writeJsonAtomic(file: string, data: unknown) {
   const tmp = `${file}.tmp-${process.pid}-${Date.now()}`;

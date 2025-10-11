@@ -776,7 +776,7 @@ if (existsSync(FRONTEND_PATH)) {
   }));
 
   // 祝日管理API
-  app.get('/api/admin/holidays', (req, res) => {
+  app.get('/api/admin/holidays', (_req, res) => {
     try {
       res.json({ 
         ok: true, 
@@ -914,7 +914,7 @@ const server = app.listen(PORT, HOST, () => {
 });
 
 // グローバルエラーハンドラー
-app.use((err: any, req: any, res: any, next: any) => {
+app.use((err: any, _req: any, res: any, _next: any) => {
   console.error('[GLOBAL ERROR]', err);
   res.status(200).json({
     ok: false,

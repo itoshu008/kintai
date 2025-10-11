@@ -3,7 +3,7 @@ import app from './index.js'; // ← tsc後は .js になるので拡張子 .js
 const PORT = Number(process.env.PORT || 8001);
 const HOST = process.env.HOST || '127.0.0.1';
 
-const server = app.listen(PORT, HOST, () => {
+app.listen(PORT, HOST, () => {
   console.log(`ℹ️ Backend server running on http://${HOST}:${PORT}`);
 });
 

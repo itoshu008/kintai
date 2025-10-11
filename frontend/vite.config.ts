@@ -60,11 +60,18 @@ export default defineConfig({
     },
   },
   server: {
-    // ポート 8001 に設定（バックエンドと統一）
-    port: 8001,
+    // フロントエンド開発サーバーは3000番で起動
+    port: 3000,
     strictPort: true, // ポートがすでに使われていたらエラーを出す
     host: true, // 外部からのアクセスを許可
-    // プロキシ設定は不要（同じポートで動作するため）
+    proxy: {
+      // APIリクエストをバックエンドにプロキシ
+      '/api': {
+        target: 'http://localhost:8001',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
   preview: {
     port: 4173, // プレビュー用ポート

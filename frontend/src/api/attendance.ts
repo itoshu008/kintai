@@ -1,8 +1,8 @@
 // src/api/attendance.ts
 import { MasterRow, Department, Employee, ApiResponse, ClockResponse, HealthResponse, AttendanceRecord } from '../types/attendance';
 
-// APIのベースURL
-const API_BASE_URL = 'http://localhost:8001/api';
+// APIのベースURL（プロキシ経由で相対パスを使用）
+const API_BASE_URL = '/api';
 
 // ヘルスチェックAPI
 export const healthCheck = async (): Promise<HealthResponse> => {
