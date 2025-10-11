@@ -184,6 +184,166 @@ app.get('/api/admin/departments', (_req, res) => {
   }
 });
 
+// 部署作成
+app.post('/api/admin/departments', (req, res) => {
+  try {
+    const { name } = req.body;
+    
+    if (!name || typeof name !== 'string' || name.trim() === '') {
+      return res.status(400).json({ 
+        ok: false, 
+        error: '部署名は必須です' 
+      });
+    }
+    
+    // 新しい部署IDを生成（既存の最大ID + 1）
+    const maxId = departments.length > 0 ? Math.max(...departments.map(d => d.id)) : 0;
+    const newId = maxId + 1;
+    
+    // 重複チェック
+    const existingDept = departments.find(d => d.name === name.trim());
+    if (existingDept) {
+      return res.status(409).json({ 
+        ok: false, 
+        error: '同じ名前の部署が既に存在します' 
+      });
+    }
+    
+    // 新しい部署を作成
+    const newDepartment = {
+      id: newId,
+      name: name.trim()
+    };
+    
+    departments.push(newDepartment);
+    deptIndex.set(newId, newDepartment);
+    
+    // ファイルに保存
+    writeJsonAtomic(DEPARTMENTS_FILE, departments);
+    
+    res.status(201).json({ 
+      ok: true, 
+      department: newDepartment,
+      message: '部署が作成されました' 
+    });
+  } catch (error) {
+    console.error('Department creation error:', error);
+    res.status(500).json({ 
+      ok: false, 
+      error: '部署の作成に失敗しました' 
+    });
+  }
+});
+
+// 部署更新
+app.put('/api/admin/departments/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name } = req.body;
+    const departmentId = parseInt(id);
+    
+    if (isNaN(departmentId)) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: '無効な部署IDです' 
+      });
+    }
+    
+    if (!name || typeof name !== 'string' || name.trim() === '') {
+      return res.status(400).json({ 
+        ok: false, 
+        error: '部署名は必須です' 
+      });
+    }
+    
+    const departmentIndex = departments.findIndex(d => d.id === departmentId);
+    if (departmentIndex === -1) {
+      return res.status(404).json({ 
+        ok: false, 
+        error: '部署が見つかりません' 
+      });
+    }
+    
+    // 重複チェック（自分以外）
+    const existingDept = departments.find(d => d.name === name.trim() && d.id !== departmentId);
+    if (existingDept) {
+      return res.status(409).json({ 
+        ok: false, 
+        error: '同じ名前の部署が既に存在します' 
+      });
+    }
+    
+    // 部署を更新
+    departments[departmentIndex].name = name.trim();
+    deptIndex.set(departmentId, departments[departmentIndex]);
+    
+    // ファイルに保存
+    writeJsonAtomic(DEPARTMENTS_FILE, departments);
+    
+    res.json({ 
+      ok: true, 
+      department: departments[departmentIndex],
+      message: '部署が更新されました' 
+    });
+  } catch (error) {
+    console.error('Department update error:', error);
+    res.status(500).json({ 
+      ok: false, 
+      error: '部署の更新に失敗しました' 
+    });
+  }
+});
+
+// 部署削除
+app.delete('/api/admin/departments/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const departmentId = parseInt(id);
+    
+    if (isNaN(departmentId)) {
+      return res.status(400).json({ 
+        ok: false, 
+        error: '無効な部署IDです' 
+      });
+    }
+    
+    const departmentIndex = departments.findIndex(d => d.id === departmentId);
+    if (departmentIndex === -1) {
+      return res.status(404).json({ 
+        ok: false, 
+        error: '部署が見つかりません' 
+      });
+    }
+    
+    // 社員がこの部署に所属しているかチェック
+    const employeesInDept = employees.filter(e => e.department_id === departmentId);
+    if (employeesInDept.length > 0) {
+      return res.status(409).json({ 
+        ok: false, 
+        error: `この部署には${employeesInDept.length}名の社員が所属しています。先に社員の部署を変更してください。` 
+      });
+    }
+    
+    // 部署を削除
+    departments.splice(departmentIndex, 1);
+    deptIndex.delete(departmentId);
+    
+    // ファイルに保存
+    writeJsonAtomic(DEPARTMENTS_FILE, departments);
+    
+    res.json({ 
+      ok: true, 
+      message: '部署が削除されました' 
+    });
+  } catch (error) {
+    console.error('Department deletion error:', error);
+    res.status(500).json({ 
+      ok: false, 
+      error: '部署の削除に失敗しました' 
+    });
+  }
+});
+
 // 社員一覧（dept名の解決を含む）
 app.get('/api/admin/employees', (_req, res) => {
   const list = employees.map(e => {
