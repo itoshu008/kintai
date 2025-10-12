@@ -704,7 +704,7 @@ export default function MasterPage() {
 
     try {
       setLoading(true);
-      await api.deleteEmployee(deleteTargetEmployee.id);
+      await api.deleteEmployee(deleteTargetEmployee.code);
       setMsg(`✅ 社員「${deleteTargetEmployee.name}」を削除しました`);
         setDeleteTargetEmployee(null);
         setShowEmployeeDeleteMenu(false);

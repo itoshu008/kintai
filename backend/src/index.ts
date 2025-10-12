@@ -150,7 +150,7 @@ app.get('/api/admin', (_req, res) => {
       'GET /api/admin/employees',
       'POST /api/admin/employees',
       'PUT /api/admin/employees/:code',
-      'DELETE /api/admin/employees/:code',
+      'DELETE /api/admin/employees/:key (code or id)',
       'GET /api/admin/master',
       'GET /api/admin/attendance',
       'POST /api/attendance/checkin',
@@ -337,11 +337,17 @@ app.put('/api/admin/employees/:code', (req, res) => {
   }
 });
 
-app.delete('/api/admin/employees/:code', (req, res) => {
+// === 社員削除（code でも id でもOK）===
+app.delete('/api/admin/employees/:key', (req, res) => {
   try {
-    const code = String(req.params.code);
-    const idx = employees.findIndex(e => e.code === code);
-    if (idx === -1) return res.status(200).json({ ok: false, error: '社員が見つかりません' });
+    const { key } = req.params; // 'E2001' or '5'
+    let idx = employees.findIndex(e => e.code === key);
+    if (idx === -1 && /^\d+$/.test(key)) {
+      const id = Number(key);
+      idx = employees.findIndex(e => e.id === id);
+    }
+    if (idx === -1) return res.status(404).json({ ok: false, error: '社員が見つかりません' });
+
     const removed = employees.splice(idx, 1)[0];
     writeJsonAtomic(EMPLOYEES_FILE, employees);
     res.json({ ok: true, employee: removed, message: '社員が削除されました' });
