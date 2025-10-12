@@ -129,6 +129,53 @@ export default function MasterPage() {
     }
   }, []);
 
+  // 社員一覧を読み込む関数
+  const loadEmployees = useCallback(async () => {
+    try {
+      const res = await api.fetchEmployees();
+      if (res.ok && res.list) {
+        // 社員一覧の更新（必要に応じて）
+        console.log('社員一覧を読み込みました:', res.list.length, '件');
+      }
+    } catch (e: any) {
+      console.error('社員一覧読み込みエラー:', e);
+    }
+  }, []);
+
+  // プレビュー開始関数
+  const startPreview = useCallback(async (backupId: string) => {
+    if (!backupId) {
+      setMsg('バックアップを選択してください');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/admin/backups/${backupId}/preview`);
+      if (!res.ok) throw new Error('プレビュー取得に失敗しました');
+      const data = await res.json();
+      setPreviewData(data);
+      setIsPreview(true);
+      setMsg('🔍 プレビューモードに切り替えました');
+    } catch (err: any) {
+      setMsg(`❌ プレビューエラー: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // プレビュー終了関数（現状に戻す）
+  const exitPreview = useCallback(async () => {
+    setIsPreview(false);
+    setPreviewData(null);
+    setSelectedBackupId('');
+    setMsg('✅ 現状に戻りました');
+    
+    // 元のデータを再取得
+    await loadOnce(loadKey);
+    await loadEmployees();
+  }, [loadKey, loadOnce, loadEmployees]);
+
   // ▼ 「この1本だけ」で読み込む。依存は loadKey のみ！
   useEffect(() => {
     loadOnce(loadKey);
@@ -144,6 +191,11 @@ export default function MasterPage() {
   const [deps, setDeps] = useState<Department[]>([]);
   const [depFilter, setDepFilter] = useState<number | null>(null);
   const [newDeptName, setNewDeptName] = useState('');
+
+  // プレビューモード用の部署データ
+  const currentDeps = useMemo(() => {
+    return isPreview ? (previewData?.departments ?? []) : deps;
+  }, [isPreview, previewData, deps]);
 
   // ドロップダウンメニュー
   const [showDropdown, setShowDropdown] = useState(false);
@@ -187,6 +239,11 @@ export default function MasterPage() {
   const [showBackupManagement, setShowBackupManagement] = useState(false);
   const [backups, setBackups] = useState<BackupItem[]>([]);
   const [backupLoading, setBackupLoading] = useState(false);
+
+  // プレビューモード用の状態
+  const [isPreview, setIsPreview] = useState(false);
+  const [previewData, setPreviewData] = useState<any>(null);
+  const [selectedBackupId, setSelectedBackupId] = useState<string>('');
 
   // 備考保存（サーバーに保存）
   const onSaveRemark = async (targetDate: string, remark: string) => {
@@ -487,22 +544,32 @@ export default function MasterPage() {
     }
     try {
       // 部署IDを取得
-      const deptId = deps.find(d => d.name === newDepartment.trim())?.id;
-      await api.createEmployee(newCode.trim(), newName.trim(), deptId);
-      setNewCode(''); setNewName(''); setNewDepartment('');
-      setMsg('✅ 社員を登録しました');
+      const deptId = currentDeps.find(d => d.name === newDepartment.trim())?.id;
+      const result = await api.createEmployee(newCode.trim(), newName.trim(), deptId);
+      
+      if (result.ok) {
+        // フォームをクリア
+        setNewCode(''); 
+        setNewName(''); 
+        setNewDepartment('');
+        setMsg('✅ 社員を登録しました');
 
-      // 即座にデータを更新（リアルタイム反映）
-      await loadOnce(loadKey);
+        // 即座にデータを更新（リアルタイム反映）
+        await loadOnce(loadKey);
+        await loadEmployees(); // 社員一覧も更新
 
-      // さらに即座に最新データを再読み込み
-      setTimeout(async () => {
-        try {
-          await loadOnce(loadKey);
-        } catch (e) {
-          console.error('社員作成後の再読み込みエラー:', e);
-        }
-      }, 100);
+        // さらに即座に最新データを再読み込み
+        setTimeout(async () => {
+          try {
+            await loadOnce(loadKey);
+            await loadEmployees(); // 社員一覧も再読み込み
+          } catch (e) {
+            console.error('社員作成後の再読み込みエラー:', e);
+          }
+        }, 100);
+      } else {
+        setMsg(`❌ 社員登録エラー: ${result.error || '不明なエラー'}`);
+      }
     } catch (e: any) {
       setMsg(`❌ 社員登録エラー: ${e.message}`);
     }
@@ -767,17 +834,19 @@ export default function MasterPage() {
   };
 
   const sorted = useMemo(() => {
-    if (!data) return [];
+    // プレビューモードの場合はプレビューデータを使用
+    const currentData = isPreview ? (previewData?.master ?? []) : data;
+    if (!currentData) return [];
 
     // 部署フィルターによる絞り込み
-    let filtered = data;
+    let filtered = currentData;
     if (depFilter !== null) {
-      filtered = data.filter(r => (r as any).department_id === depFilter);
+      filtered = currentData.filter(r => (r as any).department_id === depFilter);
     }
 
     // デフォルトはコード順
     return [...filtered].sort((a, b) => a.code.localeCompare(b.code));
-  }, [data, depFilter]);
+  }, [data, depFilter, isPreview, previewData]);
 
   return (
     <div style={{
@@ -1061,6 +1130,58 @@ export default function MasterPage() {
         </div>
       </div>
 
+      {/* プレビューバナー */}
+      {isPreview && (
+        <div style={{
+          background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
+          color: 'white',
+          padding: '16px 24px',
+          marginBottom: '24px',
+          borderRadius: '12px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          boxShadow: '0 4px 12px rgba(255,107,107,0.3)',
+          border: '2px solid #ff4757'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ fontSize: '20px' }}>🔍</span>
+            <div>
+              <div style={{ fontSize: '18px', fontWeight: '700', marginBottom: '4px' }}>
+                プレビューモード中
+              </div>
+              <div style={{ fontSize: '14px', opacity: 0.9 }}>
+                過去の状態を表示中です（変更は保存されません）
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={exitPreview}
+            style={{
+              padding: '12px 24px',
+              background: 'rgba(255,255,255,0.2)',
+              color: 'white',
+              border: '2px solid rgba(255,255,255,0.3)',
+              borderRadius: '8px',
+              fontSize: '16px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              backdropFilter: 'blur(10px)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.5)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)';
+            }}
+          >
+            ✅ 現状に戻る
+          </button>
+        </div>
+      )}
 
       {/* 部署管理・フィルター */}
       {showDeptManagement && (
@@ -1140,7 +1261,7 @@ export default function MasterPage() {
               💡 各部署の「編集」ボタンで名前変更、「🗑️ 削除」ボタンで部署削除ができます
             </p>
             <div style={{ display: 'grid', gap: 8 }}>
-              {deps.map(dept => (
+              {currentDeps.map(dept => (
                 <div key={dept.id} style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -1200,18 +1321,25 @@ export default function MasterPage() {
                       <span style={{ flex: 1, fontSize: '14px', color: '#495057' }}>{dept.name}</span>
                       <button
                         onClick={() => onStartEditDepartment(dept)}
+                        disabled={isPreview}
                         style={{
                           padding: '6px 12px',
-                          background: '#ffc107',
+                          background: isPreview ? '#6c757d' : '#ffc107',
                           color: '#212529',
                           border: 'none',
                           borderRadius: 6,
                           fontSize: '12px',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease'
+                          cursor: isPreview ? 'not-allowed' : 'pointer',
+                          transition: 'all 0.2s ease',
+                          opacity: isPreview ? 0.6 : 1
                         }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = '#e0a800'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = '#ffc107'}
+                        onMouseEnter={(e) => {
+                          if (!isPreview) e.currentTarget.style.background = '#e0a800';
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isPreview) e.currentTarget.style.background = '#ffc107';
+                        }}
+                        title={isPreview ? 'プレビューモード中は編集できません' : '部署名を編集'}
                       >
                         編集
                       </button>
@@ -1248,7 +1376,7 @@ export default function MasterPage() {
                   )}
                 </div>
               ))}
-              {deps.length === 0 && (
+              {currentDeps.length === 0 && (
                 <div style={{
                   padding: '20px',
                   textAlign: 'center',
@@ -1295,87 +1423,96 @@ export default function MasterPage() {
             </button>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, alignItems: 'flex-end' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: '500', color: '#495057', fontSize: '14px' }}>社員番号</label>
-              <input
-                value={newCode}
-                onChange={e => setNewCode(e.target.value)}
-                placeholder="例: 000"
+          <form onSubmit={(e) => { e.preventDefault(); onCreate(); }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, alignItems: 'flex-end' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: 6, fontWeight: '500', color: '#495057', fontSize: '14px' }}>社員番号</label>
+                <input
+                  value={newCode}
+                  onChange={e => setNewCode(e.target.value)}
+                  placeholder="例: 000"
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    border: '1px solid #ced4da',
+                    borderRadius: 8,
+                    fontSize: '14px',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = '#28a745'}
+                  onBlur={(e) => e.target.style.borderColor = '#ced4da'}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: 6, fontWeight: '500', color: '#495057', fontSize: '14px' }}>氏名</label>
+                <input
+                  value={newName}
+                  onChange={e => setNewName(e.target.value)}
+                  placeholder="例: ザット 太郎"
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    border: '1px solid #ced4da',
+                    borderRadius: 8,
+                    fontSize: '14px',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = '#28a745'}
+                  onBlur={(e) => e.target.style.borderColor = '#ced4da'}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: 6, fontWeight: '500', color: '#495057', fontSize: '14px' }}>所属部署</label>
+                <select
+                  value={newDepartment}
+                  onChange={e => setNewDepartment(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    border: '1px solid #ced4da',
+                    borderRadius: 8,
+                    fontSize: '14px',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = '#28a745'}
+                  onBlur={(e) => e.target.style.borderColor = '#ced4da'}
+                >
+                  <option value="">（未所属）</option>
+                  {currentDeps.map(dep => (
+                    <option key={dep.id} value={dep.name}>
+                      {dep.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="submit"
+                disabled={isPreview}
                 style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  border: '1px solid #ced4da',
+                  padding: '12px 24px',
+                  background: isPreview ? '#6c757d' : '#28a745',
+                  color: 'white',
+                  border: 'none',
                   borderRadius: 8,
+                  fontWeight: '500',
                   fontSize: '14px',
-                  transition: 'all 0.2s ease'
+                  cursor: isPreview ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: isPreview ? 'none' : '0 2px 4px rgba(40,167,69,0.3)',
+                  opacity: isPreview ? 0.6 : 1
                 }}
-                onFocus={(e) => e.target.style.borderColor = '#28a745'}
-                onBlur={(e) => e.target.style.borderColor = '#ced4da'}
-              />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: '500', color: '#495057', fontSize: '14px' }}>氏名</label>
-              <input
-                value={newName}
-                onChange={e => setNewName(e.target.value)}
-                placeholder="例: ザット 太郎"
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  border: '1px solid #ced4da',
-                  borderRadius: 8,
-                  fontSize: '14px',
-                  transition: 'all 0.2s ease'
+                onMouseEnter={(e) => {
+                  if (!isPreview) e.currentTarget.style.background = '#218838';
                 }}
-                onFocus={(e) => e.target.style.borderColor = '#28a745'}
-                onBlur={(e) => e.target.style.borderColor = '#ced4da'}
-              />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: '500', color: '#495057', fontSize: '14px' }}>所属部署</label>
-              <select
-                value={newDepartment}
-                onChange={e => setNewDepartment(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  border: '1px solid #ced4da',
-                  borderRadius: 8,
-                  fontSize: '14px',
-                  transition: 'all 0.2s ease'
+                onMouseLeave={(e) => {
+                  if (!isPreview) e.currentTarget.style.background = '#28a745';
                 }}
-                onFocus={(e) => e.target.style.borderColor = '#28a745'}
-                onBlur={(e) => e.target.style.borderColor = '#ced4da'}
+                title={isPreview ? 'プレビューモード中は編集できません' : '社員を登録します'}
               >
-                <option value="">（未所属）</option>
-                {deps.map(dep => (
-                  <option key={dep.id} value={dep.name}>
-                    {dep.name}
-                  </option>
-                ))}
-              </select>
+                社員を登録
+              </button>
             </div>
-            <button
-              onClick={onCreate}
-              style={{
-                padding: '12px 24px',
-                background: '#28a745',
-                color: 'white',
-                border: 'none',
-                borderRadius: 8,
-                fontWeight: '500',
-                fontSize: '14px',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                boxShadow: '0 2px 4px rgba(40,167,69,0.3)'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = '#218838'}
-              onMouseLeave={(e) => e.currentTarget.style.background = '#28a745'}
-            >
-              社員を登録
-            </button>
-          </div>
+          </form>
 
           {msg && (
             <div style={{
@@ -1503,7 +1640,7 @@ export default function MasterPage() {
                     }}
                   >
                     <option value={0}>部署を選択</option>
-                    {deps.map(dept => (
+                    {currentDeps.map(dept => (
                       <option key={dept.id} value={dept.id}>
                         {dept.name}
                       </option>
@@ -1596,7 +1733,7 @@ export default function MasterPage() {
           >
             すべて
           </button>
-          {deps.map(d => (
+          {currentDeps.map(d => (
             <button
               key={d.id}
               onClick={() => setDepFilter(d.id)}
@@ -1677,22 +1814,24 @@ export default function MasterPage() {
                     e.stopPropagation();
                     startEditEmployee(r);
                   }}
-                  title="社員情報を編集"
+                  disabled={isPreview}
+                  title={isPreview ? 'プレビューモード中は編集できません' : '社員情報を編集'}
                   style={{
-                    background: '#ffc107',
+                    background: isPreview ? '#6c757d' : '#ffc107',
                     border: 'none',
                     borderRadius: '4px',
                     padding: '4px 8px',
-                    cursor: 'pointer',
+                    cursor: isPreview ? 'not-allowed' : 'pointer',
                     fontSize: '12px',
                     color: '#212529',
-                    transition: 'all 0.2s ease'
+                    transition: 'all 0.2s ease',
+                    opacity: isPreview ? 0.6 : 1
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#e0a800';
+                    if (!isPreview) e.currentTarget.style.background = '#e0a800';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.background = '#ffc107';
+                    if (!isPreview) e.currentTarget.style.background = '#ffc107';
                   }}
                 >
                   編集
@@ -2078,7 +2217,7 @@ export default function MasterPage() {
                   }}
                 >
                   <option value={0}>部署を選択してください</option>
-                  {deps.map(dept => (
+                  {currentDeps.map(dept => (
                     <option key={dept.id} value={dept.id}>
                       {dept.name}
                     </option>
@@ -2342,21 +2481,22 @@ export default function MasterPage() {
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button
-                          onClick={() => restoreBackup(backup.name)}
-                          disabled={backupLoading}
+                          onClick={() => startPreview(backup.name)}
+                          disabled={backupLoading || isPreview}
                           style={{
                             padding: '6px 12px',
-                            background: backupLoading ? '#6c757d' : '#28a745',
+                            background: backupLoading || isPreview ? '#6c757d' : '#17a2b8',
                             color: 'white',
                             border: 'none',
                             borderRadius: 4,
-                            cursor: backupLoading ? 'not-allowed' : 'pointer',
+                            cursor: backupLoading || isPreview ? 'not-allowed' : 'pointer',
                             fontSize: '12px',
                             fontWeight: '500',
                             transition: 'all 0.2s ease'
                           }}
+                          title={isPreview ? 'プレビューモード中は使用できません' : 'このバックアップをプレビューします'}
                         >
-                          🔄 復元
+                          🔍 プレビュー
                         </button>
                         <button
                           onClick={() => deleteBackup(backup.name)}
@@ -2794,7 +2934,7 @@ export default function MasterPage() {
                   }}
                 >
                   <option value={0}>未所属</option>
-                  {deps.map(dept => (
+                  {currentDeps.map(dept => (
                     <option key={dept.id} value={dept.id}>
                       {dept.name}
                     </option>
