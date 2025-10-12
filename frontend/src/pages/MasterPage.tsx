@@ -826,7 +826,7 @@ export default function MasterPage() {
 
   // --- JSXレンダリング ---
   return (
-    <div style={{ padding: '24px', background: '#f0f2f5', minHeight: '100vh', fontFamily: 'sans-serif' }}>
+    <div style={{ padding: '24px', background: '#e3f2fd', minHeight: '100vh', fontFamily: 'sans-serif' }}>
       
       {/* ================= ヘッダー ================= */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', padding: '20px', background: 'white', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
