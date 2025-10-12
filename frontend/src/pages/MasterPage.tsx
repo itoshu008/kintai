@@ -535,22 +535,29 @@ export default function MasterPage() {
       return;
     }
     try {
-      await api.createDepartment(newDeptName.trim());
-      setNewDeptName('');
-      setMsg('✅ 部署を登録しました');
-
-      // 即座に部署リストを更新（リアルタイム反映）
-      await loadDeps();
-
-      // さらに即座に最新データを再読み込み
-      setTimeout(async () => {
-        try {
-          await loadDeps();
-        } catch (e) {
-          console.error('部署作成後の再読み込みエラー:', e);
-        }
-      }, 100);
+      const result = await api.createDepartment(newDeptName.trim());
+      console.log('部署作成結果:', result);
+      
+      if (result?.ok) {
+        setNewDeptName('');
+        setMsg('✅ 部署を登録しました');
+        
+        // 即座に部署リストを更新（リアルタイム反映）
+        await loadDeps();
+        
+        // さらに即座に最新データを再読み込み
+        setTimeout(async () => {
+          try {
+            await loadDeps();
+          } catch (e) {
+            console.error('部署作成後の再読み込みエラー:', e);
+          }
+        }, 100);
+      } else {
+        setMsg(`❌ 部署登録エラー: ${result?.error || '不明なエラー'}`);
+      }
     } catch (e: any) {
+      console.error('部署作成エラー:', e);
       setMsg(`❌ 部署登録エラー: ${e.message}`);
     }
   };
@@ -558,7 +565,13 @@ export default function MasterPage() {
   const loadDeps = async () => {
     try {
       const r = await api.listDepartments();
-      setDeps(r?.list || []);
+      console.log('部署一覧取得結果:', r);
+      if (r?.ok && r?.departments) {
+        setDeps(r.departments);
+      } else {
+        console.warn('部署一覧の取得に失敗:', r);
+        setDeps([]);
+      }
     } catch (e: any) {
       console.warn('Failed to load departments:', e);
       setDeps([]);
