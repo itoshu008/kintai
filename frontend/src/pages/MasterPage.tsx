@@ -282,8 +282,6 @@ export default function MasterPage() {
   // バックアップ＆プレビュー関連
   const [backups, setBackups] = useState<BackupItem[]>([]);
   const [backupLoading, setBackupLoading] = useState(false);
-  const [isPreview, setIsPreview] = useState(false);
-  const [previewData, setPreviewData] = useState<any>(null);
 
   // UI表示制御
   const [showDropdown, setShowDropdown] = useState(false);
@@ -526,6 +524,11 @@ export default function MasterPage() {
   const [isPreview, setIsPreview] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
   const [selectedBackupId, setSelectedBackupId] = useState<string>('');
+
+  // デバッグ用：isPreviewの状態をログ出力
+  useEffect(() => {
+    console.log('isPreview state:', isPreview);
+  }, [isPreview]);
 
   // 備考保存（サーバーに保存）
   const onSaveRemark = async (targetDate: string, remark: string) => {
@@ -1034,7 +1037,7 @@ export default function MasterPage() {
                     if (!isPreview) e.currentTarget.style.background = '#ffc107';
                   }}
                 >
-                  編集
+                  {isPreview ? '🔒' : '✏️'} 編集
                 </button>
                 <button
                   onClick={(e) => {
@@ -1061,7 +1064,7 @@ export default function MasterPage() {
                     if (!isPreview) e.currentTarget.style.background = '#dc3545';
                   }}
                 >
-                  削除
+                  {isPreview ? '🔒' : '🗑️'} 削除
                 </button>
                 <button
                   onClick={(e) => {
@@ -1088,7 +1091,7 @@ export default function MasterPage() {
                     if (!isPreview) e.currentTarget.style.background = '#17a2b8';
                   }}
                 >
-                  備考
+                  {isPreview ? '🔒' : '📝'} 備考
                 </button>
               </div>
             ))}
