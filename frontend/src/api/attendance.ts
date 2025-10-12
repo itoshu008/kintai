@@ -366,6 +366,23 @@ export const deleteSession = async (sessionId: string): Promise<ApiResponse> => 
   }
 };
 
+// 追加のAPI関数
+export const master = fetchMasterData;
+export const listDepartments = fetchDepartments;
+export const getRemarks = async (employeeCode: string, month: string): Promise<ApiResponse> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/remarks/${employeeCode}?month=${month}`);
+    if (!response.ok) {
+      throw new Error('Failed to get remarks');
+    }
+    const data: ApiResponse = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error getting remarks:', error);
+    return { ok: false, error: (error as Error).message };
+  }
+};
+
 // APIオブジェクト（AuthContextで使用）
 export const api = {
   saveSession,
@@ -382,11 +399,14 @@ export const api = {
   updateEmployee,
   deleteEmployee,
   fetchMasterData,
+  master,
+  listDepartments,
   clockIn,
   clockOut,
   saveAttendanceRecord,
   saveRemark,
   getRemark,
+  getRemarks,
   fetchHolidays,
   checkHoliday
 };
