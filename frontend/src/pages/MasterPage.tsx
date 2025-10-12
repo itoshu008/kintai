@@ -396,14 +396,17 @@ export default function MasterPage() {
     const newDeptId = Number(prompt('部署ID（空=変更なし）', row.department_id ?? '')) || row.department_id ?? null;
     
     try {
+      console.log('社員編集API呼び出し:', { code: row.code, name: newName, department_id: newDeptId });
       const result = await api.updateEmployee(row.code, { 
         name: newName, 
         department_id: newDeptId, 
         code: row.code 
       });
       
+      console.log('社員編集API結果:', result);
+      
       if (!result.ok) {
-        alert(result.error || '更新失敗');
+        alert(`更新失敗: ${result.error || '不明なエラー'}`);
         return;
       }
       
@@ -411,7 +414,8 @@ export default function MasterPage() {
       await loadOnce(loadKey);
       await loadEmployees();
     } catch (error: any) {
-      alert(error.message || '更新エラー');
+      console.error('社員編集エラー:', error);
+      alert(`更新エラー: ${error.message || '不明なエラー'}`);
     }
   }, [loadKey, loadOnce, loadEmployees]);
 
@@ -420,10 +424,13 @@ export default function MasterPage() {
     if (!confirm(`${row.name}（${row.code}）を削除しますか？`)) return;
     
     try {
+      console.log('社員削除API呼び出し:', { code: row.code });
       const result = await api.deleteEmployee(row.code);
       
+      console.log('社員削除API結果:', result);
+      
       if (!result.ok) {
-        alert(result.error || '削除失敗');
+        alert(`削除失敗: ${result.error || '不明なエラー'}`);
         return;
       }
       
@@ -431,7 +438,8 @@ export default function MasterPage() {
       await loadOnce(loadKey);
       await loadEmployees();
     } catch (error: any) {
-      alert(error.message || '削除エラー');
+      console.error('社員削除エラー:', error);
+      alert(`削除エラー: ${error.message || '不明なエラー'}`);
     }
   }, [loadKey, loadOnce, loadEmployees]);
 
@@ -441,10 +449,13 @@ export default function MasterPage() {
     if (remark == null) return;
     
     try {
+      console.log('備考保存API呼び出し:', { code: row.code, date, remark });
       const result = await api.saveRemark(row.code, date, remark);
       
+      console.log('備考保存API結果:', result);
+      
       if (!result.ok) {
-        alert(result.error || '備考保存失敗');
+        alert(`備考保存失敗: ${result.error || '不明なエラー'}`);
         return;
       }
       
@@ -452,7 +463,8 @@ export default function MasterPage() {
       await loadOnce(loadKey);
       await loadEmployees();
     } catch (error: any) {
-      alert(error.message || '備考保存エラー');
+      console.error('備考保存エラー:', error);
+      alert(`備考保存エラー: ${error.message || '不明なエラー'}`);
     }
   }, [date, loadKey, loadOnce, loadEmployees]);
 
@@ -529,6 +541,24 @@ export default function MasterPage() {
   useEffect(() => {
     console.log('isPreview state:', isPreview);
   }, [isPreview]);
+
+  // デバッグ用：API接続テスト
+  const testApiConnection = async () => {
+    try {
+      console.log('API接続テスト開始');
+      const response = await fetch('/api/admin/employees');
+      console.log('API接続テスト結果:', response.status, response.statusText);
+      const data = await response.json();
+      console.log('API接続テストデータ:', data);
+    } catch (error) {
+      console.error('API接続テストエラー:', error);
+    }
+  };
+
+  // コンポーネントマウント時にAPI接続テストを実行
+  useEffect(() => {
+    testApiConnection();
+  }, []);
 
   // 備考保存（サーバーに保存）
   const onSaveRemark = async (targetDate: string, remark: string) => {
@@ -672,7 +702,10 @@ export default function MasterPage() {
     }
     try {
       const deptId = deps.find(d => d.name === newDepartment.trim())?.id;
+      console.log('社員登録API呼び出し:', { code: newCode.trim(), name: newName.trim(), department_id: deptId });
       const result = await api.createEmployee(newCode.trim(), newName.trim(), deptId);
+      
+      console.log('社員登録API結果:', result);
       
       if (!result.ok) {
         setMsg(`❌ 社員登録エラー: ${result.error || '登録に失敗しました'}`);
@@ -689,6 +722,7 @@ export default function MasterPage() {
       await loadOnce(loadKey);
       await loadEmployees();
     } catch (e: any) {
+      console.error('社員登録エラー:', e);
       setMsg(`❌ 社員登録エラー: ${e.message}`);
     }
   };
