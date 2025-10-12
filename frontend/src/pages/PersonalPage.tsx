@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../api/attendance';
-import { MasterRow } from '../types/attendance';
+// import { MasterRow } from '../types/attendance';
 import PersonalLogin from '../components/PersonalLogin';
 import { 
   isWeekend, 

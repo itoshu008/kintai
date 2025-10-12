@@ -1,5 +1,5 @@
 // src/api/attendance.ts
-import { MasterRow, Department, Employee, ApiResponse, ClockResponse, HealthResponse, AttendanceRecord } from '../types/attendance';
+// import { MasterRow, Department, Employee, ApiResponse, ClockResponse, HealthResponse, AttendanceRecord } from '../types/attendance';
 
 // APIのベースURL（8001番ポートで統一）
 const API_BASE_URL = '/api';
