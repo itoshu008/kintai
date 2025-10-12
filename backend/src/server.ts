@@ -5,6 +5,8 @@ const HOST = process.env.HOST || '127.0.0.1';
 
 app.listen(PORT, HOST, () => {
   console.log(`ℹ️ Backend server running on http://${HOST}:${PORT}`);
+  console.log(`[SERVER] Port: ${PORT}, Host: ${HOST}`);
+  console.log(`[SERVER] Environment: ${process.env.NODE_ENV || 'development'}`);
 });
 
 // 保険：未処理例外の可視化

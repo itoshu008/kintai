@@ -21,6 +21,9 @@ const FRONTEND_PATH =
     ? path.resolve(process.env.FRONTEND_PATH)
     : path.resolve(__dirname, '..', '..', 'frontend', 'dist');
 
+console.log(`[CONFIG] FRONTEND_PATH resolved to: ${FRONTEND_PATH}`);
+console.log(`[CONFIG] __dirname: ${__dirname}`);
+
 if (existsSync(FRONTEND_PATH)) {
   app.use(express.static(FRONTEND_PATH, {
     index: ['index.html'],
@@ -29,7 +32,18 @@ if (existsSync(FRONTEND_PATH)) {
     lastModified: false,
     maxAge: 0
   }));
-  console.log(`[STATIC] Frontend files served from: ${FRONTEND_PATH}`);
+  console.log(`[STATIC] ✅ Frontend files served from: ${FRONTEND_PATH}`);
+  
+  // index.htmlの存在を確認
+  const indexHtmlPath = path.join(FRONTEND_PATH, 'index.html');
+  if (existsSync(indexHtmlPath)) {
+    console.log(`[STATIC] ✅ index.html found at: ${indexHtmlPath}`);
+  } else {
+    console.error(`[STATIC] ❌ index.html NOT FOUND at: ${indexHtmlPath}`);
+  }
+} else {
+  console.error(`[STATIC] ❌ FRONTEND_PATH does not exist: ${FRONTEND_PATH}`);
+  console.error(`[STATIC] ❌ Please build the frontend first: cd frontend && npm run build`);
 }
 
 // ---- 基本ヘルス ----
@@ -902,9 +916,30 @@ app.get('/api/admin/weekly', (req, res) => {
   });
 
   // SPAのルーティング：/api 以外は index.html
-app.get('*', (_req, res) => {
+app.get('*', (req, res) => {
   // APIルートは既に上で定義済みなので、ここでは処理しない
-  res.sendFile(path.resolve(FRONTEND_PATH, 'index.html'));
+  const indexHtmlPath = path.resolve(FRONTEND_PATH, 'index.html');
+  
+  // index.htmlの存在を確認
+  if (existsSync(indexHtmlPath)) {
+    res.sendFile(indexHtmlPath, (err) => {
+      if (err) {
+        console.error(`[SPA FALLBACK] Error sending index.html for ${req.path}:`, err);
+        res.status(500).json({
+          error: 'Failed to serve application',
+          message: 'Internal server error',
+          path: req.path
+        });
+      }
+    });
+  } else {
+    console.error(`[SPA FALLBACK] index.html not found at: ${indexHtmlPath}`);
+    res.status(404).json({
+      error: 'Application not found',
+      message: 'Frontend application is not built. Please run: cd frontend && npm run build',
+      path: req.path
+    });
+  }
 });
 
 // ---- 起動 ----
