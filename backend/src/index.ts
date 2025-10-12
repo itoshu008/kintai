@@ -1,47 +1,122 @@
 // src/index.ts
+// ------------------------------------------------------------
+// 全機能・簡略安全版（フロント互換レスポンス・ESM/TS対応・SPA配信）
+// ------------------------------------------------------------
+
 import dotenv from 'dotenv';
 dotenv.config({ override: true });
 
 import express from 'express';
-import { existsSync, readFileSync } from 'fs';
+import {
+  existsSync,
+  readFileSync,
+  readdirSync,
+  mkdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { writeJsonAtomic } from './helpers/writeJsonAtomic.js';
+import { writeJsonAtomic } from './helpers/writeJsonAtomic'; // ← 拡張子なし推奨（ESM解決安定）
 
+// ------------------------------------------------------------
+// 基盤
+// ------------------------------------------------------------
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 
-// __dirnameの定義
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// --- 静的配信（SPA）- APIルートより前に配置 ----
-const FRONTEND_PATH =
-  process.env.FRONTEND_PATH
-    ? path.resolve(process.env.FRONTEND_PATH)
-    : path.resolve(__dirname, '..', '..', 'frontend', 'dist');  // 修正された静的ファイルのパス
+// データパス
+const DATA_DIR = path.resolve(__dirname, '..', 'data');
+const EMPLOYEES_FILE = path.join(DATA_DIR, 'employees.json');
+const DEPARTMENTS_FILE = path.join(DATA_DIR, 'departments.json');
+const ATTENDANCE_FILE = path.join(DATA_DIR, 'attendance.json'); // フラットキー: YYYY-MM-DD-コード
+const REMARKS_FILE = path.join(DATA_DIR, 'remarks.json');       // 任意メモ
+const HOLIDAYS_FILE = path.join(DATA_DIR, 'holidays.json');     // { "YYYY-MM-DD": "成人の日" }
+const BACKUP_DIR = path.join(DATA_DIR, 'backups');
 
-if (existsSync(FRONTEND_PATH)) {
-  app.use(express.static(FRONTEND_PATH, {
-    index: ['index.html'],
-    dotfiles: 'ignore',
-    etag: false,
-    lastModified: false,
-    maxAge: 0
-  }));
-  console.log(`[STATIC] ✅ Frontend files served from: ${FRONTEND_PATH}`);
-} else {
-  console.error(`[STATIC] ❌ FRONTEND_PATH does not exist: ${FRONTEND_PATH}`);
-  console.error(`[STATIC] ❌ Please build the frontend first: cd frontend && npm run build`);
+// フロント配信パス（優先: env → public/ → frontend/dist）
+const FRONTEND_PATH = (() => {
+  const envPath = process.env.FRONTEND_PATH ? path.resolve(process.env.FRONTEND_PATH) : null;
+  if (envPath && existsSync(envPath)) return envPath;
+  const pub = path.resolve(__dirname, '..', '..', 'public');
+  if (existsSync(pub)) return pub;
+  const dist = path.resolve(__dirname, '..', '..', 'frontend', 'dist');
+  return dist;
+})();
+
+// ユーティリティ
+function safeReadJSON<T>(filePath: string, fallback: T): T {
+  try {
+    if (!existsSync(filePath)) return fallback;
+    const txt = readFileSync(filePath, 'utf-8');
+    return JSON.parse(txt) as T;
+  } catch (e) {
+    console.error('[safeReadJSON] Failed:', filePath, e);
+    return fallback;
+  }
+}
+function todayStr(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+function ensureDir(p: string) {
+  if (!existsSync(p)) mkdirSync(p, { recursive: true });
+}
+function sortBy<T>(arr: T[], key: (x: T) => number | string, desc = false): T[] {
+  return [...arr].sort((a, b) => {
+    const av = key(a);
+    const bv = key(b);
+    if (av < bv) return desc ? 1 : -1;
+    if (av > bv) return desc ? -1 : 1;
+    return 0;
+  });
 }
 
-// ---- 基本ヘルス ----
-app.get('/__ping', (_req, res) => res.type('text/plain').send('pong'));
-app.get('/api/health', (_req, res) =>
-  res.json({ ok: true, ts: new Date().toISOString() })
-);
+// ------------------------------------------------------------
+// 起動時ロード（インメモリ）
+// ------------------------------------------------------------
+ensureDir(DATA_DIR);
+const employees: any[] = safeReadJSON<any[]>(EMPLOYEES_FILE, []);
+const departments: any[] = safeReadJSON<any[]>(DEPARTMENTS_FILE, []);
+const attendanceData: Record<string, any> = safeReadJSON<Record<string, any>>(ATTENDANCE_FILE, {});
+const remarksData: Record<string, string> = safeReadJSON<Record<string, string>>(REMARKS_FILE, {});
+const holidays: Record<string, string> = safeReadJSON<Record<string, string>>(HOLIDAYS_FILE, {});
+const deptIndex = new Map<number, any>(departments.map(d => [d.id, d]));
 
-// 管理者用ヘルスチェック
+// 簡易セッション（メモリ）
+const sessions = new Map<string, { user: any; createdAt: Date; expiresAt: Date }>();
+
+// ------------------------------------------------------------
+// 静的配信（APIより前に）
+// ------------------------------------------------------------
+if (existsSync(FRONTEND_PATH)) {
+  app.use(
+    express.static(FRONTEND_PATH, {
+      index: ['index.html'],
+      dotfiles: 'ignore',
+      etag: false,
+      lastModified: false,
+      maxAge: 0,
+    }),
+  );
+  console.log(`[STATIC] ✅ Serving frontend from: ${FRONTEND_PATH}`);
+} else {
+  console.warn(`[STATIC] ⚠️ FRONTEND_PATH not found: ${FRONTEND_PATH}`);
+  console.warn(`[STATIC] Build frontend: (cd frontend && npm run build) then copy to public/`);
+}
+
+// ------------------------------------------------------------
+// ヘルス
+// ------------------------------------------------------------
+app.get('/__ping', (_req, res) => res.type('text/plain').send('pong'));
+
+app.get('/api/health', (_req, res) => {
+  res.json({ ok: true, ts: new Date().toISOString() });
+});
+
 app.get('/api/admin/health', (_req, res) => {
   try {
     res.json({
@@ -49,919 +124,711 @@ app.get('/api/admin/health', (_req, res) => {
       status: 'healthy',
       timestamp: new Date().toISOString(),
       version: '1.0.0',
-      uptime: process.uptime()
+      environment: process.env.NODE_ENV || 'development',
+      uptime: process.uptime(),
     });
-  } catch (error) {
-    console.error('Health check error:', error);
-    res.status(200).json({
-      ok: false,
-      status: 'unhealthy',
-      error: String(error)
-    });
+  } catch (e) {
+    res.status(200).json({ ok: false, status: 'unhealthy', error: String(e) });
   }
 });
 
-// 管理者API基本エンドポイント
-app.get('/api/admin', (req, res) => {
-  try {
-    console.log(`[API] GET /api/admin - ${req.ip} - ${new Date().toISOString()}`);
-    res.status(200).json({
-      message: 'Admin endpoint is working!',
-      timestamp: new Date().toISOString(),
-      version: '1.0.0',
-      endpoints: [
-        'GET /api/admin/health - ヘルスチェック',
-        'GET /api/admin/departments - 部署一覧',
-        'POST /api/admin/departments - 部署作成',
-        'GET /api/admin/employees - 社員一覧',
-        'POST /api/admin/employees - 社員作成',
-        'GET /api/admin/master - マスターデータ',
-        'GET /api/admin/attendance - 勤怠データ'
-      ]
-    });
-  } catch (error) {
-    console.error('[API ERROR] /api/admin:', error);
-    res.status(500).json({
-      ok: false,
-      error: 'Internal server error',
-      message: 'Admin endpoint error occurred'
-    });
-  }
+// ------------------------------------------------------------
+// 管理トップ
+// ------------------------------------------------------------
+app.get('/api/admin', (_req, res) => {
+  res.json({
+    ok: true,
+    message: 'Admin endpoint is working!',
+    timestamp: new Date().toISOString(),
+    version: '1.0.0',
+    endpoints: [
+      'GET /api/admin/health',
+      'GET /api/admin/departments',
+      'POST /api/admin/departments',
+      'PUT /api/admin/departments/:id',
+      'DELETE /api/admin/departments/:id',
+      'GET /api/admin/employees',
+      'POST /api/admin/employees',
+      'PUT /api/admin/employees/:code',
+      'DELETE /api/admin/employees/:code',
+      'GET /api/admin/master',
+      'GET /api/admin/attendance',
+      'POST /api/attendance/checkin',
+      'POST /api/attendance/checkout',
+      'GET /api/admin/remarks/:employeeCode/:date',
+      'POST /api/admin/remarks',
+      'GET /api/admin/weekly',
+      'GET /api/admin/remarks/:employeeCode?month=YYYY-MM',
+      'GET /api/admin/holidays',
+      'GET /api/admin/holidays/:date',
+      'POST /api/admin/sessions',
+      'GET /api/admin/sessions/:sessionId',
+      'DELETE /api/admin/sessions/:sessionId',
+      'POST /api/admin/backups',
+      'GET /api/admin/backups',
+      'GET /api/admin/backups/:id',
+      'GET /api/admin/backups/:id/preview',
+      'POST /api/admin/backups/:id/restore',
+      'DELETE /api/admin/backups/:id',
+      'POST /api/admin/backups/cleanup',
+    ],
+  });
 });
 
-
-// セッション管理API
-const sessions = new Map<string, { user: any; createdAt: Date; expiresAt: Date }>();
-
-
-
-// セッション保存
+// ------------------------------------------------------------
+// セッション（簡易・メモリ保持）
+// ------------------------------------------------------------
 app.post('/api/admin/sessions', (req, res) => {
   try {
-    const { code, name, department, rememberMe } = req.body;
-    
+    const { code, name, department, rememberMe } = req.body || {};
     if (!code || !name) {
-      return res.status(200).json({
-        ok: false,
-        error: 'ユーザー情報が不完全です'
-      });
+      return res.status(200).json({ ok: false, error: 'ユーザー情報が不完全です' });
     }
-    
-    const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const sessionId = `s_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + (rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000)); // 30日または1日
-    
+    const expiresAt = new Date(now.getTime() + (rememberMe ? 30 : 1) * 24 * 60 * 60 * 1000);
     const user = { code, name, department };
     sessions.set(sessionId, { user, createdAt: now, expiresAt });
-    
-    res.json({
-      ok: true,
-      sessionId,
-      user,
-      message: 'セッションが保存されました'
-    });
-  } catch (error) {
-    console.error('セッション保存エラー:', error);
-    res.status(200).json({
-      ok: false,
-      error: 'セッション保存に失敗しました'
-    });
+    res.json({ ok: true, sessionId, user, message: 'セッションが保存されました' });
+  } catch (e) {
+    res.status(200).json({ ok: false, error: 'セッション保存に失敗しました' });
   }
 });
 
-// セッション取得
 app.get('/api/admin/sessions/:sessionId', (req, res) => {
   try {
-    const { sessionId } = req.params;
-    const session = sessions.get(sessionId);
-    
-    if (!session) {
-      return res.status(200).json({
-        ok: false,
-        error: 'セッションが見つかりません'
-      });
+    const s = sessions.get(req.params.sessionId);
+    if (!s) return res.status(200).json({ ok: false, error: 'セッションが見つかりません' });
+    if (new Date() > s.expiresAt) {
+      sessions.delete(req.params.sessionId);
+      return res.status(200).json({ ok: false, error: 'セッションが期限切れです' });
     }
-    
-    if (new Date() > session.expiresAt) {
-      sessions.delete(sessionId);
-      return res.status(200).json({
-        ok: false,
-        error: 'セッションが期限切れです'
-      });
-    }
-    
-    res.json({
-      ok: true,
-      user: session.user,
-      message: 'セッションが取得されました'
-    });
-  } catch (error) {
-    console.error('セッション取得エラー:', error);
-    res.status(200).json({
-      ok: false,
-      error: 'セッション取得に失敗しました'
-    });
+    res.json({ ok: true, user: s.user, message: 'セッションが取得されました' });
+  } catch (e) {
+    res.status(200).json({ ok: false, error: 'セッション取得に失敗しました' });
   }
 });
 
-// セッション削除
 app.delete('/api/admin/sessions/:sessionId', (req, res) => {
   try {
-    const { sessionId } = req.params;
-    const deleted = sessions.delete(sessionId);
-    
-    res.json({
-      ok: true,
-      message: deleted ? 'セッションが削除されました' : 'セッションが見つかりませんでした'
-    });
-  } catch (error) {
-    console.error('セッション削除エラー:', error);
-    res.status(200).json({
-      ok: false,
-      error: 'セッション削除に失敗しました'
-    });
+    const del = sessions.delete(req.params.sessionId);
+    res.json({ ok: true, message: del ? 'セッションが削除されました' : 'セッション無し' });
+  } catch {
+    res.status(200).json({ ok: false, error: 'セッション削除に失敗しました' });
   }
 });
 
-// ---- ここから互換ミニ版：データ読み取りだけ実装 ----
-
-const DATA_DIR = path.join(__dirname, '..', 'data');
-const EMPLOYEES_FILE = path.join(DATA_DIR, 'employees.json');
-const DEPARTMENTS_FILE = path.join(DATA_DIR, 'departments.json');
-const ATTENDANCE_FILE = path.join(DATA_DIR, 'attendance.json');
-const REMARKS_FILE = path.join(DATA_DIR, 'remarks.json');
-const HOLIDAYS_FILE = path.join(DATA_DIR, 'holidays.json');
-
-function safeReadJSON(filePath: string, defaultValue: any) {
-  try {
-    if (!existsSync(filePath)) return defaultValue;
-    const content = readFileSync(filePath, 'utf-8');
-    return JSON.parse(content);
-  } catch (error) {
-    console.error(`Error reading ${filePath}:`, error);
-    return defaultValue;
-  }
-}
-
-const employees: any[] = safeReadJSON(EMPLOYEES_FILE, []);
-const departments: any[] = safeReadJSON(DEPARTMENTS_FILE, []);
-const attendanceData: Record<string, any> = safeReadJSON(ATTENDANCE_FILE, {});
-const remarksData: Record<string, string> = safeReadJSON(REMARKS_FILE, {});
-const holidays: Record<string, string> = safeReadJSON(HOLIDAYS_FILE, {});
-
-const deptIndex = new Map<number, any>(departments.map(d => [d.id, d]));
-
-function today(): string { return new Date().toISOString().slice(0, 10); }
-
-// --- 主要API（読み取り専用）---
-
-// 部署一覧
+// ------------------------------------------------------------
+// 部署 CRUD
+// ------------------------------------------------------------
 app.get('/api/admin/departments', (_req, res) => {
   try {
     res.json({ ok: true, departments });
-  } catch (error) {
-    console.error('Departments API error:', error);
-    res.status(200).json({ ok: false, error: 'Failed to fetch departments' });
+  } catch {
+    res.status(200).json({ ok: false, error: '部署の取得に失敗しました' });
   }
 });
 
-// 部署作成
 app.post('/api/admin/departments', (req, res) => {
-  console.log('[API] POST /api/admin/departments called with body:', req.body);
-  console.log('[API] Request headers:', req.headers);
-  
   try {
-    const { name } = req.body;
-    
-    if (!name || typeof name !== 'string' || name.trim() === '') {
-      console.log('[API] Validation failed: name is required');
-      return res.status(200).json({ 
-        ok: false, 
-        error: '部署名は必須です' 
-      });
+    const { name } = req.body || {};
+    if (!name || !String(name).trim()) {
+      return res.status(200).json({ ok: false, error: '部署名は必須です' });
     }
-    
-    // 新しい部署IDを生成（既存の最大ID + 1）
-    const maxId = departments.length > 0 ? Math.max(...departments.map(d => d.id)) : 0;
-    const newId = maxId + 1;
-    
-    // 重複チェック
-    const existingDept = departments.find(d => d.name === name.trim());
-    if (existingDept) {
-      console.log('Validation failed: department already exists');
-      return res.status(200).json({ 
-        ok: false, 
-        error: '同じ名前の部署が既に存在します' 
-      });
+    if (departments.some(d => d.name === String(name).trim())) {
+      return res.status(200).json({ ok: false, error: '同名の部署が既に存在します' });
     }
-    
-    // 新しい部署を作成
-    const newDepartment = {
-      id: newId,
-      name: name.trim()
-    };
-    
-    departments.push(newDepartment);
-    deptIndex.set(newId, newDepartment);
-    
-    // ファイルに保存
+    const newId = departments.length ? Math.max(...departments.map(d => d.id || 0)) + 1 : 1;
+    const dep = { id: newId, name: String(name).trim() };
+    departments.push(dep);
+    deptIndex.set(newId, dep);
     writeJsonAtomic(DEPARTMENTS_FILE, departments);
-    
-    console.log('[API] Department created successfully:', newDepartment);
-    res.status(200).json({ 
-      ok: true, 
-      department: newDepartment,
-      message: '部署が作成されました',
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('[API] Department creation error:', error);
-    res.status(200).json({ 
-      ok: false, 
-      error: '部署の作成に失敗しました',
-      timestamp: new Date().toISOString()
-    });
+    res.json({ ok: true, department: dep, message: '部署が作成されました', timestamp: new Date().toISOString() });
+  } catch {
+    res.status(200).json({ ok: false, error: '部署の作成に失敗しました' });
   }
 });
 
-// 部署更新
 app.put('/api/admin/departments/:id', (req, res) => {
   try {
-    const { id } = req.params;
-    const { name } = req.body;
-    const departmentId = parseInt(id);
-    
-    if (isNaN(departmentId)) {
-      return res.status(200).json({ 
-        ok: false, 
-        error: '無効な部署IDです' 
-      });
+    const id = Number(req.params.id);
+    const { name } = req.body || {};
+    if (!Number.isFinite(id)) return res.status(200).json({ ok: false, error: '無効な部署IDです' });
+    if (!name || !String(name).trim()) return res.status(200).json({ ok: false, error: '部署名は必須です' });
+    const idx = departments.findIndex(d => d.id === id);
+    if (idx === -1) return res.status(200).json({ ok: false, error: '部署が見つかりません' });
+    if (departments.some(d => d.name === String(name).trim() && d.id !== id)) {
+      return res.status(200).json({ ok: false, error: '同名の部署が既に存在します' });
     }
-    
-    if (!name || typeof name !== 'string' || name.trim() === '') {
-      return res.status(200).json({ 
-        ok: false, 
-        error: '部署名は必須です' 
-      });
-    }
-    
-    const departmentIndex = departments.findIndex(d => d.id === departmentId);
-    if (departmentIndex === -1) {
-      return res.status(200).json({ 
-        ok: false, 
-        error: '部署が見つかりません' 
-      });
-    }
-    
-    // 重複チェック（自分以外）
-    const existingDept = departments.find(d => d.name === name.trim() && d.id !== departmentId);
-    if (existingDept) {
-      return res.status(200).json({ 
-        ok: false, 
-        error: '同じ名前の部署が既に存在します' 
-      });
-    }
-    
-    // 部署を更新
-    departments[departmentIndex].name = name.trim();
-    deptIndex.set(departmentId, departments[departmentIndex]);
-    
-    // ファイルに保存
+    departments[idx].name = String(name).trim();
+    deptIndex.set(id, departments[idx]);
     writeJsonAtomic(DEPARTMENTS_FILE, departments);
-    
-    res.json({ 
-      ok: true, 
-      department: departments[departmentIndex],
-      message: '部署が更新されました' 
-    });
-  } catch (error) {
-    console.error('Department update error:', error);
-    res.status(200).json({ 
-      ok: false, 
-      error: '部署の更新に失敗しました' 
-    });
+    res.json({ ok: true, department: departments[idx], message: '部署が更新されました' });
+  } catch {
+    res.status(200).json({ ok: false, error: '部署の更新に失敗しました' });
   }
 });
 
-// 部署削除
 app.delete('/api/admin/departments/:id', (req, res) => {
   try {
-    const { id } = req.params;
-    const departmentId = parseInt(id);
-    
-    if (isNaN(departmentId)) {
-      return res.status(200).json({ 
-        ok: false, 
-        error: '無効な部署IDです' 
-      });
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) return res.status(200).json({ ok: false, error: '無効な部署IDです' });
+    if (employees.some(e => e.department_id === id)) {
+      const cnt = employees.filter(e => e.department_id === id).length;
+      return res.status(200).json({ ok: false, error: `この部署には${cnt}名の社員が所属しています。先に社員の部署を変更してください。` });
     }
-    
-    const departmentIndex = departments.findIndex(d => d.id === departmentId);
-    if (departmentIndex === -1) {
-      return res.status(200).json({ 
-        ok: false, 
-        error: '部署が見つかりません' 
-      });
-    }
-    
-    // 社員がこの部署に所属しているかチェック
-    const employeesInDept = employees.filter(e => e.department_id === departmentId);
-    if (employeesInDept.length > 0) {
-      return res.status(200).json({ 
-        ok: false, 
-        error: `この部署には${employeesInDept.length}名の社員が所属しています。先に社員の部署を変更してください。` 
-      });
-    }
-    
-    // 部署を削除
-    departments.splice(departmentIndex, 1);
-    deptIndex.delete(departmentId);
-    
-    // ファイルに保存
+    const idx = departments.findIndex(d => d.id === id);
+    if (idx === -1) return res.status(200).json({ ok: false, error: '部署が見つかりません' });
+    const removed = departments.splice(idx, 1)[0];
+    deptIndex.delete(id);
     writeJsonAtomic(DEPARTMENTS_FILE, departments);
-    
-    res.json({ 
-      ok: true, 
-      message: '部署が削除されました' 
-    });
-  } catch (error) {
-    console.error('Department deletion error:', error);
-    res.status(200).json({ 
-      ok: false, 
-      error: '部署の削除に失敗しました' 
-    });
+    res.json({ ok: true, message: '部署が削除されました', department: removed });
+  } catch {
+    res.status(200).json({ ok: false, error: '部署の削除に失敗しました' });
   }
 });
 
-// 社員一覧（dept名の解決を含む）
+// ------------------------------------------------------------
+// 社員 CRUD（フロント互換: GETは employees と list の両方を返す）
+// ------------------------------------------------------------
 app.get('/api/admin/employees', (_req, res) => {
   const list = employees.map(e => {
-    const dept = (e.department_id != null)
-      ? (deptIndex.get(e.department_id)?.name ?? '未所属')
-      : (e.dept ?? '未所属');
+    const dept = e.department_id != null ? (deptIndex.get(e.department_id)?.name ?? '未所属') : (e.dept ?? '未所属');
     return { ...e, dept };
   });
-  res.json({ ok: true, employees: list });
+  res.json({ ok: true, employees: list, list });
 });
 
-// 社員作成
 app.post('/api/admin/employees', (req, res) => {
   try {
-    const { code, name, department_id } = req.body;
-    
-    if (!code || !name) {
-      return res.status(200).json({ 
-        ok: false, 
-        error: '社員コードと名前は必須です' 
-      });
+    const { code, name, department_id } = req.body || {};
+    if (!code || !name) return res.status(200).json({ ok: false, error: 'codeとnameは必須です' });
+    if (employees.some(e => e.code === String(code).trim())) {
+      return res.status(200).json({ ok: false, error: 'この社員コードは既に存在します' });
     }
-    
-    // 重複チェック
-    const existingEmployee = employees.find(e => e.code === code);
-    if (existingEmployee) {
-      return res.status(200).json({ 
-        ok: false, 
-        error: '同じ社員コードの社員が既に存在します' 
-      });
-    }
-    
-    // 部署IDの検証
-    if (department_id && !deptIndex.has(department_id)) {
-      return res.status(200).json({ 
-        ok: false, 
-        error: '指定された部署が存在しません' 
-      });
-    }
-    
-    // 新しい社員を作成
-    const newEmployee = {
-      id: employees.length + 1,
-      code: code.trim(),
-      name: name.trim(),
-      department_id: department_id || null,
-      dept: department_id ? deptIndex.get(department_id)?.name : null
+    const now = new Date().toISOString();
+    const emp = {
+      id: employees.length ? Math.max(...employees.map(e => e.id || 0)) + 1 : 1,
+      code: String(code).trim(),
+      name: String(name).trim(),
+      department_id: department_id ?? null,
+      is_active: true,
+      created_at: now,
+      updated_at: now,
     };
-    
-    employees.push(newEmployee);
-    
-    // ファイルに保存
+    employees.push(emp);
     writeJsonAtomic(EMPLOYEES_FILE, employees);
-    
-    res.status(200).json({ 
-      ok: true, 
-      employee: newEmployee,
-      message: '社員が作成されました' 
-    });
-  } catch (error) {
-    console.error('Employee creation error:', error);
-    res.status(200).json({ 
-      ok: false, 
-      error: '社員の作成に失敗しました' 
-    });
+    res.json({ ok: true, employee: emp, message: '社員が作成されました' });
+  } catch {
+    res.status(200).json({ ok: false, error: '社員の作成に失敗しました' });
   }
 });
 
-// 社員更新
 app.put('/api/admin/employees/:code', (req, res) => {
   try {
-    const { code } = req.params;
-    const { code: newCode, name, department_id } = req.body;
-    
-    if (!newCode || !name) {
-      return res.status(200).json({ 
-        ok: false, 
-        error: '社員コードと名前は必須です' 
-      });
-    }
-    
-    const employeeIndex = employees.findIndex(e => e.code === code);
-    if (employeeIndex === -1) {
-      return res.status(200).json({ 
-        ok: false, 
-        error: '社員が見つかりません' 
-      });
-    }
-    
-    // 部署IDの検証
-    if (department_id && !deptIndex.has(department_id)) {
-      return res.status(200).json({ 
-        ok: false, 
-        error: '指定された部署が存在しません' 
-      });
-    }
-    
-    // 社員コードの重複チェック（自分以外）
-    if (newCode !== code) {
-      const existingEmployee = employees.find(e => e.code === newCode);
-      if (existingEmployee) {
-        return res.status(200).json({ 
-          ok: false, 
-          error: '同じ社員コードの社員が既に存在します' 
-        });
-      }
-    }
-    
-    // 社員を更新
-    employees[employeeIndex] = {
-      ...employees[employeeIndex],
-      code: newCode.trim(),
-      name: name.trim(),
-      department_id: department_id || null,
-      dept: department_id ? deptIndex.get(department_id)?.name : null
-    };
-    
-    // ファイルに保存
+    const code = String(req.params.code);
+    const idx = employees.findIndex(e => e.code === code);
+    if (idx === -1) return res.status(200).json({ ok: false, error: '社員が見つかりません' });
+    employees[idx] = { ...employees[idx], ...req.body, updated_at: new Date().toISOString() };
     writeJsonAtomic(EMPLOYEES_FILE, employees);
-    
-    res.json({ 
-      ok: true, 
-      employee: employees[employeeIndex],
-      message: '社員が更新されました' 
-    });
-  } catch (error) {
-    console.error('Employee update error:', error);
-    res.status(200).json({ 
-      ok: false, 
-      error: '社員の更新に失敗しました' 
-    });
+    res.json({ ok: true, employee: employees[idx], message: '社員が更新されました' });
+  } catch {
+    res.status(200).json({ ok: false, error: '社員の更新に失敗しました' });
   }
 });
 
-// 社員削除
-app.delete('/api/admin/employees/:id', (req, res) => {
+app.delete('/api/admin/employees/:code', (req, res) => {
   try {
-    const { id } = req.params;
-    const employeeId = parseInt(id);
-    
-    if (isNaN(employeeId)) {
-      return res.status(200).json({ 
-        ok: false, 
-        error: '無効な社員IDです' 
-      });
-    }
-    
-    const employeeIndex = employees.findIndex(e => e.id === employeeId);
-    if (employeeIndex === -1) {
-      return res.status(200).json({ 
-        ok: false, 
-        error: '社員が見つかりません' 
-      });
-    }
-    
-    // 勤怠データがあるかチェック
-    const hasAttendance = Object.values(attendanceData).some(dayData => 
-      Object.values(dayData).some((empData: any) => empData.code === employees[employeeIndex].code)
-    );
-    
-    if (hasAttendance) {
-      return res.status(200).json({ 
-        ok: false, 
-        error: 'この社員には勤怠データが存在します。先に勤怠データを削除してください。' 
-      });
-    }
-    
-    // 社員を削除
-    employees.splice(employeeIndex, 1);
-    
-    // ファイルに保存
+    const code = String(req.params.code);
+    const idx = employees.findIndex(e => e.code === code);
+    if (idx === -1) return res.status(200).json({ ok: false, error: '社員が見つかりません' });
+    const removed = employees.splice(idx, 1)[0];
     writeJsonAtomic(EMPLOYEES_FILE, employees);
-    
-    res.json({ 
-      ok: true, 
-      message: '社員が削除されました' 
-    });
-  } catch (error) {
-    console.error('Employee deletion error:', error);
-    res.status(200).json({ 
-      ok: false, 
-      error: '社員の削除に失敗しました' 
-    });
+    res.json({ ok: true, employee: removed, message: '社員が削除されました' });
+  } catch {
+    res.status(200).json({ ok: false, error: '社員の削除に失敗しました' });
   }
 });
 
-// マスター（指定日の勤怠まとめ）
+// ------------------------------------------------------------
+// マスター／勤怠一覧（attendanceData はフラットキー: YYYY-MM-DD-コード）
+// ------------------------------------------------------------
 app.get('/api/admin/master', (req, res) => {
-  const date = (req.query.date as string) || new Date().toISOString().slice(0, 10);
-  const sorted = [...employees].sort((a, b) => a.code.localeCompare(b.code));
+  const date = (req.query.date as string) || todayStr();
+  const sorted = sortBy(employees, e => e.code);
   const list = sorted.map(e => {
     const key = `${date}-${e.code}`;
     const at = attendanceData[key] || {};
-    const dept = (e.department_id != null)
-      ? (deptIndex.get(e.department_id)?.name ?? '未所属')
-      : (e.dept ?? '未所属');
-
+    const dept = e.department_id != null ? (deptIndex.get(e.department_id)?.name ?? '未所属') : (e.dept ?? '未所属');
     return {
       id: e.id,
       code: e.code,
       name: e.name,
       dept,
-      checkin: at.checkin || at.clock_in,
-      checkout: at.checkout || at.clock_out,
-      work_hours: at.work_hours || 0,
-      work_minutes: at.work_minutes || 0,
+      checkin: at.checkin || at.clock_in || null,
+      checkout: at.checkout || at.clock_out || null,
+      work_hours: at.work_hours || Math.floor((at.total_minutes || 0) / 60),
+      work_minutes: at.work_minutes || (at.total_minutes || 0) % 60,
       total_minutes: at.total_minutes || 0,
       late: at.late || 0,
-      remark: at.remark || ''
+      remark: at.remark || '',
     };
   });
   res.json({ ok: true, data: list, departments });
 });
 
-// 勤怠一覧（指定日）
 app.get('/api/admin/attendance', (req, res) => {
-  const date = (req.query.date as string) || new Date().toISOString().slice(0, 10);
+  const date = (req.query.date as string) || todayStr();
   const list = employees.map(e => {
     const key = `${date}-${e.code}`;
     const at = attendanceData[key] || {};
-    const dept = (e.department_id != null)
-      ? (deptIndex.get(e.department_id)?.name ?? '未所属')
-      : (e.dept ?? '未所属');
+    const dept = e.department_id != null ? (deptIndex.get(e.department_id)?.name ?? '未所属') : (e.dept ?? '未所属');
     return {
       id: e.id,
       code: e.code,
       name: e.name,
       dept,
-      checkin: at.checkin || at.clock_in,
-      checkout: at.checkout || at.clock_out,
-      work_hours: at.work_hours || 0,
-      work_minutes: at.work_minutes || 0,
+      checkin: at.checkin || at.clock_in || null,
+      checkout: at.checkout || at.clock_out || null,
+      work_hours: at.work_hours || Math.floor((at.total_minutes || 0) / 60),
+      work_minutes: at.work_minutes || (at.total_minutes || 0) % 60,
       total_minutes: at.total_minutes || 0,
       late: at.late || 0,
-      remark: at.remark || ''
+      remark: at.remark || '',
     };
   });
   res.json({ ok: true, data: list });
 });
 
-// 出勤打刻（管理用）
+// ------------------------------------------------------------
+// 管理用打刻（冪等）
+// ------------------------------------------------------------
 app.post('/api/attendance/checkin', (req, res) => {
   try {
-    const { code, note } = req.body;
-    if (!code) {
-      return res.status(200).json({ ok: false, error: '社員コードが必要です' });
+    const { code, note } = req.body || {};
+    if (!code) return res.status(200).json({ ok: false, error: '社員コードが必要です' });
+    const key = `${todayStr()}-${code}`;
+    const rec = attendanceData[key] || {};
+    if (rec.checkin || rec.clock_in) {
+      return res.json({ ok: true, idempotent: true, checkin: rec.checkin || rec.clock_in });
     }
-
-    const today = new Date().toISOString().slice(0, 10);
-    const key = `${today}-${code}`;
-    const existing = attendanceData[key] || {};
-
-    if (existing.checkin) {
-      return res.status(200).json({ 
-        ok: false, 
-        error: '既に出勤打刻済みです' 
-      });
-    }
-
-    const now = new Date();
-    const checkinTime = now.toISOString();
-
-    attendanceData[key] = {
-      ...existing,
-      code,
-      checkin: checkinTime,
-      note: note || null
-    };
-
+    const nowISO = new Date().toISOString();
+    const start = new Date(); start.setHours(10, 0, 0, 0);
+    const late = new Date() > start ? Math.floor((+new Date() - +start) / 60000) : 0;
+    attendanceData[key] = { ...rec, code, checkin: nowISO, clock_in: nowISO, late, note: note || null };
     writeJsonAtomic(ATTENDANCE_FILE, attendanceData);
-
-    res.json({
-      ok: true,
-      message: '出勤打刻が完了しました',
-      checkin: checkinTime
-    });
-  } catch (error) {
-    console.error('Clock in error:', error);
+    res.json({ ok: true, message: '出勤打刻が完了しました', checkin: nowISO, late });
+  } catch {
     res.status(200).json({ ok: false, error: '出勤打刻に失敗しました' });
   }
 });
 
-// 退勤打刻（管理用）
 app.post('/api/attendance/checkout', (req, res) => {
   try {
-    const { code } = req.body;
-    if (!code) {
-      return res.status(200).json({ ok: false, error: '社員コードが必要です' });
+    const { code } = req.body || {};
+    if (!code) return res.status(200).json({ ok: false, error: '社員コードが必要です' });
+    const key = `${todayStr()}-${code}`;
+    const rec = attendanceData[key] || {};
+    const cin = rec.checkin || rec.clock_in;
+    if (!cin) return res.status(200).json({ ok: false, error: '出勤打刻がされていません' });
+    if (rec.checkout || rec.clock_out) {
+      return res.json({ ok: true, idempotent: true, checkout: rec.checkout || rec.clock_out });
     }
-
-    const today = new Date().toISOString().slice(0, 10);
-    const key = `${today}-${code}`;
-    const existing = attendanceData[key] || {};
-
-    if (!existing.checkin) {
-      return res.status(200).json({ 
-        ok: false, 
-        error: '出勤打刻がされていません' 
-      });
-    }
-
-    if (existing.checkout) {
-      return res.status(200).json({ 
-        ok: false, 
-        error: '既に退勤打刻済みです' 
-      });
-    }
-
     const now = new Date();
-    const checkoutTime = now.toISOString();
-    
-    // 出勤時間との差を計算
-    const checkinTime = new Date(existing.checkin);
-    const workMinutes = Math.floor((now.getTime() - checkinTime.getTime()) / (1000 * 60));
-    const workHours = Math.floor(workMinutes / 60);
-    const remainingMinutes = workMinutes % 60;
-
+    const checkoutISO = now.toISOString();
+    const diffMin = Math.floor((+now - +new Date(cin)) / 60000);
+    const workHours = Math.floor(diffMin / 60);
+    const workMinutes = diffMin % 60;
     attendanceData[key] = {
-      ...existing,
-      checkout: checkoutTime,
+      ...rec,
+      checkout: checkoutISO,
+      clock_out: checkoutISO,
+      total_minutes: diffMin,
       work_hours: workHours,
-      work_minutes: remainingMinutes,
-      total_minutes: workMinutes
+      work_minutes: workMinutes,
     };
-
     writeJsonAtomic(ATTENDANCE_FILE, attendanceData);
-
     res.json({
       ok: true,
       message: '退勤打刻が完了しました',
-      checkout: checkoutTime,
+      checkout: checkoutISO,
       work_hours: workHours,
-      work_minutes: remainingMinutes,
-      total_minutes: workMinutes
+      work_minutes: workMinutes,
+      total_minutes: diffMin,
     });
-  } catch (error) {
-    console.error('Clock out error:', error);
+  } catch {
     res.status(200).json({ ok: false, error: '退勤打刻に失敗しました' });
   }
 });
 
-// 備考取得
+// ------------------------------------------------------------
+// 備考
+// ------------------------------------------------------------
 app.get('/api/admin/remarks/:employeeCode/:date', (req, res) => {
   const key = `${req.params.date}-${req.params.employeeCode}`;
   res.json({ ok: true, remark: remarksData[key] || '' });
 });
 
-// 備考保存
 app.post('/api/admin/remarks', (req, res) => {
   const { employeeCode, date, remark } = req.body || {};
   if (!employeeCode || !date) return res.status(200).json({ ok: false, error: 'employeeCode and date required' });
   const key = `${date}-${employeeCode}`;
   remarksData[key] = String(remark || '');
   writeJsonAtomic(REMARKS_FILE, remarksData);
-  res.json({ ok: true });
+  res.json({ ok: true, message: '備考を保存しました' });
 });
 
-// 出勤打刻
-app.post('/api/public/clock-in', (req, res) => {
-  const { code } = req.body || {};
-  if (!code) return res.status(200).json({ ok: false, error: 'code required' });
-  const emp = employees.find(e => e.code === code);
-  if (!emp) return res.status(200).json({ ok: false, error: 'Employee not found' });
-
-  const key = `${today()}-${code}`;
-  const rec = attendanceData[key] || {};
-  if (rec.clock_in) return res.json({ ok: true, idempotent: true, time: rec.clock_in });
-
-  const now = new Date();
-  const start = new Date(now); start.setHours(10, 0, 0, 0);
-  const late = now > start ? Math.floor((+now - +start) / 60000) : 0;
-  attendanceData[key] = { ...rec, clock_in: now.toISOString(), late };
-  writeJsonAtomic(ATTENDANCE_FILE, attendanceData);
-  res.json({ ok: true, late });
-});
-
-// 退勤打刻
-app.post('/api/public/clock-out', (req, res) => {
-  const { code } = req.body || {};
-  if (!code) return res.status(200).json({ ok: false, error: 'code required' });
-  const emp = employees.find(e => e.code === code);
-  if (!emp) return res.status(200).json({ ok: false, error: 'Employee not found' });
-
-  const key = `${today()}-${code}`;
-  const rec = attendanceData[key];
-  if (!rec?.clock_in) return res.status(200).json({ ok: false, error: 'No clock-in' });
-  if (rec.clock_out) return res.json({ ok: true, idempotent: true, time: rec.clock_out });
-
-  const now = new Date();
-  const workMinutes = Math.floor((+now - +new Date(rec.clock_in)) / 60000);
-  attendanceData[key] = { ...rec, clock_out: now.toISOString(), work_minutes: workMinutes };
-  writeJsonAtomic(ATTENDANCE_FILE, attendanceData);
-  res.json({ ok: true, work_minutes: workMinutes });
-});
-
-// 祝日管理API
+// ------------------------------------------------------------
+// 祝日
+// ------------------------------------------------------------
 app.get('/api/admin/holidays', (_req, res) => {
   try {
-    res.json({ 
-      ok: true, 
-      holidays: holidays 
-    });
-  } catch (error) {
-    console.error('Holidays API error:', error);
-    res.status(200).json({ 
-      ok: false, 
-      error: '祝日データの取得に失敗しました' 
-    });
+    res.json({ ok: true, holidays });
+  } catch {
+    res.status(200).json({ ok: false, error: '祝日データの取得に失敗しました' });
   }
 });
 
 app.get('/api/admin/holidays/:date', (req, res) => {
   try {
-    const { date } = req.params;
-    const isHoliday = holidays[date] !== undefined;
-    
-    res.json({ 
-      ok: true, 
-      date,
-      isHoliday,
-      holidayName: holidays[date] || null
-    });
-  } catch (error) {
-    console.error('Holiday check error:', error);
-    res.status(200).json({ 
-      ok: false, 
-      error: '祝日チェックに失敗しました' 
-    });
+    const d = req.params.date;
+    const isHoliday = holidays[d] !== undefined;
+    res.json({ ok: true, date: d, isHoliday, holidayName: holidays[d] || null });
+  } catch {
+    res.status(200).json({ ok: false, error: '祝日チェックに失敗しました' });
   }
 });
 
-// 週次レポートAPI
+// ------------------------------------------------------------
+// 週次レポート（attendanceData はフラットキー）
+// ------------------------------------------------------------
 app.get('/api/admin/weekly', (req, res) => {
-    try {
-      const { start } = req.query;
-      const startDate = start ? new Date(start as string) : new Date();
-      
-      // 週の開始日（月曜日）を計算
-      const dayOfWeek = startDate.getDay();
-      const monday = new Date(startDate);
-      monday.setDate(startDate.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-      
-      const weekData = [];
-      for (let i = 0; i < 7; i++) {
-        const date = new Date(monday);
-        date.setDate(monday.getDate() + i);
-        const dateStr = date.toISOString().slice(0, 10);
-        
-        const dayAttendance = attendanceData[dateStr] || {};
-        const dayEmployees = Object.values(dayAttendance);
-        
-        const summary = {
-          date: dateStr,
-          totalEmployees: employees.length,
-          presentEmployees: dayEmployees.length,
-          lateEmployees: dayEmployees.filter((emp: any) => emp.late > 0).length,
-          absentEmployees: employees.length - dayEmployees.length
-        };
-        
-        weekData.push(summary);
-      }
-      
-      res.json({ 
-        ok: true, 
-        weekData,
-        startDate: monday.toISOString().slice(0, 10)
-      });
-    } catch (error) {
-      console.error('Weekly report error:', error);
-      res.status(200).json({ 
-        ok: false, 
-        error: '週次レポートの取得に失敗しました' 
+  try {
+    const { start } = req.query;
+    const base = start ? new Date(String(start)) : new Date();
+    const dow = base.getDay(); // 0:日
+    const monday = new Date(base);
+    monday.setHours(0, 0, 0, 0);
+    monday.setDate(base.getDate() - (dow === 0 ? 6 : dow - 1));
+
+    const weekData: Array<{
+      date: string;
+      totalEmployees: number;
+      presentEmployees: number;
+      lateEmployees: number;
+      absentEmployees: number;
+    }> = [];
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      const dateStr = d.toISOString().slice(0, 10);
+
+      const dayEntries = Object.entries(attendanceData)
+        .filter(([k]) => k.startsWith(`${dateStr}-`))
+        .map(([, v]) => v as any);
+
+      const present = dayEntries.length;
+      const late = dayEntries.filter(rec => (rec.late ?? 0) > 0).length;
+
+      weekData.push({
+        date: dateStr,
+        totalEmployees: employees.length,
+        presentEmployees: present,
+        lateEmployees: late,
+        absentEmployees: Math.max(employees.length - present, 0),
       });
     }
-  });
 
-  // 月別備考取得API
-  app.get('/api/admin/remarks/:employeeCode', (req, res) => {
-    try {
-      const { employeeCode } = req.params;
-      const { month } = req.query;
-      
-      const targetMonth = month || new Date().toISOString().slice(0, 7); // YYYY-MM形式
-      const remarks = [];
-      
-      // 指定月の備考を取得
-      for (const [date, dayData] of Object.entries(attendanceData)) {
-        if (date.startsWith(targetMonth as string)) {
-          for (const [empCode, empData] of Object.entries(dayData)) {
-            if (empCode === employeeCode && (empData as any).remark) {
-              remarks.push({
-                date,
-                remark: (empData as any).remark
-              });
-            }
-          }
+    res.json({ ok: true, weekData, startDate: monday.toISOString().slice(0, 10) });
+  } catch {
+    res.status(200).json({ ok: false, error: '週次レポートの取得に失敗しました' });
+  }
+});
+
+// ------------------------------------------------------------
+// 月別備考（社員単位、YYYY-MM）
+// ------------------------------------------------------------
+app.get('/api/admin/remarks/:employeeCode', (req, res) => {
+  try {
+    const employeeCode = String(req.params.employeeCode);
+    const month = String((req.query.month as string) || new Date().toISOString().slice(0, 7)); // YYYY-MM
+    const out: Array<{ date: string; remark: string }> = [];
+
+    for (const [key, rec] of Object.entries(attendanceData)) {
+      if (!key.startsWith(month)) continue; // 'YYYY-MM' 前方一致
+      // key: YYYY-MM-DD-<code>
+      const parts = key.split('-');
+      if (parts.length < 4) continue;
+      const date = parts.slice(0, 3).join('-');
+      const code = parts.slice(3).join('-'); // コードに '-' を含まない前提
+      if (code === employeeCode && (rec as any).remark) {
+        out.push({ date, remark: String((rec as any).remark) });
+      }
+    }
+
+    res.json({ ok: true, employeeCode, month, remarks: out });
+  } catch {
+    res.status(200).json({ ok: false, error: '月別備考の取得に失敗しました' });
+  }
+});
+
+// ------------------------------------------------------------
+// バックアップ（作成・一覧・詳細・プレビュー・復元・削除・クリーンアップ）
+// ※ マスターページでは基本は「閲覧専用ボタン」を使う想定
+// ------------------------------------------------------------
+type BackupMeta = {
+  id: string;            // 例: 2025-10-12T16-40-59Z
+  createdAt: string;     // ISO
+  files: string[];       // 含まれるJSON
+  sizeBytes: number;     // 合計サイズ
+};
+ensureDir(BACKUP_DIR);
+
+function makeBackupId(d = new Date()): string {
+  return d.toISOString().replace(/[:.]/g, '-'); // ファイル名OKな形
+}
+
+app.post('/api/admin/backups', (_req, res) => {
+  try {
+    ensureDir(BACKUP_DIR);
+    const id = makeBackupId(new Date());
+    const dir = path.join(BACKUP_DIR, id);
+    ensureDir(dir);
+
+    // 現在の全データを取得
+    const snap = {
+      employees,
+      departments,
+      attendanceData,
+      remarksData,
+      holidays,
+    };
+
+    // データ保存
+    const dataFile = path.join(dir, 'snapshot.json');
+    writeFileSync(dataFile, JSON.stringify(snap, null, 2));
+
+    // メタ保存
+    const meta: BackupMeta = {
+      id,
+      createdAt: new Date().toISOString(),
+      files: ['snapshot.json'],
+      sizeBytes: statSync(dataFile).size,
+    };
+    writeFileSync(path.join(dir, 'meta.json'), JSON.stringify(meta, null, 2));
+
+    res.json({ ok: true, message: 'バックアップが正常に作成されました', backup: meta });
+  } catch (e) {
+    console.error('[BACKUP] create error', e);
+    res.status(200).json({ ok: false, error: 'バックアップ作成に失敗しました' });
+  }
+});
+
+app.get('/api/admin/backups', (_req, res) => {
+  try {
+    ensureDir(BACKUP_DIR);
+    const dirs = readdirSync(BACKUP_DIR, { withFileTypes: true })
+      .filter(d => d.isDirectory())
+      .map(d => d.name);
+
+    const metas: BackupMeta[] = [];
+    for (const id of dirs) {
+      const metaPath = path.join(BACKUP_DIR, id, 'meta.json');
+      if (!existsSync(metaPath)) continue;
+      const meta = safeReadJSON<BackupMeta>(metaPath, null as any);
+      if (meta) metas.push(meta);
+    }
+
+    // 新しい順
+    const ordered = sortBy(metas, m => m.id, true);
+
+    // 自動クリーン（最新10件を残す）
+    const keep = 10;
+    if (ordered.length > keep) {
+      for (const m of ordered.slice(keep)) {
+        const p = path.join(BACKUP_DIR, m.id);
+        try {
+          rmSync(p, { recursive: true, force: true });
+        } catch (e) {
+          console.warn('[BACKUP] auto-clean failed:', p, e);
         }
       }
-      
-      res.json({ 
-        ok: true, 
-        employeeCode,
-        month: targetMonth,
-        remarks
-      });
-    } catch (error) {
-      console.error('Monthly remarks error:', error);
-      res.status(200).json({ 
-        ok: false, 
-        error: '月別備考の取得に失敗しました' 
-      });
     }
-  });
 
-// SPAのルーティング（APIルート以外で index.html を返す）：
-app.get('*', (req, res) => {
+    res.json({ ok: true, backups: ordered.slice(0, keep) });
+  } catch (e) {
+    console.error('[BACKUP] list error', e);
+    res.status(200).json({ ok: false, error: 'バックアップ一覧の取得に失敗しました' });
+  }
+});
+
+app.get('/api/admin/backups/:id', (req, res) => {
+  try {
+    const id = req.params.id;
+    const meta = safeReadJSON<BackupMeta>(path.join(BACKUP_DIR, id, 'meta.json'), null as any);
+    if (!meta) return res.status(200).json({ ok: false, error: 'バックアップが見つかりません' });
+    res.json({ ok: true, backup: meta });
+  } catch {
+    res.status(200).json({ ok: false, error: 'バックアップ詳細の取得に失敗しました' });
+  }
+});
+
+app.get('/api/admin/backups/:id/preview', (req, res) => {
+  try {
+    const id = req.params.id;
+    const dataPath = path.join(BACKUP_DIR, id, 'snapshot.json');
+    if (!existsSync(dataPath)) return res.status(200).json({ ok: false, error: 'バックアップが見つかりません' });
+    const snap = safeReadJSON<any>(dataPath, null as any);
+    res.json({ ok: true, preview: snap, message: 'プレビューモード：データは復元されません' });
+  } catch {
+    res.status(200).json({ ok: false, error: 'バックアッププレビューに失敗しました' });
+  }
+});
+
+app.post('/api/admin/backups/:id/restore', (req, res) => {
+  try {
+    const id = req.params.id;
+    const dataPath = path.join(BACKUP_DIR, id, 'snapshot.json');
+    if (!existsSync(dataPath)) return res.status(200).json({ ok: false, error: 'バックアップが見つかりません' });
+
+    // 復元前に現在のスナップショットを別バックアップ（安全策）
+    const safeId = `pre-restore-${makeBackupId(new Date())}`;
+    const safeDir = path.join(BACKUP_DIR, safeId);
+    ensureDir(safeDir);
+    writeFileSync(
+      path.join(safeDir, 'snapshot.json'),
+      JSON.stringify({ employees, departments, attendanceData, remarksData, holidays }, null, 2),
+    );
+    writeFileSync(
+      path.join(safeDir, 'meta.json'),
+      JSON.stringify(
+        {
+          id: safeId,
+          createdAt: new Date().toISOString(),
+          files: ['snapshot.json'],
+          sizeBytes: statSync(path.join(safeDir, 'snapshot.json')).size,
+        } satisfies BackupMeta,
+        null,
+        2,
+      ),
+    );
+
+    // 復元
+    const snap = safeReadJSON<any>(dataPath, null as any);
+    if (!snap) return res.status(200).json({ ok: false, error: 'バックアップが破損しています' });
+
+    // メモリ上を書き換え
+    employees.splice(0, employees.length, ...(snap.employees || []));
+    departments.splice(0, departments.length, ...(snap.departments || []));
+    Object.keys(attendanceData).forEach(k => delete attendanceData[k]);
+    Object.assign(attendanceData, snap.attendanceData || {});
+    Object.keys(remarksData).forEach(k => delete remarksData[k]);
+    Object.assign(remarksData, snap.remarksData || {});
+    Object.keys(holidays).forEach(k => delete holidays[k]);
+    Object.assign(holidays, snap.holidays || {});
+    // 部署インデックス再構築
+    deptIndex.clear();
+    for (const d of departments) deptIndex.set(d.id, d);
+
+    // ファイルに保存
+    writeJsonAtomic(EMPLOYEES_FILE, employees);
+    writeJsonAtomic(DEPARTMENTS_FILE, departments);
+    writeJsonAtomic(ATTENDANCE_FILE, attendanceData);
+    writeJsonAtomic(REMARKS_FILE, remarksData);
+    writeJsonAtomic(HOLIDAYS_FILE, holidays);
+
+    res.json({ ok: true, message: `バックアップ ${id} から復元しました` });
+  } catch (e) {
+    console.error('[BACKUP] restore error', e);
+    res.status(200).json({ ok: false, error: 'バックアップ復元に失敗しました' });
+  }
+});
+
+app.delete('/api/admin/backups/:id', (req, res) => {
+  try {
+    const id = req.params.id;
+    const dir = path.join(BACKUP_DIR, id);
+    if (!existsSync(dir)) return res.status(200).json({ ok: false, error: 'バックアップが見つかりません' });
+    rmSync(dir, { recursive: true, force: true });
+    res.json({ ok: true, message: `バックアップ ${id} を削除しました` });
+  } catch {
+    res.status(200).json({ ok: false, error: 'バックアップ削除に失敗しました' });
+  }
+});
+
+app.post('/api/admin/backups/cleanup', (_req, res) => {
+  try {
+    ensureDir(BACKUP_DIR);
+    const dirs = readdirSync(BACKUP_DIR, { withFileTypes: true })
+      .filter(d => d.isDirectory())
+      .map(d => d.name);
+
+    const metas: BackupMeta[] = [];
+    for (const id of dirs) {
+      const metaPath = path.join(BACKUP_DIR, id, 'meta.json');
+      if (!existsSync(metaPath)) continue;
+      const meta = safeReadJSON<BackupMeta>(metaPath, null as any);
+      if (meta) metas.push(meta);
+    }
+    const ordered = sortBy(metas, m => m.id, true);
+    const keep = 10;
+    for (const m of ordered.slice(keep)) {
+      const p = path.join(BACKUP_DIR, m.id);
+      try {
+        rmSync(p, { recursive: true, force: true });
+      } catch (e) {
+        console.warn('[BACKUP] cleanup failed:', p, e);
+      }
+    }
+    res.json({ ok: true, kept: ordered.slice(0, keep).map(m => m.id) });
+  } catch {
+    res.status(200).json({ ok: false, error: 'バックアップクリーンアップに失敗しました' });
+  }
+});
+
+// ------------------------------------------------------------
+// SPA フォールバック（/api 以外を index.html に）
+// ------------------------------------------------------------
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api/')) return next();
   const indexHtmlPath = path.resolve(FRONTEND_PATH, 'index.html');
-  
   if (existsSync(indexHtmlPath)) {
-    res.sendFile(indexHtmlPath, (err) => {
+    res.sendFile(indexHtmlPath, err => {
       if (err) {
-        console.error(`[SPA FALLBACK] Error sending index.html for ${req.path}:`, err);
-        res.status(500).json({
-          error: 'Failed to serve application',
-          message: 'Internal server error',
-          path: req.path
-        });
+        console.error('[SPA] sendFile error:', err);
+        res.status(500).json({ ok: false, error: 'Failed to serve application' });
       }
     });
   } else {
-    console.error(`[SPA FALLBACK] index.html not found at: ${indexHtmlPath}`);
     res.status(404).json({
+      ok: false,
       error: 'Application not found',
-      message: 'Frontend application is not built. Please run: cd frontend && npm run build',
-      path: req.path
+      message: 'Frontend not built. Run: cd frontend && npm run build',
+      path: req.path,
     });
   }
 });
 
-// ---- 起動 ----
+// ------------------------------------------------------------
+// エラーハンドラ（最後）
+// ------------------------------------------------------------
+app.use((err: any, _req: any, res: any, _next: any) => {
+  console.error('[GLOBAL ERROR]', err);
+  res.status(200).json({ ok: false, error: 'Internal server error' });
+});
+
+// ------------------------------------------------------------
+// 起動
+// ------------------------------------------------------------
 const HOST = process.env.HOST || '127.0.0.1';
-const PORT = Number(process.env.PORT) || 8001; // 環境変数から読み込み、デフォルトは8001
+const PORT = Number(process.env.PORT) || 8001;
 
 const server = app.listen(PORT, HOST, () => {
   console.log(`ℹ️ Backend server running on http://${HOST}:${PORT}`);
 });
 
-// グローバルエラーハンドラー
-app.use((err: any, _req: any, res: any, _next: any) => {
-  console.error('[GLOBAL ERROR]', err);
-  res.status(200).json({
-    ok: false,
-    error: 'Internal server error',
-    message: 'An unexpected error occurred'
-  });
-});
-
-// 404ハンドラー
-app.use('*', (req, res) => {
-  console.log(`[404] ${req.method} ${req.originalUrl} - ${req.ip}`);
-  res.status(200).json({
-    ok: false,
-    error: 'Not found',
-    message: `Route ${req.method} ${req.originalUrl} not found`
-  });
-});
-
 process.on('SIGINT', () => server.close(() => process.exit(0)));
 process.on('SIGTERM', () => server.close(() => process.exit(0)));
-
 
 export default app;
