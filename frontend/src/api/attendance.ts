@@ -158,9 +158,9 @@ export const updateEmployee = async (originalCode: string, data: {code: string, 
 };
 
 // 社員削除
-export const deleteEmployee = async (id: number): Promise<ApiResponse> => {
+export const deleteEmployee = async (code: string): Promise<ApiResponse> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/admin/employees/${id}`, {
+    const response = await fetch(`${API_BASE_URL}/admin/employees/${encodeURIComponent(code)}`, {
       method: 'DELETE',
     });
     if (!response.ok) {

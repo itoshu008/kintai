@@ -176,6 +176,71 @@ export default function MasterPage() {
     await loadEmployees();
   }, [loadKey, loadOnce, loadEmployees]);
 
+  // 社員編集関数
+  const onEditEmployee = useCallback(async (row: any) => {
+    const newName = prompt('新しい氏名', row.name);
+    if (newName == null) return;
+    
+    const newDeptId = Number(prompt('部署ID（空=変更なし）', row.department_id ?? '')) || row.department_id ?? null;
+    
+    try {
+      const result = await api.updateEmployee(row.code, { 
+        name: newName, 
+        department_id: newDeptId, 
+        code: row.code 
+      });
+      
+      if (!result.ok) {
+        alert(result.error || '更新失敗');
+        return;
+      }
+      
+      setMsg('✅ 社員情報を更新しました');
+      await loadOnce(loadKey);
+    } catch (error: any) {
+      alert(error.message || '更新エラー');
+    }
+  }, [loadKey, loadOnce]);
+
+  // 社員削除関数
+  const onDeleteEmployee = useCallback(async (row: any) => {
+    if (!confirm(`${row.name}（${row.code}）を削除しますか？`)) return;
+    
+    try {
+      const result = await api.deleteEmployee(row.code);
+      
+      if (!result.ok) {
+        alert(result.error || '削除失敗');
+        return;
+      }
+      
+      setMsg('✅ 社員を削除しました');
+      await loadOnce(loadKey);
+    } catch (error: any) {
+      alert(error.message || '削除エラー');
+    }
+  }, [loadKey, loadOnce]);
+
+  // 備考編集関数
+  const onEditRemark = useCallback(async (row: any) => {
+    const remark = prompt('備考を入力', row.remark || '');
+    if (remark == null) return;
+    
+    try {
+      const result = await api.saveRemark(row.code, date, remark);
+      
+      if (!result.ok) {
+        alert(result.error || '備考保存失敗');
+        return;
+      }
+      
+      setMsg('✅ 備考を保存しました');
+      await loadOnce(loadKey);
+    } catch (error: any) {
+      alert(error.message || '備考保存エラー');
+    }
+  }, [date, loadKey, loadOnce]);
+
   // ▼ 「この1本だけ」で読み込む。依存は loadKey のみ！
   useEffect(() => {
     loadOnce(loadKey);
@@ -1835,6 +1900,60 @@ export default function MasterPage() {
                   }}
                 >
                   編集
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteEmployee(r);
+                  }}
+                  disabled={isPreview}
+                  title={isPreview ? 'プレビューモード中は削除できません' : '社員を削除'}
+                  style={{
+                    background: isPreview ? '#6c757d' : '#dc3545',
+                    border: 'none',
+                    borderRadius: '4px',
+                    padding: '4px 8px',
+                    cursor: isPreview ? 'not-allowed' : 'pointer',
+                    fontSize: '12px',
+                    color: 'white',
+                    transition: 'all 0.2s ease',
+                    opacity: isPreview ? 0.6 : 1
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isPreview) e.currentTarget.style.background = '#c82333';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isPreview) e.currentTarget.style.background = '#dc3545';
+                  }}
+                >
+                  削除
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEditRemark(r);
+                  }}
+                  disabled={isPreview}
+                  title={isPreview ? 'プレビューモード中は備考編集できません' : '備考を編集'}
+                  style={{
+                    background: isPreview ? '#6c757d' : '#17a2b8',
+                    border: 'none',
+                    borderRadius: '4px',
+                    padding: '4px 8px',
+                    cursor: isPreview ? 'not-allowed' : 'pointer',
+                    fontSize: '12px',
+                    color: 'white',
+                    transition: 'all 0.2s ease',
+                    opacity: isPreview ? 0.6 : 1
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isPreview) e.currentTarget.style.background = '#138496';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isPreview) e.currentTarget.style.background = '#17a2b8';
+                  }}
+                >
+                  備考
                 </button>
               </div>
             ))}
