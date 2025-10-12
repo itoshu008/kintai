@@ -1015,7 +1015,8 @@ export default function MasterPage() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    startEditEmployee(r);
+                    console.log('編集ボタンクリック:', r, 'isPreview:', isPreview);
+                    onEditEmployee(r);
                   }}
                   disabled={isPreview}
                   title={isPreview ? 'プレビューモード中は編集できません' : '社員情報を編集'}
@@ -1037,11 +1038,12 @@ export default function MasterPage() {
                     if (!isPreview) e.currentTarget.style.background = '#ffc107';
                   }}
                 >
-                  {isPreview ? '🔒' : '✏️'} 編集
+                  {isPreview ? '🔒' : '✏️'} 編集 {isPreview ? '(無効)' : '(有効)'}
                 </button>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
+                    console.log('削除ボタンクリック:', r, 'isPreview:', isPreview);
                     onDeleteEmployee(r);
                   }}
                   disabled={isPreview}
@@ -1069,6 +1071,7 @@ export default function MasterPage() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
+                    console.log('備考ボタンクリック:', r, 'isPreview:', isPreview);
                     onEditRemark(r);
                   }}
                   disabled={isPreview}
