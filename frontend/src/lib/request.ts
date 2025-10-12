@@ -3,11 +3,15 @@ import { extractErrorMessageFromHtml, handleApiError } from '../utils/errorHandl
 
 export async function request(input: string, init?: RequestInit) {
   try {
+    console.log(`[API REQUEST] ${init?.method || 'GET'} ${input}`);
+    
     const res = await fetch(input, {
       credentials: "include", // セッション管理のために有効化
       headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
       ...init,
     });
+
+    console.log(`[API RESPONSE] ${res.status} ${res.statusText} for ${input}`);
 
     // ステータスコードをチェック
     if (!res.ok) {
@@ -17,6 +21,8 @@ export async function request(input: string, init?: RequestInit) {
 
     // Content-TypeをチェックしてJSONレスポンスを検証
     const contentType = res.headers.get('content-type');
+    console.log(`[API CONTENT TYPE] ${contentType} for ${input}`);
+    
     if (!contentType || !contentType.includes('application/json')) {
       const errorText = await res.text();
       console.error('[API CONTENT TYPE ERROR]', {

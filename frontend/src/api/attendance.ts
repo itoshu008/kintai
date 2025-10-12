@@ -1,7 +1,7 @@
 // src/api/attendance.ts
 import { MasterRow, Department, Employee, ApiResponse, ClockResponse, HealthResponse, AttendanceRecord } from '../types/attendance';
 
-// APIのベースURL（プロキシ経由で相対パスを使用）
+// APIのベースURL（8001番ポートで統一）
 const API_BASE_URL = '/api';
 
 // ヘルスチェックAPI
@@ -364,4 +364,29 @@ export const deleteSession = async (sessionId: string): Promise<ApiResponse> => 
     console.error('Error deleting session:', error);
     return { ok: false, error: (error as Error).message };
   }
+};
+
+// APIオブジェクト（AuthContextで使用）
+export const api = {
+  saveSession,
+  getSession,
+  deleteSession,
+  healthCheck,
+  fetchDepartments,
+  createDepartment,
+  updateDepartment,
+  deleteDepartment,
+  fetchEmployees,
+  fetchEmployee,
+  createEmployee,
+  updateEmployee,
+  deleteEmployee,
+  fetchMasterData,
+  clockIn,
+  clockOut,
+  saveAttendanceRecord,
+  saveRemark,
+  getRemark,
+  fetchHolidays,
+  checkHoliday
 };

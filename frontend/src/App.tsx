@@ -68,7 +68,9 @@ export default function App() {
           <Routes>
             <Route path="/" element={<LoginPage />} />
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/admin-dashboard-2024" element={<MasterPage />} />
+            <Route path="/m" element={<MasterPage />} />
+            <Route path="/master" element={<MasterPage />} />
+            <Route path="/p" element={<PersonalPage />} />
             <Route path="/personal" element={<PersonalPage />} />
             <Route path="/cursor-command" element={<CursorCommandPage />} />
             {/* 存在しないパスはログインページにリダイレクト */}

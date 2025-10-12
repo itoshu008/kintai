@@ -10,12 +10,12 @@ module.exports = {
       cwd: './',
       instances: 1,
       exec_mode: 'fork',
-      env: {
-        NODE_ENV: 'production',
-        PORT: 8001,
-        HOST: '127.0.0.1',
-        TZ: 'Asia/Tokyo'
-      },
+          env: {
+            NODE_ENV: 'production',
+            PORT: 8001,
+            HOST: '0.0.0.0',
+            TZ: 'Asia/Tokyo'
+          },
       env_development: {
         NODE_ENV: 'development',
         PORT: 8001,

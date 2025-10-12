@@ -11,6 +11,27 @@ import { writeJsonAtomic } from './helpers/writeJsonAtomic.js';
 const app = express();
 app.use(express.json());
 
+// __dirnameの定義
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// ---- 静的配信（SPA）- APIルートより前に配置 ----
+const FRONTEND_PATH =
+  process.env.FRONTEND_PATH
+    ? path.resolve(process.env.FRONTEND_PATH)
+    : path.resolve(__dirname, '..', '..', 'frontend', 'dist');
+
+if (existsSync(FRONTEND_PATH)) {
+  app.use(express.static(FRONTEND_PATH, {
+    index: ['index.html'],
+    dotfiles: 'ignore',
+    etag: false,
+    lastModified: false,
+    maxAge: 0
+  }));
+  console.log(`[STATIC] Frontend files served from: ${FRONTEND_PATH}`);
+}
+
 // ---- 基本ヘルス ----
 app.get('/__ping', (_req, res) => res.type('text/plain').send('pong'));
 app.get('/api/health', (_req, res) =>
@@ -157,8 +178,6 @@ app.delete('/api/admin/sessions/:sessionId', (req, res) => {
 });
 
 // ---- ここから互換ミニ版：データ読み取りだけ実装 ----
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const EMPLOYEES_FILE = path.join(DATA_DIR, 'employees.json');
@@ -760,59 +779,44 @@ app.post('/api/public/clock-out', (req, res) => {
   res.json({ ok: true, work_minutes: workMinutes });
 });
 
-// ---- 静的配信（SPA） ----
-const FRONTEND_PATH =
-  process.env.FRONTEND_PATH
-    ? path.resolve(process.env.FRONTEND_PATH)
-    : path.resolve(__dirname, '..', '..', 'frontend', 'dist');
+// 祝日管理API
+app.get('/api/admin/holidays', (_req, res) => {
+  try {
+    res.json({ 
+      ok: true, 
+      holidays: holidays 
+    });
+  } catch (error) {
+    console.error('Holidays API error:', error);
+    res.status(200).json({ 
+      ok: false, 
+      error: '祝日データの取得に失敗しました' 
+    });
+  }
+});
 
-if (existsSync(FRONTEND_PATH)) {
-  app.use(express.static(FRONTEND_PATH, {
-    index: ['index.html'],
-    dotfiles: 'ignore',
-    etag: false,
-    lastModified: false,
-    maxAge: 0
-  }));
+app.get('/api/admin/holidays/:date', (req, res) => {
+  try {
+    const { date } = req.params;
+    const isHoliday = holidays[date] !== undefined;
+    
+    res.json({ 
+      ok: true, 
+      date,
+      isHoliday,
+      holidayName: holidays[date] || null
+    });
+  } catch (error) {
+    console.error('Holiday check error:', error);
+    res.status(200).json({ 
+      ok: false, 
+      error: '祝日チェックに失敗しました' 
+    });
+  }
+});
 
-  // 祝日管理API
-  app.get('/api/admin/holidays', (_req, res) => {
-    try {
-      res.json({ 
-        ok: true, 
-        holidays: holidays 
-      });
-    } catch (error) {
-      console.error('Holidays API error:', error);
-      res.status(200).json({ 
-        ok: false, 
-        error: '祝日データの取得に失敗しました' 
-      });
-    }
-  });
-
-  app.get('/api/admin/holidays/:date', (req, res) => {
-    try {
-      const { date } = req.params;
-      const isHoliday = holidays[date] !== undefined;
-      
-      res.json({ 
-        ok: true, 
-        date,
-        isHoliday,
-        holidayName: holidays[date] || null
-      });
-    } catch (error) {
-      console.error('Holiday check error:', error);
-      res.status(200).json({ 
-        ok: false, 
-        error: '祝日チェックに失敗しました' 
-      });
-    }
-  });
-
-  // 週次レポートAPI
-  app.get('/api/admin/weekly', (req, res) => {
+// 週次レポートAPI
+app.get('/api/admin/weekly', (req, res) => {
     try {
       const { start } = req.query;
       const startDate = start ? new Date(start as string) : new Date();
@@ -895,15 +899,12 @@ if (existsSync(FRONTEND_PATH)) {
   });
 
   // SPAのルーティング：/api 以外は index.html
-  app.get('*', (req, res) => {
-    if (req.path.startsWith('/api/')) {
-      return res.status(200).json({ error: 'API endpoint not implemented' });
-    }
-    res.sendFile(path.resolve(FRONTEND_PATH, 'index.html'));
-  });
-} else {
-  console.warn('⚠️ FRONTEND not found:', FRONTEND_PATH);
-}
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/api/')) {
+    return res.status(200).json({ error: 'API endpoint not implemented' });
+  }
+  res.sendFile(path.resolve(FRONTEND_PATH, 'index.html'));
+});
 
 // ---- 起動 ----
 const HOST = process.env.HOST || '127.0.0.1';
