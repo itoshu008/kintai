@@ -251,39 +251,23 @@ export async function deleteEmployee(code: string): Promise<ApiResponse<{ employ
 }
 
 // 社員更新
-export const updateEmployee = async (originalCode: string, data: {code: string, name: string, department_id: number}): Promise<ApiResponse<Employee>> => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/admin/employees/${originalCode}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to update employee');
-    }
-    const result: ApiResponse<Employee> = await response.json();
-    return result;
-  } catch (error) {
-    console.error('Error updating employee:', error);
-    return { ok: false, error: (error as Error).message };
-  }
+export const updateEmployee = async (originalCode: string, data: {name: string, department_id: number, code?: string}): Promise<ApiResponse<Employee>> => {
+  const res = await fetch(`${API_BASE_URL}/admin/employees/${encodeURIComponent(originalCode)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data), // { name, department_id, 変更するなら code }
+  });
+  if (!res.ok) throw new Error(`${res.status}  for ${res.url}`);
+  return res.json();
 };
 
 // 社員削除
 export const deleteEmployee = async (code: string): Promise<ApiResponse> => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/admin/employees/${encodeURIComponent(code)}`, {
-      method: 'DELETE',
-    });
-    if (!response.ok) {
-      throw new Error('Failed to delete employee');
-    }
-    const data: ApiResponse = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Error deleting employee:', error);
-    return { ok: false, error: (error as Error).message };
-  }
+  const res = await fetch(`${API_BASE_URL}/admin/employees/${encodeURIComponent(code)}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error(`${res.status}  for ${res.url}`);
+  return res.json();
 };
 
 // ========================
