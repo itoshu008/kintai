@@ -89,31 +89,6 @@ app.get('/api/admin', (req, res) => {
   }
 });
 
-// 部署管理API
-app.get('/api/admin/departments', (req, res) => {
-  try {
-    console.log(`[API] GET /api/admin/departments - ${req.ip} - ${new Date().toISOString()}`);
-    
-    // 部署データの読み込み
-    const departmentsData = readFileSync(DEPARTMENTS_FILE, 'utf8');
-    const departments = JSON.parse(departmentsData);
-    
-    res.status(200).json({
-      ok: true,
-      list: departments,
-      count: departments.length,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('[API ERROR] /api/admin/departments:', error);
-    res.status(200).json({
-      ok: false,
-      error: '部署一覧の取得に失敗しました',
-      message: 'Internal server error',
-      timestamp: new Date().toISOString()
-    });
-  }
-});
 
 // セッション管理API
 const sessions = new Map<string, { user: any; createdAt: Date; expiresAt: Date }>();
