@@ -58,27 +58,27 @@ async function handleResponse<T>(response: Response): Promise<T> {
 
 const api = {
   master: (date: string, signal?: AbortSignal) => 
-    fetch(`${API_BASE_URL}/master?date=${date}`, { signal }).then(res => handleResponse<{ list: MasterRow[] }>(res)),
+    fetch(`${API_BASE_URL}/admin/master?date=${date}`, { signal }).then(res => handleResponse<{ list: MasterRow[] }>(res)),
 
   fetchEmployees: () => 
-    fetch(`${API_BASE_URL}/employees`).then(res => handleResponse<{ ok: boolean; list: MasterRow[] }>(res)),
+    fetch(`${API_BASE_URL}/admin/employees`).then(res => handleResponse<{ ok: boolean; list: MasterRow[] }>(res)),
   
   createEmployee: (code: string, name: string, department_id?: number) => 
-    fetch(`${API_BASE_URL}/employees`, {
+    fetch(`${API_BASE_URL}/admin/employees`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code, name, department_id }),
     }).then(res => handleResponse<{ ok: boolean; error?: string }>(res)),
 
   updateEmployee: (currentCode: string, data: { code: string; name: string; department_id?: number }) =>
-    fetch(`${API_BASE_URL}/employees/${currentCode}`, {
+    fetch(`${API_BASE_URL}/admin/employees/${currentCode}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     }).then(res => handleResponse<{ ok: boolean; error?: string }>(res)),
 
-  deleteEmployee: (employeeId: number) =>
-    fetch(`${API_BASE_URL}/employees/${employeeId}`, { method: 'DELETE' }).then(res => handleResponse<{ ok: boolean; error?: string }>(res)),
+  deleteEmployee: (code: string) =>
+    fetch(`${API_BASE_URL}/admin/employees/${encodeURIComponent(code)}`, { method: 'DELETE' }).then(res => handleResponse<{ ok: boolean; error?: string }>(res)),
 
   clockIn: (code: string) =>
     fetch(`${API_BASE_URL}/clock/in`, {
@@ -103,31 +103,31 @@ const api = {
     }).then(res => handleResponse<{ ok: boolean, message?: string, error?: string }>(res)),
 
   saveRemark: (code: string, date: string, remark: string) =>
-    fetch(`${API_BASE_URL}/remarks`, {
+    fetch(`${API_BASE_URL}/admin/remarks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, date, remark }),
+      body: JSON.stringify({ employeeCode: code, date, remark }),
     }).then(handleResponse),
 
   listDepartments: () =>
-    fetch(`${API_BASE_URL}/departments`).then(res => handleResponse<{ ok: boolean; departments: Department[] }>(res)),
+    fetch(`${API_BASE_URL}/admin/departments`).then(res => handleResponse<{ ok: boolean; departments: Department[] }>(res)),
   
   createDepartment: (name: string) =>
-    fetch(`${API_BASE_URL}/departments`, {
+    fetch(`${API_BASE_URL}/admin/departments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
     }).then(res => handleResponse<{ ok: boolean; error?: string }>(res)),
 
   updateDepartment: (id: number, name: string) =>
-    fetch(`${API_BASE_URL}/departments/${id}`, {
+    fetch(`${API_BASE_URL}/admin/departments/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
     }).then(res => handleResponse<{ ok: boolean; error?: string }>(res)),
 
   deleteDepartment: (id: number) =>
-    fetch(`${API_BASE_URL}/departments/${id}`, { method: 'DELETE' }).then(res => handleResponse<{ ok: boolean; error?: string }>(res)),
+    fetch(`${API_BASE_URL}/admin/departments/${id}`, { method: 'DELETE' }).then(res => handleResponse<{ ok: boolean; error?: string }>(res)),
 };
 
 const backupApi = {
@@ -208,17 +208,17 @@ const calcLegalOvertime = (clockIn?: string | null, clockOut?: string | null) =>
 };
 
 const calcIllegalOvertime = (clockIn?: string | null, clockOut?: string | null) => {
-    if (!clockIn || !clockOut) return '0:00';
-    const start = new Date(clockIn);
-    const end = new Date(clockOut);
+  if (!clockIn || !clockOut) return '0:00';
+  const start = new Date(clockIn);
+  const end = new Date(clockOut);
     if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) return '0:00';
 
     const totalMinutes = Math.floor((end.getTime() - start.getTime()) / 60000);
-    const illegalOvertimeMinutes = Math.max(0, totalMinutes - 630);
-    const hours = Math.floor(illegalOvertimeMinutes / 60);
-    const minutes = illegalOvertimeMinutes % 60;
-    const z = (n: number) => String(n).padStart(2, '0');
-    return `${hours}:${z(minutes)}`;
+  const illegalOvertimeMinutes = Math.max(0, totalMinutes - 630);
+  const hours = Math.floor(illegalOvertimeMinutes / 60);
+  const minutes = illegalOvertimeMinutes % 60;
+  const z = (n: number) => String(n).padStart(2, '0');
+  return `${hours}:${z(minutes)}`;
 };
 
 const calcNightWorkTime = (clockIn?: string | null, clockOut?: string | null) => {
@@ -324,6 +324,18 @@ export default function MasterPage() {
       setLoading(false);
     }
   }, []);
+
+  const loadEmployees = useCallback(async () => {
+    try {
+      const res = await api.fetchEmployees();
+      if (res.ok && res.list) {
+        setData(res.list);
+        setMsg('');
+      }
+    } catch (e: any) {
+      setMsg(`❌ 社員一覧取得エラー: ${e.message}`);
+    }
+  }, []);
   
   const loadDeps = useCallback(async () => {
     try {
@@ -399,10 +411,11 @@ export default function MasterPage() {
       
       setMsg('✅ 社員情報を更新しました');
       await loadOnce(loadKey);
+      await loadEmployees();
     } catch (error: any) {
       alert(error.message || '更新エラー');
     }
-  }, [loadKey, loadOnce]);
+  }, [loadKey, loadOnce, loadEmployees]);
 
   // 社員削除関数
   const onDeleteEmployee = useCallback(async (row: any) => {
@@ -418,10 +431,11 @@ export default function MasterPage() {
       
       setMsg('✅ 社員を削除しました');
       await loadOnce(loadKey);
+      await loadEmployees();
     } catch (error: any) {
       alert(error.message || '削除エラー');
     }
-  }, [loadKey, loadOnce]);
+  }, [loadKey, loadOnce, loadEmployees]);
 
   // 備考編集関数
   const onEditRemark = useCallback(async (row: any) => {
@@ -438,10 +452,11 @@ export default function MasterPage() {
       
       setMsg('✅ 備考を保存しました');
       await loadOnce(loadKey);
+      await loadEmployees();
     } catch (error: any) {
       alert(error.message || '備考保存エラー');
     }
-  }, [date, loadKey, loadOnce]);
+  }, [date, loadKey, loadOnce, loadEmployees]);
 
   // ▼ 「この1本だけ」で読み込む。依存は loadKey のみ！
   useEffect(() => {
@@ -654,13 +669,22 @@ export default function MasterPage() {
     }
     try {
       const deptId = deps.find(d => d.name === newDepartment.trim())?.id;
-      await api.createEmployee(newCode.trim(), newName.trim(), deptId);
+      const result = await api.createEmployee(newCode.trim(), newName.trim(), deptId);
+      
+      if (!result.ok) {
+        setMsg(`❌ 社員登録エラー: ${result.error || '登録に失敗しました'}`);
+        return;
+      }
+      
       setMsg('✅ 社員を登録しました');
       setNewCode('');
       setNewName('');
       setNewDepartment('');
       setShowEmployeeRegistration(false);
+      
+      // データを再取得
       await loadOnce(loadKey);
+      await loadEmployees();
     } catch (e: any) {
       setMsg(`❌ 社員登録エラー: ${e.message}`);
     }
@@ -703,8 +727,8 @@ export default function MasterPage() {
       setLoading(true);
       await api.deleteEmployee(deleteTargetEmployee.id);
       setMsg(`✅ 社員「${deleteTargetEmployee.name}」を削除しました`);
-      setDeleteTargetEmployee(null);
-      setShowEmployeeDeleteMenu(false);
+        setDeleteTargetEmployee(null);
+        setShowEmployeeDeleteMenu(false);
       await loadOnce(loadKey);
     } catch (e: any) {
       setMsg(`❌ 削除エラー: ${e.message}`);
@@ -712,7 +736,7 @@ export default function MasterPage() {
       setLoading(false);
     }
   };
-  
+
   // 部署作成
   const onCreateDepartment = async () => {
     if (!newDeptName.trim()) {
@@ -748,7 +772,7 @@ export default function MasterPage() {
     try {
       await api.deleteDepartment(id);
       setMsg(`✅ 部署「${name}」を削除しました`);
-      await loadDeps();
+        await loadDeps();
       await loadOnce(loadKey); // 社員一覧も更新
     } catch (e: any) {
       setMsg(`❌ 部署削除エラー: ${e.message}`);
@@ -797,7 +821,7 @@ export default function MasterPage() {
 
   // バックアップ関連
   const loadBackups = useCallback(async () => {
-    setBackupLoading(true);
+      setBackupLoading(true);
     try {
       const res = await backupApi.getBackups();
       if(res.ok) setBackups(res.backups || []);
@@ -809,7 +833,7 @@ export default function MasterPage() {
   }, []);
 
   const createManualBackup = async () => {
-    setBackupLoading(true);
+      setBackupLoading(true);
     try {
       const res = await backupApi.createBackup();
       if(res.ok) {
@@ -822,10 +846,10 @@ export default function MasterPage() {
       setBackupLoading(false);
     }
   };
-  
+
   const deleteBackup = async (backupName: string) => {
     if(!confirm(`バックアップ「${backupName}」を削除しますか？`)) return;
-    setBackupLoading(true);
+      setBackupLoading(true);
     try {
       await backupApi.deleteBackup(backupName);
       setMsg(`✅ バックアップを削除しました`);
@@ -836,7 +860,7 @@ export default function MasterPage() {
       setBackupLoading(false);
     }
   };
-  
+
   const startPreview = async (backupId: string) => {
     setLoading(true);
     try {
@@ -923,7 +947,7 @@ export default function MasterPage() {
           </div>
         </div>
       </div>
-      
+
       {/* ================= プレビューバナー ================= */}
       {isPreview && (
         <div style={{ background: '#ffc107', color: '#333', padding: '16px', marginBottom: '24px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1019,10 +1043,10 @@ export default function MasterPage() {
                   }}
                   disabled={isPreview}
                   title={isPreview ? 'プレビューモード中は削除できません' : '社員を削除'}
-                  style={{
+              style={{
                     background: isPreview ? '#6c757d' : '#dc3545',
                     border: 'none',
-                    borderRadius: '4px',
+                              borderRadius: '4px',
                     padding: '4px 8px',
                     cursor: isPreview ? 'not-allowed' : 'pointer',
                     fontSize: '12px',
@@ -1068,8 +1092,8 @@ export default function MasterPage() {
                 </button>
               </div>
             ))}
+            </div>
           </div>
-        </div>
 
         {/* 右カラム: 月別勤怠詳細 */}
         <div style={{ background: 'white', borderRadius: '8px', padding: '24px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
@@ -1121,15 +1145,15 @@ export default function MasterPage() {
                     })}
                   </tbody>
                 </table>
-              </div>
+                </div>
             </>
           ) : (
             <div style={{ textAlign: 'center', color: '#888', padding: '40px' }}>
               <p style={{fontSize: '18px'}}>社員を選択してください</p>
+              </div>
+            )}
             </div>
-          )}
-        </div>
-      </div>
+          </div>
       
       {/* ================= モーダル群 ================= */}
       {showTimeEditModal && editingTimeData && (
@@ -1147,7 +1171,7 @@ export default function MasterPage() {
                 setEditingTimeData(prev => prev ? {...prev, clockIn: newTime} : null);
               }}
             />
-          </div>
+            </div>
           <div style={{ marginBottom: '16px' }}>
             <label>退勤時間:</label>
             <input type="time" style={modalInputStyle}
@@ -1162,8 +1186,8 @@ export default function MasterPage() {
             <button onClick={() => setShowTimeEditModal(false)} style={modalButtonStyle}>キャンセル</button>
             <button onClick={saveTimeEdit} disabled={loading} style={{...modalButtonStyle, background: '#007bff'}}>
               {loading ? '保存中...' : '保存'}
-            </button>
-          </div>
+              </button>
+            </div>
         </Modal>
       )}
 
@@ -1172,7 +1196,7 @@ export default function MasterPage() {
           <div style={{display: 'flex', gap: '8px', marginBottom: '16px'}}>
             <input value={newDeptName} onChange={e => setNewDeptName(e.target.value)} placeholder="新しい部署名" style={{...modalInputStyle, flex: 1}} />
             <button onClick={onCreateDepartment} style={{...modalButtonStyle, background: '#28a745'}}>追加</button>
-          </div>
+                </div>
           <div style={{maxHeight: '300px', overflowY: 'auto'}}>
             {currentDeps.map(d => (
               <div key={d.id} style={{display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', borderBottom: '1px solid #eee'}}>
@@ -1189,9 +1213,9 @@ export default function MasterPage() {
                     <button onClick={() => onDeleteDepartment(d.id, d.name)} style={{...modalButtonStyle, background: '#dc3545'}}>削除</button>
                   </>
                 )}
-              </div>
-            ))}
-          </div>
+                    </div>
+                  ))}
+                </div>
         </Modal>
       )}
       
@@ -1206,7 +1230,7 @@ export default function MasterPage() {
           <div style={{textAlign: 'right'}}>
             <button onClick={() => setShowEmployeeRegistration(false)} style={modalButtonStyle}>キャンセル</button>
             <button onClick={onCreate} style={{...modalButtonStyle, background: '#28a745'}}>登録</button>
-          </div>
+            </div>
         </Modal>
       )}
 
@@ -1243,11 +1267,11 @@ export default function MasterPage() {
                 </div>
               </div>
             ))}
-          </div>
+              </div>
         </Modal>
       )}
 
-    </div>
+              </div>
   );
 }
 
@@ -1279,8 +1303,8 @@ const Modal: React.FC<{ title: string, onClose: () => void, children: React.Reac
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #eee', paddingBottom: '16px' }}>
         <h2 style={{ margin: 0, fontSize: '20px' }}>{title}</h2>
         <button onClick={onClose} style={{ border: 'none', background: 'none', fontSize: '24px', cursor: 'pointer' }}>&times;</button>
-      </div>
+              </div>
       {children}
+      </div>
     </div>
-  </div>
-);
+  );
