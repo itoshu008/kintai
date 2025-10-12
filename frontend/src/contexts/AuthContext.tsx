@@ -34,8 +34,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       if (savedSessionId) {
         try {
+          console.log('AuthContext: セッション検証中...');
           const response = await api.getSession(savedSessionId);
-          if (response.ok && response.data) {
+          console.log('AuthContext: セッション検証レスポンス', response);
+          
+          if (response && response.ok && response.data) {
             console.log('AuthContext: セッション復元成功', response.data);
             setUser(response.data);
           } else {
@@ -44,7 +47,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setUser(null);
           }
         } catch (error) {
-          console.error('セッション復元エラー:', error);
+          console.error('AuthContext: セッション復元エラー:', error);
           localStorage.removeItem('sessionId');
           setUser(null);
         }

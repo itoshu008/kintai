@@ -221,13 +221,14 @@ app.get('/api/admin/departments', (_req, res) => {
 
 // 部署作成
 app.post('/api/admin/departments', (req, res) => {
-  console.log('POST /api/admin/departments called with body:', req.body);
+  console.log('[API] POST /api/admin/departments called with body:', req.body);
+  console.log('[API] Request headers:', req.headers);
   
   try {
     const { name } = req.body;
     
     if (!name || typeof name !== 'string' || name.trim() === '') {
-      console.log('Validation failed: name is required');
+      console.log('[API] Validation failed: name is required');
       return res.status(200).json({ 
         ok: false, 
         error: '部署名は必須です' 
@@ -260,17 +261,19 @@ app.post('/api/admin/departments', (req, res) => {
     // ファイルに保存
     writeJsonAtomic(DEPARTMENTS_FILE, departments);
     
-    console.log('Department created successfully:', newDepartment);
+    console.log('[API] Department created successfully:', newDepartment);
     res.status(200).json({ 
       ok: true, 
       department: newDepartment,
-      message: '部署が作成されました' 
+      message: '部署が作成されました',
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Department creation error:', error);
+    console.error('[API] Department creation error:', error);
     res.status(200).json({ 
       ok: false, 
-      error: '部署の作成に失敗しました' 
+      error: '部署の作成に失敗しました',
+      timestamp: new Date().toISOString()
     });
   }
 });
@@ -899,10 +902,8 @@ app.get('/api/admin/weekly', (req, res) => {
   });
 
   // SPAのルーティング：/api 以外は index.html
-app.get('*', (req, res) => {
-  if (req.path.startsWith('/api/')) {
-    return res.status(200).json({ error: 'API endpoint not implemented' });
-  }
+app.get('*', (_req, res) => {
+  // APIルートは既に上で定義済みなので、ここでは処理しない
   res.sendFile(path.resolve(FRONTEND_PATH, 'index.html'));
 });
 
