@@ -393,7 +393,7 @@ export default function MasterPage() {
     const newName = prompt('新しい氏名', row.name);
     if (newName == null) return;
     
-    const newDeptId = Number(prompt('部署ID（空=変更なし）', row.department_id ?? '')) || row.department_id ?? null;
+    const newDeptId = Number(prompt('部署ID（空=変更なし）', row.department_id ?? '')) || (row.department_id ?? null);
     
     try {
       console.log('社員編集API呼び出し:', { code: row.code, name: newName, department_id: newDeptId });
@@ -474,68 +474,10 @@ export default function MasterPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadKey]);
 
-  // 社員登録フォーム
-  const [newCode, setNewCode] = useState('');
-  const [newName, setNewName] = useState('');
-  const [newDepartment, setNewDepartment] = useState('');
-
-  // 部署フィルター
-  const [deps, setDeps] = useState<Department[]>([]);
-  const [depFilter, setDepFilter] = useState<number | null>(null);
-  const [newDeptName, setNewDeptName] = useState('');
-
   // プレビューモード用の部署データ
   const currentDeps = useMemo(() => {
     return isPreview ? (previewData?.departments ?? []) : deps;
   }, [isPreview, previewData, deps]);
-
-  // ドロップダウンメニュー
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [showDeptManagement, setShowDeptManagement] = useState(false);
-  const [showEmployeeRegistration, setShowEmployeeRegistration] = useState(false);
-  const [showEmployeeEditMenu, setShowEmployeeEditMenu] = useState(false);
-
-
-  // 選択された社員の詳細表示
-  const [selectedEmployee, setSelectedEmployee] = useState<MasterRow | null>(null);
-  const [employeeDetails, setEmployeeDetails] = useState<MasterRow[]>([]);
-
-  // 社員編集用の状態
-  const [editingEmployee, setEditingEmployee] = useState<MasterRow | null>(null);
-  const [editEmployeeCode, setEditEmployeeCode] = useState('');
-  const [editEmployeeName, setEditEmployeeName] = useState('');
-  const [editEmployeeDept, setEditEmployeeDept] = useState<number>(0);
-  const [showEmployeeEditModal, setShowEmployeeEditModal] = useState(false);
-
-  // 社員削除用の状態
-  const [showEmployeeDeleteMenu, setShowEmployeeDeleteMenu] = useState(false);
-  const [deleteTargetEmployee, setDeleteTargetEmployee] = useState<MasterRow | null>(null);
-
-  // 備考管理
-  const [remarks, setRemarks] = useState<{ [key: string]: string }>({});
-
-  // 部署編集用の状態
-  const [editingDepartment, setEditingDepartment] = useState<{ id: number; name: string } | null>(null);
-  const [editDeptName, setEditDeptName] = useState('');
-
-  // 勤怠時間修正用の状態
-  const [showTimeEditModal, setShowTimeEditModal] = useState(false);
-  const [editingTimeData, setEditingTimeData] = useState<{
-    employee: MasterRow;
-    date: string;
-    clockIn: string;
-    clockOut: string;
-  } | null>(null);
-
-  // バックアップ管理用の状態
-  const [showBackupManagement, setShowBackupManagement] = useState(false);
-  const [backups, setBackups] = useState<BackupItem[]>([]);
-  const [backupLoading, setBackupLoading] = useState(false);
-
-  // プレビューモード用の状態
-  const [isPreview, setIsPreview] = useState(false);
-  const [previewData, setPreviewData] = useState<any>(null);
-  const [selectedBackupId, setSelectedBackupId] = useState<string>('');
 
   // デバッグ用：isPreviewの状態をログ出力
   useEffect(() => {
@@ -815,46 +757,6 @@ export default function MasterPage() {
       setMsg(`❌ 部署削除エラー: ${e.message}`);
     }
   };
-  
-  // 勤怠時間修正 [実装済み]
-  const saveTimeEdit = async () => {
-    if (!editingTimeData) return;
-    setLoading(true);
-    try {
-      await api.updateAttendance(
-        editingTimeData.employee.code,
-        editingTimeData.date,
-        editingTimeData.clockIn,
-        editingTimeData.clockOut
-      );
-      setMsg(`✅ ${editingTimeData.date}の勤怠を更新しました`);
-      setShowTimeEditModal(false);
-      setEditingTimeData(null);
-      // 詳細データを再読み込み
-      if (selectedEmployee) {
-        await loadEmployeeMonthlyData(selectedEmployee.code, date.slice(0, 7));
-      }
-    } catch (error: any) {
-      setMsg(`❌ 勤怠時間の修正に失敗しました: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const onSaveRemark = async (targetDate: string, remark: string) => {
-    if (!selectedEmployee) return;
-    try {
-        await api.saveRemark(selectedEmployee.code, targetDate, remark);
-        setMsg(`✅ ${targetDate}の備考を保存しました`);
-        // ローカルの備考ステートも更新
-        const key = `${targetDate}-${selectedEmployee.code}`;
-        setRemarks(prev => ({ ...prev, [key]: remark }));
-        // 月次データを再取得して画面に反映
-        await loadEmployeeMonthlyData(selectedEmployee.code, date.slice(0, 7));
-    } catch (e: any) {
-        setMsg(`❌ 備考の保存に失敗: ${e.message}`);
-    }
-  };
 
   // バックアップ関連
   const loadBackups = useCallback(async () => {
@@ -913,41 +815,6 @@ export default function MasterPage() {
     }
   };
 
-  const exitPreview = async () => {
-    setIsPreview(false);
-    setPreviewData(null);
-    setMsg('✅ 現状に戻りました');
-    await loadOnce(loadKey);
-    await loadDeps();
-  };
-
-  // --- useEffectフック ---
-  useEffect(() => { loadOnce(loadKey); }, [loadKey, loadOnce]);
-  useEffect(() => { loadDeps(); }, [loadDeps]);
-  useEffect(() => {
-    if (showBackupManagement) loadBackups();
-  }, [showBackupManagement, loadBackups]);
-  useEffect(() => {
-    if (selectedEmployee) {
-      loadEmployeeMonthlyData(selectedEmployee.code, date.slice(0, 7));
-    } else {
-      setEmployeeDetails([]);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedEmployee, date]);
-
-  // 定期更新
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (!loading && !isPreview) {
-        loadOnce(loadKey);
-      }
-    }, 30000);
-    return () => clearInterval(interval);
-  }, [loading, isPreview, loadKey, loadOnce]);
-
-  // --- メモ化された計算結果 ---
-  const currentDeps = useMemo(() => isPreview ? (previewData?.departments ?? []) : deps, [isPreview, previewData, deps]);
   const sorted = useMemo(() => {
     const currentData = isPreview ? (previewData?.master ?? []) : data;
     let filtered = currentData;

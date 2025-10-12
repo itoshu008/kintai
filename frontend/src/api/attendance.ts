@@ -223,33 +223,6 @@ export async function createEmployee(code: string, name: string, department_id?:
   }
 }
 
-export async function updateEmployee(originalCode: string, patch: Partial<Pick<Employee, 'code' | 'name' | 'department_id'>>): Promise<ApiResponse<{ employee: Employee }>> {
-  try {
-    const data = await http<ApiResponse<{ employee: Employee }>>(
-      `${API_BASE_URL}/admin/employees/${encodeURIComponent(originalCode)}`,
-      { method: 'PUT', body: JSON.stringify(patch), expectOk: true }
-    );
-    return data;
-  } catch (e: any) {
-    console.error('Error updating employee:', e);
-    return { ok: false, error: e.message };
-  }
-}
-
-/** サーバは :id ではなく :code で削除 */
-export async function deleteEmployee(code: string): Promise<ApiResponse<{ employee: Employee }>> {
-  try {
-    const data = await http<ApiResponse<{ employee: Employee }>>(
-      `${API_BASE_URL}/admin/employees/${encodeURIComponent(code)}`,
-      { method: 'DELETE', expectOk: true }
-    );
-    return data;
-  } catch (e: any) {
-    console.error('Error deleting employee:', e);
-    return { ok: false, error: e.message };
-  }
-}
-
 // 社員更新
 export const updateEmployee = async (originalCode: string, data: {name: string, department_id: number, code?: string}): Promise<ApiResponse<Employee>> => {
   const res = await fetch(`${API_BASE_URL}/admin/employees/${encodeURIComponent(originalCode)}`, {
