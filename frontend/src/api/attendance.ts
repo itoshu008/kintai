@@ -224,23 +224,70 @@ export async function createEmployee(code: string, name: string, department_id?:
 }
 
 // 社員更新
-export const updateEmployee = async (originalCode: string, data: {name: string, department_id: number, code?: string}): Promise<ApiResponse<Employee>> => {
-  const res = await fetch(`${API_BASE_URL}/admin/employees/${encodeURIComponent(originalCode)}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data), // { name, department_id, 変更するなら code }
-  });
-  if (!res.ok) throw new Error(`${res.status}  for ${res.url}`);
-  return res.json();
+export const updateEmployee = async (
+  originalCode: string,
+  data: { name: string; department_id: number; code?: string }
+): Promise<ApiResponse<Employee>> => {
+  try {
+    const res = await fetch(
+      `${API_BASE_URL}/admin/employees/${encodeURIComponent(originalCode)}`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }
+    );
+
+    const text = await res.text();
+    let json: any = null;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {
+      throw new Error(`Invalid JSON response for ${res.url}`);
+    }
+
+    if (!res.ok || (json && json.ok === false)) {
+      const reason = json?.error || text || res.statusText;
+      throw new Error(`${res.status} for ${res.url} :: ${reason}`);
+    }
+
+    return json;
+  } catch (error) {
+    console.error('Error updating employee:', error);
+    return { ok: false, error: (error as Error).message } as any;
+  }
 };
 
 // 社員削除
-export const deleteEmployee = async (code: string): Promise<ApiResponse> => {
-  const res = await fetch(`${API_BASE_URL}/admin/employees/${encodeURIComponent(code)}`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) throw new Error(`${res.status}  for ${res.url}`);
-  return res.json();
+export const deleteEmployee = async (
+  code: string
+): Promise<ApiResponse> => {
+  try {
+    const res = await fetch(
+      `${API_BASE_URL}/admin/employees/${encodeURIComponent(code)}`,
+      {
+        method: 'DELETE',
+      }
+    );
+
+    const text = await res.text();
+    let json: any = null;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {
+      throw new Error(`Invalid JSON response for ${res.url}`);
+    }
+
+    if (!res.ok || (json && json.ok === false)) {
+      const reason = json?.error || text || res.statusText;
+      throw new Error(`${res.status} for ${res.url} :: ${reason}`);
+    }
+
+    return json;
+  } catch (error) {
+    console.error('Error deleting employee:', error);
+    return { ok: false, error: (error as Error).message } as any;
+  }
 };
 
 // ========================

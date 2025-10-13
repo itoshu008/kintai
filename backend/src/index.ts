@@ -291,9 +291,15 @@ app.delete('/api/admin/departments/:id', (req, res) => {
 // ------------------------------------------------------------
 // 社員 CRUD（フロント互換: GETは employees と list の両方を返す）
 // ------------------------------------------------------------
+// ------------------------------------------------------------
+// 社員 CRUD（フロント互換: GETは employees と list の両方を返す）
+// ------------------------------------------------------------
 app.get('/api/admin/employees', (_req, res) => {
   const list = employees.map(e => {
-    const dept = e.department_id != null ? (deptIndex.get(e.department_id)?.name ?? '未所属') : (e.dept ?? '未所属');
+    const dept =
+      e.department_id != null
+        ? deptIndex.get(e.department_id)?.name ?? '未所属'
+        : e.dept ?? '未所属';
     return { ...e, dept };
   });
   res.json({ ok: true, employees: list, list });
@@ -302,13 +308,20 @@ app.get('/api/admin/employees', (_req, res) => {
 app.post('/api/admin/employees', (req, res) => {
   try {
     const { code, name, department_id } = req.body || {};
-    if (!code || !name) return res.status(200).json({ ok: false, error: 'codeとnameは必須です' });
+    if (!code || !name)
+      return res.status(400).json({ ok: false, error: 'codeとnameは必須です' });
+
     if (employees.some(e => e.code === String(code).trim())) {
-      return res.status(200).json({ ok: false, error: 'この社員コードは既に存在します' });
+      return res
+        .status(409)
+        .json({ ok: false, error: 'この社員コードは既に存在します' });
     }
+
     const now = new Date().toISOString();
     const emp = {
-      id: employees.length ? Math.max(...employees.map(e => e.id || 0)) + 1 : 1,
+      id: employees.length
+        ? Math.max(...employees.map(e => e.id || 0)) + 1
+        : 1,
       code: String(code).trim(),
       name: String(name).trim(),
       department_id: department_id ?? null,
@@ -319,91 +332,85 @@ app.post('/api/admin/employees', (req, res) => {
     employees.push(emp);
     writeJsonAtomic(EMPLOYEES_FILE, employees);
     res.json({ ok: true, employee: emp, message: '社員が作成されました' });
-  } catch {
-    res.status(200).json({ ok: false, error: '社員の作成に失敗しました' });
+  } catch (e) {
+    console.error('社員作成エラー:', e);
+    res.status(500).json({ ok: false, error: '社員の作成に失敗しました' });
   }
 });
 
-app.put('/api/admin/employees/:code', (req, res) => {
+// === 社員更新（codeでもidでもOK）===
+app.put('/api/admin/employees/:key', (req, res) => {
   try {
-    const code = String(req.params.code);
-    const idx = employees.findIndex(e => e.code === code);
-    if (idx === -1) return res.status(200).json({ ok: false, error: '社員が見つかりません' });
-    employees[idx] = { ...employees[idx], ...req.body, updated_at: new Date().toISOString() };
-    writeJsonAtomic(EMPLOYEES_FILE, employees);
-    res.json({ ok: true, employee: employees[idx], message: '社員が更新されました' });
-  } catch {
-    res.status(200).json({ ok: false, error: '社員の更新に失敗しました' });
-  }
-});
-
-// === 社員削除（code でも id でもOK）===
-app.delete('/api/admin/employees/:key', (req, res) => {
-  try {
-    const { key } = req.params; // 'E2001' or '5'
+    const { key } = req.params;
     let idx = employees.findIndex(e => e.code === key);
+
+    // 数字の場合、idでも検索
     if (idx === -1 && /^\d+$/.test(key)) {
       const id = Number(key);
       idx = employees.findIndex(e => e.id === id);
     }
-    if (idx === -1) return res.status(404).json({ ok: false, error: '社員が見つかりません' });
 
-    const removed = employees.splice(idx, 1)[0];
+    if (idx === -1)
+      return res
+        .status(404)
+        .json({ ok: false, error: '社員が見つかりません' });
+
+    const patch = req.body || {};
+
+    // code変更時の重複チェック
+    if (patch.code && patch.code !== employees[idx].code) {
+      const dup = employees.some(e => e.code === patch.code);
+      if (dup)
+        return res
+          .status(409)
+          .json({ ok: false, error: 'この社員コードは既に存在します' });
+    }
+
+    employees[idx] = {
+      ...employees[idx],
+      ...patch,
+      updated_at: new Date().toISOString(),
+    };
     writeJsonAtomic(EMPLOYEES_FILE, employees);
-    res.json({ ok: true, employee: removed, message: '社員が削除されました' });
-  } catch {
-    res.status(200).json({ ok: false, error: '社員の削除に失敗しました' });
+    res.json({
+      ok: true,
+      employee: employees[idx],
+      message: '社員が更新されました',
+    });
+  } catch (e) {
+    console.error('社員更新エラー:', e);
+    res.status(500).json({ ok: false, error: '社員の更新に失敗しました' });
   }
 });
 
-// ------------------------------------------------------------
-// マスター／勤怠一覧（attendanceData はフラットキー: YYYY-MM-DD-コード）
-// ------------------------------------------------------------
-app.get('/api/admin/master', (req, res) => {
-  const date = (req.query.date as string) || todayStr();
-  const sorted = sortBy(employees, e => e.code);
-  const list = sorted.map(e => {
-    const key = `${date}-${e.code}`;
-    const at = attendanceData[key] || {};
-    const dept = e.department_id != null ? (deptIndex.get(e.department_id)?.name ?? '未所属') : (e.dept ?? '未所属');
-    return {
-      id: e.id,
-      code: e.code,
-      name: e.name,
-      dept,
-      checkin: at.checkin || at.clock_in || null,
-      checkout: at.checkout || at.clock_out || null,
-      work_hours: at.work_hours || Math.floor((at.total_minutes || 0) / 60),
-      work_minutes: at.work_minutes || (at.total_minutes || 0) % 60,
-      total_minutes: at.total_minutes || 0,
-      late: at.late || 0,
-      remark: at.remark || '',
-    };
-  });
-  res.json({ ok: true, data: list, departments });
-});
+// === 社員削除（codeでもidでもOK）===
+app.delete('/api/admin/employees/:key', (req, res) => {
+  try {
+    const { key } = req.params;
+    let idx = employees.findIndex(e => e.code === key);
 
-app.get('/api/admin/attendance', (req, res) => {
-  const date = (req.query.date as string) || todayStr();
-  const list = employees.map(e => {
-    const key = `${date}-${e.code}`;
-    const at = attendanceData[key] || {};
-    const dept = e.department_id != null ? (deptIndex.get(e.department_id)?.name ?? '未所属') : (e.dept ?? '未所属');
-    return {
-      id: e.id,
-      code: e.code,
-      name: e.name,
-      dept,
-      checkin: at.checkin || at.clock_in || null,
-      checkout: at.checkout || at.clock_out || null,
-      work_hours: at.work_hours || Math.floor((at.total_minutes || 0) / 60),
-      work_minutes: at.work_minutes || (at.total_minutes || 0) % 60,
-      total_minutes: at.total_minutes || 0,
-      late: at.late || 0,
-      remark: at.remark || '',
-    };
-  });
-  res.json({ ok: true, data: list });
+    // 数字の場合、idでも検索
+    if (idx === -1 && /^\d+$/.test(key)) {
+      const id = Number(key);
+      idx = employees.findIndex(e => e.id === id);
+    }
+
+    if (idx === -1)
+      return res
+        .status(404)
+        .json({ ok: false, error: '社員が見つかりません' });
+
+    const removed = employees.splice(idx, 1)[0];
+    writeJsonAtomic(EMPLOYEES_FILE, employees);
+    res.json({
+      ok: true,
+      employee: removed,
+      message: '社員が削除されました',
+    });
+  } catch (e) {
+    console.error('社員削除エラー:', e);
+    res.status(500).json({ ok: false, error: '社員の削除に失敗しました' });
+  }
 });
 
 // ------------------------------------------------------------
