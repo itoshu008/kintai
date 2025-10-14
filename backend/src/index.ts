@@ -18,7 +18,7 @@ import {
 } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { writeJsonAtomic } from './helpers/writeJsonAtomic'; // ← 拡張子なし推奨（ESM解決安定）
+import { writeJsonAtomic } from './helpers/writeJsonAtomic.js'; // ← ES modulesでは拡張子必須
 
 // ------------------------------------------------------------
 // 基盤
@@ -26,8 +26,9 @@ import { writeJsonAtomic } from './helpers/writeJsonAtomic'; // ← 拡張子な
 const app = express();
 app.use(express.json({ limit: '2mb' }));
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// ESM/CJS互換性のための条件分岐
+const __filename = (typeof globalThis !== 'undefined' && (globalThis as any).__filename) || fileURLToPath(import.meta.url);
+const __dirname = (typeof globalThis !== 'undefined' && (globalThis as any).__dirname) || path.dirname(__filename);
 
 // データパス
 const DATA_DIR = path.resolve(__dirname, '..', 'data');
@@ -833,16 +834,6 @@ app.use((err: any, _req: any, res: any, _next: any) => {
 });
 
 // ------------------------------------------------------------
-// 起動
+// エクスポート
 // ------------------------------------------------------------
-const HOST = process.env.HOST || '127.0.0.1';
-const PORT = Number(process.env.PORT) || 8001;
-
-const server = app.listen(PORT, HOST, () => {
-  console.log(`ℹ️ Backend server running on http://${HOST}:${PORT}`);
-});
-
-process.on('SIGINT', () => server.close(() => process.exit(0)));
-process.on('SIGTERM', () => server.close(() => process.exit(0)));
-
 export default app;
