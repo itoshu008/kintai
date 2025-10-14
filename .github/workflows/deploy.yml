@@ -65,7 +65,7 @@ jobs:
             npm install --omit=dev --no-audit --no-fund
             npm run build || true
             PORT=\"$PORT\" NODE_ENV=\"$NODE_ENV\" pm2 reload \"$PM2_APP\" \
-              || PORT=\"$PORT\" NODE_ENV=\"$NODE_ENV\" pm2 start dist/index.js --name \"$PM2_APP\"
+              || PORT=\"$PORT\" NODE_ENV=\"$NODE_ENV\" pm2 start dist/server.js --name \"$PM2_APP\"
             pm2 save
           "
 

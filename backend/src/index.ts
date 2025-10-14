@@ -19,7 +19,7 @@ const __dirnameSafe: string =
   (typeof __dirname !== 'undefined')
     ? __dirname
     : path.dirname(__filenameSafe);
-import { writeJsonAtomic } from './helpers/writeJsonAtomic'; // ← CJSでは拡張子不要
+import { writeJsonAtomic } from './helpers/writeJsonAtomic.js'; // ← ESMでは拡張子必須
 
 // ------------------------------------------------------------
 // 基盤

@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import app from './index'; // ← CJSでは拡張子不要
+import app from './index.js'; // ← ESMでは拡張子必須
 
 const PORT: number = Number(process.env.PORT) || 8001;
 const HOST: string = process.env.HOST || '127.0.0.1';
