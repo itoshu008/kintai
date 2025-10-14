@@ -1,93 +1,94 @@
-// vite.config.ts
+// frontend/vite.config.ts
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { copyFileSync, readFileSync, writeFileSync } from "fs";
-import { join } from "path";
+import { readFileSync } from "fs";
+import { join, resolve } from "path";
+import { fileURLToPath } from "url";
 
-// ビルドバージョン（ISO文字列）を生成
+// __dirname（ESM）対応
+const __filename = fileURLToPath(import.meta.url);
+const __dirname  = resolve(__filename, "..");
+
+// ビルドバージョン（ISO文字列。: と . を - に置換）
 const buildVersion = new Date().toISOString().replace(/[:.]/g, "-");
 
+// すでに ? が付いていない src/href にだけ ?v=... を付与
+const addVersionQuery = (attr: "src" | "href") =>
+  new RegExp(`(<(?:script|link)[^>]*${attr}="[^"?"]+")(.*?)>`, "g");
+
 export default defineConfig({
-  base: '/admin-dashboard-2024/',  // サブパス配信
+  base: "/admin-dashboard-2024/",
+
   plugins: [
     react(),
-    // HTMLテンプレートの変換プラグイン
     {
-      name: 'html-transform',
+      name: "html-transform",
+      enforce: "post",
       transformIndexHtml(html) {
-        return html
-          .replace(/__BUILD_VERSION__/g, buildVersion)
-          .replace(
-            /(<script[^>]*src="[^"]*\.js")/g,
-            `$1?v=${buildVersion}`
-          )
-          .replace(
-            /(<link[^>]*href="[^"]*\.css")/g,
-            `$1?v=${buildVersion}`
-          )
-          .replace(
-            /(<link[^>]*rel="manifest"[^>]*href="[^"]*")/g,
-            `$1?v=${buildVersion}`
-          );
+        let out = html.replace(/__BUILD_VERSION__/g, buildVersion);
+        out = out
+          .replace(addVersionQuery("src"), `$1?v=${buildVersion}$2>`)
+          .replace(addVersionQuery("href"), `$1?v=${buildVersion}$2>`);
+        return out;
       },
-      generateBundle(options, bundle) {
-        // manifest.jsonをsrc/assetsからコピーして変換
+      generateBundle() {
         try {
-          const manifestSource = join(process.cwd(), 'src/assets/manifest.json');
-          const manifestDest = join(process.cwd(), 'dist/manifest.json');
+          const source = readFileSync(
+            join(__dirname, "src/assets/manifest.json"),
+            "utf8"
+          ).replace(/__BUILD_VERSION__/g, buildVersion);
 
-          // manifest.jsonをコピー
-          copyFileSync(manifestSource, manifestDest);
+          this.emitFile({
+            type: "asset",
+            fileName: "manifest.json",
+            source,
+          });
 
-          // 内容を読み込んで変換
-          let manifestContent = readFileSync(manifestDest, 'utf8');
-          manifestContent = manifestContent.replace(/__BUILD_VERSION__/g, buildVersion);
-          writeFileSync(manifestDest, manifestContent, 'utf8');
-
-          console.log('✅ Manifest copied and transformed from src/assets/');
-        } catch (error) {
-          console.warn('⚠️ Failed to copy manifest.json:', error);
+          this.warn("✅ Manifest embedded from src/assets/manifest.json");
+        } catch (e) {
+          this.warn(`⚠️ Failed to embed manifest.json: ${(e as Error).message}`);
         }
-      }
-    }
+      },
+    },
   ],
+
   define: {
     __BUILD_VERSION__: JSON.stringify(buildVersion),
   },
+
   resolve: {
-    extensions: ['.ts', '.tsx', '.js', '.jsx'],
-    alias: {
-      '@': '/src',
-    },
+    extensions: [".ts", ".tsx", ".js", ".jsx"],
+    alias: { "@": resolve(__dirname, "src") },
   },
+
   server: {
-    // フロントエンド開発サーバーは3001番で起動
+    host: true,
     port: 3001,
-    strictPort: true, // ポートがすでに使われていたらエラーを出す
-    host: true, // 外部からのアクセスを許可
+    strictPort: true,
     proxy: {
-      // APIリクエストをバックエンドにプロキシ
-      '/api': {
-        target: 'http://localhost:8001',
+      "/api": {
+        target: "http://127.0.0.1:8001",
         changeOrigin: true,
         secure: false,
       },
     },
   },
+
   preview: {
-    port: 3001, // プレビュー用ポート（統一）
-    strictPort: true,
     host: true,
+    port: 3001,
+    strictPort: true,
   },
+
   build: {
-    outDir: 'dist',
+    outDir: "dist",
     sourcemap: true,
     rollupOptions: {
       output: {
-        entryFileNames: `assets/[name]-[hash]-${Math.random().toString(36).substr(2, 9)}.js`,
-        chunkFileNames: `assets/[name]-[hash]-${Math.random().toString(36).substr(2, 9)}.js`,
-        assetFileNames: `assets/[name]-[hash]-${Math.random().toString(36).substr(2, 9)}.[ext]`
-      }
-    }
+        entryFileNames: "assets/[name]-[hash].js",
+        chunkFileNames: "assets/[name]-[hash].js",
+        assetFileNames: "assets/[name]-[hash][extname]",
+      },
+    },
   },
 });
