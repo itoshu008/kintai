@@ -52,35 +52,35 @@ jobs:
 
       - name: Build backend & reload PM2
         run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} '
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
             set -e
             cd ${BACKEND_DIR}
-            sudo chown -R '"${{ env.PM2_USER }}"':'" ${env.PM2_USER} "' .
+            sudo chown -R ${PM2_USER}:${PM2_USER} .
             npm install --omit=dev --no-audit --no-fund
             npm run build || true
-            PORT='${PORT}' NODE_ENV='${NODE_ENV}' sudo -u '"${{ env.PM2_USER }}"' pm2 reload '"${{ env.PM2_APP }}"' \
-              || PORT='${PORT}' NODE_ENV='${NODE_ENV}' sudo -u '"${{ env.PM2_USER }}"' pm2 start dist/index.js --name '"${{ env.PM2_APP }}"'
-            sudo -u '"${{ env.PM2_USER }}"' pm2 save
-          '
+            PORT=${PORT} NODE_ENV=${NODE_ENV} sudo -u ${PM2_USER} pm2 reload ${PM2_APP} \
+              || PORT=${PORT} NODE_ENV=${NODE_ENV} sudo -u ${PM2_USER} pm2 start dist/index.js --name ${PM2_APP}
+            sudo -u ${PM2_USER} pm2 save
+          "
 
       - name: Build frontend & publish (if exists)
         run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} '
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
             set -e
             if [ -d ${FRONTEND_DIR} ]; then
               cd ${FRONTEND_DIR}
-              sudo chown -R '"${{ env.PM2_USER }}"':'" ${env.PM2_USER} "' .
+              sudo chown -R ${PM2_USER}:${PM2_USER} .
               npm install --no-audit --no-fund
               npm run build
               sudo rm -rf ${PUBLIC_DIR}
               sudo mkdir -p ${PUBLIC_DIR}
-              sudo chown -R '"${{ env.PM2_USER }}"':'" ${env.PM2_USER} "' ${PUBLIC_DIR}
+              sudo chown -R ${PM2_USER}:${PM2_USER} ${PUBLIC_DIR}
               rsync -a --delete ${FRONTEND_DIR}/dist/ ${PUBLIC_DIR}/
               sudo nginx -t && sudo systemctl reload nginx
             else
-              echo "frontend/ not found. skip."
+              echo 'frontend/ not found. skip.'
             fi
-          '
+          "
 
       - name: Write deployed commit
         run: |
