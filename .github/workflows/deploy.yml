@@ -46,12 +46,9 @@ jobs:
             --exclude '.public_build*/' --exclude 'public-backup*/' \
             --exclude 'dist-ultimate*/' --exclude 'kintai*/'"
 
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "sudo -u itoshu mkdir -p ${BACKEND_DIR} ${FRONTEND_DIR}"
-
-          rsync $RSYNC_OPTS ./backend/  ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${BACKEND_DIR}/ \
-            --rsync-path="sudo -u itoshu rsync"
-          rsync $RSYNC_OPTS ./frontend/ ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${FRONTEND_DIR}/ \
-            --rsync-path="sudo -u itoshu rsync"
+          # mkdirはsudoパスワードが必要になるので無し。rsyncをitoshuで実行して作成させる
+          rsync $RSYNC_OPTS ./backend/  ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${BACKEND_DIR}/  --rsync-path="sudo -u itoshu rsync"
+          rsync $RSYNC_OPTS ./frontend/ ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${FRONTEND_DIR}/ --rsync-path="sudo -u itoshu rsync"
 
       - name: Build backend & reload PM2
         run: |
@@ -62,7 +59,7 @@ jobs:
             npm install --omit=dev --no-audit --no-fund
             npm run build || true
             PORT='${PORT}' NODE_ENV='${NODE_ENV}' sudo -u '"${{ env.PM2_USER }}"' pm2 reload '"${{ env.PM2_APP }}"' \
-              || PORT='${PORT}' NODE_ENV='${NODE_ENV}' sudo -u '"${{ env.PM2_USER }}"' pm2 start dist/server.js --name '"${{ env.PM2_APP }}"'
+              || PORT='${PORT}' NODE_ENV='${NODE_ENV}' sudo -u '"${{ env.PM2_USER }}"' pm2 start dist/index.js --name '"${{ env.PM2_APP }}"'
             sudo -u '"${{ env.PM2_USER }}"' pm2 save
           '
 
@@ -87,6 +84,5 @@ jobs:
 
       - name: Write deployed commit
         run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
-            "echo '${{ github.sha }} $(date -u +%FT%TZ)' | sudo -u itoshu tee /home/zatint1991-hvt55/zatint1991.com/DEPLOYED_SHA.txt >/dev/null"
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "echo '${{ github.sha }} $(date -u +%FT%TZ)' | sudo -u itoshu tee ${APP_DIR}/DEPLOYED_SHA.txt >/dev/null"
 
