@@ -14,7 +14,7 @@ jobs:
       PUBLIC_DIR: /home/zatint1991-hvt55/zatint1991.com/public/kintai
       PM2_APP: kintai-api
       PM2_USER: itoshu
-      PORT: "8000"
+      PORT: "8001"
       NODE_ENV: production
 
     steps:
