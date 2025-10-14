@@ -79,8 +79,11 @@ jobs:
             rm -rf \"$PUBLIC_DIR\"
             mkdir -p \"$PUBLIC_DIR\"
             rsync -a --delete \"$FRONTEND_DIR/dist/\" \"$PUBLIC_DIR/\"
-            nginx -t && sudo systemctl reload nginx
           "
+
+      - name: Reload nginx (run as deploy with sudoers)
+        run: |
+          ssh "$DEPLOY_USER@$VPS_HOST" "sudo /usr/sbin/nginx -t && sudo /usr/bin/systemctl reload nginx"
 
       - name: Write deployed commit
         run: |
