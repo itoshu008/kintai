@@ -8,6 +8,7 @@ import { join } from "path";
 const buildVersion = new Date().toISOString().replace(/[:.]/g, "-");
 
 export default defineConfig({
+  base: '/admin-dashboard-2024/',  // サブパス配信
   plugins: [
     react(),
     // HTMLテンプレートの変換プラグイン

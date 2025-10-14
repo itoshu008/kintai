@@ -111,13 +111,13 @@ if (existsSync(FRONTEND_PATH)) {
 // ------------------------------------------------------------
 // ヘルス
 // ------------------------------------------------------------
-app.get('/__ping', (_req, res) => res.type('text/plain').send('pong'));
+app.get('/__ping', (_req: import('express').Request, res: import('express').Response) => res.type('text/plain').send('pong'));
 
-app.get('/api/health', (_req, res) => {
+app.get('/api/health', (_req: import('express').Request, res: import('express').Response) => {
   res.json({ ok: true, ts: new Date().toISOString() });
 });
 
-app.get('/api/admin/health', (_req, res) => {
+app.get('/api/admin/health', (_req: import('express').Request, res: import('express').Response) => {
   try {
     res.json({
       ok: true,
@@ -127,7 +127,8 @@ app.get('/api/admin/health', (_req, res) => {
       environment: process.env.NODE_ENV || 'development',
       uptime: process.uptime(),
     });
-  } catch (e) {
+  } catch (e: unknown) {
+    console.error(e instanceof Error ? e.message : e);
     res.status(200).json({ ok: false, status: 'unhealthy', error: String(e) });
   }
 });
@@ -135,7 +136,7 @@ app.get('/api/admin/health', (_req, res) => {
 // ------------------------------------------------------------
 // 管理トップ
 // ------------------------------------------------------------
-app.get('/api/admin', (_req, res) => {
+app.get('/api/admin', (_req: import('express').Request, res: import('express').Response) => {
   res.json({
     ok: true,
     message: 'Admin endpoint is working!',
