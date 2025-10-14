@@ -16,11 +16,11 @@ const HOST = process.env.HOST || '0.0.0.0';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const DIST_PATH = path.join(__dirname, 'dist');
+const DIST_PATH = path.join(__dirname, 'frontend', 'dist');
 
 if (!existsSync(DIST_PATH)) {
   console.warn(`⚠️  Frontend dist directory not found at: ${DIST_PATH}`);
-  console.warn('    Did you run "npm run build"?');
+  console.warn('    Did you run "npm run build:frontend"?');
 }
 
 // 静的ファイル配信設定
@@ -94,4 +94,3 @@ process.on('uncaughtException', (err) => {
 });
 
 export default app;
-
