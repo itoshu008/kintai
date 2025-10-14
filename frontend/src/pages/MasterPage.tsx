@@ -11,7 +11,8 @@ declare global {
 export {};
 
 // --- safe preview flag ---
-const isPreviewFlag: boolean = Boolean((globalThis as any).isPreview);
+declare var isPreview: boolean | undefined;
+const isPreviewFlag: boolean = typeof isPreview !== 'undefined' ? Boolean(isPreview) : false;
 
 //================================================================================
 // 1. 型定義
