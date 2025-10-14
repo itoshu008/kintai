@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 // 祝日関連のユーティリティ（別途用意されている想定）
 import { getHolidayNameSync, isHolidaySync } from '../utils/holidays';
+import { backupApi } from '../api/backup';
 
 //================================================================================
 // 1. 型定義
@@ -31,7 +32,7 @@ interface Department {
 interface BackupItem {
   name: string;
   date: string;
-  size: number;
+  size?: number;
 }
 
 interface TimeEditData {
@@ -246,6 +247,59 @@ const calcNightWorkTime = (clockIn?: string | null, clockOut?: string | null) =>
 
 
 //================================================================================
+// 3. コンポーネント
+//================================================================================
+
+interface ModalProps {
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}
+
+const Modal: React.FC<ModalProps> = ({ title, onClose, children }) => {
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 1000
+    }}>
+      <div style={{
+        backgroundColor: 'white',
+        padding: '20px',
+        borderRadius: '8px',
+        maxWidth: '500px',
+        width: '90%',
+        maxHeight: '80vh',
+        overflow: 'auto'
+      }}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '16px'
+        }}>
+          <h3>{title}</h3>
+          <button onClick={onClose} style={{
+            background: 'none',
+            border: 'none',
+            fontSize: '24px',
+            cursor: 'pointer'
+          }}>×</button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+};
+
+//================================================================================
 // 4. メインコンポーネント
 //================================================================================
 
@@ -282,14 +336,16 @@ export default function MasterPage() {
   // バックアップ＆プレビュー関連
   const [backups, setBackups] = useState<BackupItem[]>([]);
   const [backupLoading, setBackupLoading] = useState(false);
+  const [isPreview, setIsPreview] = useState(false);
+  const [previewData, setPreviewData] = useState<any>(null);
 
   // UI表示制御
   const [showDropdown, setShowDropdown] = useState(false);
   const [showDeptManagement, setShowDeptManagement] = useState(false);
   const [showEmployeeRegistration, setShowEmployeeRegistration] = useState(false);
+  const [showBackupManagement, setShowBackupManagement] = useState(false);
   const [showEmployeeEditMenu, setShowEmployeeEditMenu] = useState(false);
   const [showEmployeeDeleteMenu, setShowEmployeeDeleteMenu] = useState(false);
-  const [showBackupManagement, setShowBackupManagement] = useState(false);
   const [showTimeEditModal, setShowTimeEditModal] = useState(false);
 
   // --- データ取得ロジック ---
@@ -815,6 +871,7 @@ export default function MasterPage() {
     }
   };
 
+
   const sorted = useMemo(() => {
     const currentData = isPreview ? (previewData?.master ?? []) : data;
     let filtered = currentData;
@@ -1202,16 +1259,3 @@ const tdStyle: React.CSSProperties = { padding: '12px 8px', borderBottom: '1px s
 const tdEditableStyle: React.CSSProperties = { ...tdStyle, cursor: 'pointer', color: '#007bff', fontWeight: 500 };
 
 const modalInputStyle: React.CSSProperties = { width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '16px', boxSizing: 'border-box' };
-const modalButtonStyle: React.CSSProperties = { padding: '8px 16px', border: 'none', borderRadius: '4px', cursor: 'pointer', marginLeft: '8px', color: 'white', background: '#6c757d' };
-
-const Modal: React.FC<{ title: string, onClose: () => void, children: React.ReactNode }> = ({ title, onClose, children }) => (
-  <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-    <div style={{ background: 'white', borderRadius: '8px', padding: '24px', width: '90%', maxWidth: '600px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #eee', paddingBottom: '16px' }}>
-        <h2 style={{ margin: 0, fontSize: '20px' }}>{title}</h2>
-        <button onClick={onClose} style={{ border: 'none', background: 'none', fontSize: '24px', cursor: 'pointer' }}>&times;</button>
-              </div>
-      {children}
-      </div>
-    </div>
-  );
