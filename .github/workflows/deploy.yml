@@ -2,11 +2,11 @@ name: Deploy to VPS
 on:
   push:
     branches: [ main ]
-  workflow_dispatch: {}
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     env:
       APP_DIR: /home/zatint1991-hvt55/zatint1991.com
       BACKEND_DIR: /home/zatint1991-hvt55/zatint1991.com/backend
@@ -16,12 +16,13 @@ jobs:
       PM2_USER: itoshu
       PORT: "8001"
       NODE_ENV: production
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USER: ${{ secrets.VPS_USER }}
 
     steps:
       - uses: actions/checkout@v4
 
-      # ★ Nodeを22系に固定（エンジン警告を根本解消）
-      - name: Setup Node.js
+      - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: '22.12.0'
@@ -30,14 +31,12 @@ jobs:
             backend/package-lock.json
             frontend/package-lock.json
 
-      - uses: webfactory/ssh-agent@v0.9.0
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
 
-      - name: Add server to known_hosts
-        run: ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
-
-      - name: Rsync sources (backend / frontend only, run as itoshu)
+      - name: Rsync sources (backend / frontend only)
         run: |
           set -e
           RSYNC_OPTS="-az -O --no-perms --no-group --omit-dir-times --delete \
@@ -46,36 +45,35 @@ jobs:
             --exclude '.public_build*/' --exclude 'public-backup*/' \
             --exclude 'dist-ultimate*/' --exclude 'kintai*/'"
 
-          # mkdirはsudoパスワードが必要になるので無し。rsyncをitoshuで実行して作成させる
-          rsync $RSYNC_OPTS ./backend/  ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${BACKEND_DIR}/  --rsync-path="sudo -u itoshu rsync"
-          rsync $RSYNC_OPTS ./frontend/ ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${FRONTEND_DIR}/ --rsync-path="sudo -u itoshu rsync"
+          rsync $RSYNC_OPTS ./backend/  "$VPS_USER@$VPS_HOST:$BACKEND_DIR/"  --rsync-path="sudo -u $PM2_USER rsync"
+          rsync $RSYNC_OPTS ./frontend/ "$VPS_USER@$VPS_HOST:$FRONTEND_DIR/" --rsync-path="sudo -u $PM2_USER rsync"
 
       - name: Build backend & reload PM2
         run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
+          ssh "$VPS_USER@$VPS_HOST" "
             set -e
-            cd ${BACKEND_DIR}
-            sudo chown -R ${PM2_USER}:${PM2_USER} .
+            cd \"$BACKEND_DIR\"
+            sudo chown -R \"$PM2_USER\":\"$PM2_USER\" .
             npm install --omit=dev --no-audit --no-fund
             npm run build || true
-            PORT=${PORT} NODE_ENV=${NODE_ENV} sudo -u ${PM2_USER} pm2 reload ${PM2_APP} \
-              || PORT=${PORT} NODE_ENV=${NODE_ENV} sudo -u ${PM2_USER} pm2 start dist/index.js --name ${PM2_APP}
-            sudo -u ${PM2_USER} pm2 save
+            PORT=\"$PORT\" NODE_ENV=\"$NODE_ENV\" sudo -u \"$PM2_USER\" pm2 reload \"$PM2_APP\" \
+              || PORT=\"$PORT\" NODE_ENV=\"$NODE_ENV\" sudo -u \"$PM2_USER\" pm2 start dist/index.js --name \"$PM2_APP\"
+            sudo -u \"$PM2_USER\" pm2 save
           "
 
-      - name: Build frontend & publish (if exists)
+      - name: Build frontend & publish
         run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "
+          ssh "$VPS_USER@$VPS_HOST" "
             set -e
-            if [ -d ${FRONTEND_DIR} ]; then
-              cd ${FRONTEND_DIR}
-              sudo chown -R ${PM2_USER}:${PM2_USER} .
+            if [ -d \"$FRONTEND_DIR\" ]; then
+              cd \"$FRONTEND_DIR\"
+              sudo chown -R \"$PM2_USER\":\"$PM2_USER\" .
               npm install --no-audit --no-fund
               npm run build
-              sudo rm -rf ${PUBLIC_DIR}
-              sudo mkdir -p ${PUBLIC_DIR}
-              sudo chown -R ${PM2_USER}:${PM2_USER} ${PUBLIC_DIR}
-              rsync -a --delete ${FRONTEND_DIR}/dist/ ${PUBLIC_DIR}/
+              sudo rm -rf \"$PUBLIC_DIR\"
+              sudo mkdir -p \"$PUBLIC_DIR\"
+              sudo chown -R \"$PM2_USER\":\"$PM2_USER\" \"$PUBLIC_DIR\"
+              rsync -a --delete \"$FRONTEND_DIR/dist/\" \"$PUBLIC_DIR/\"
               sudo nginx -t && sudo systemctl reload nginx
             else
               echo 'frontend/ not found. skip.'
@@ -84,5 +82,4 @@ jobs:
 
       - name: Write deployed commit
         run: |
-          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "echo '${{ github.sha }} $(date -u +%FT%TZ)' | sudo -u itoshu tee ${APP_DIR}/DEPLOYED_SHA.txt >/dev/null"
-
+          ssh "$VPS_USER@$VPS_HOST" "echo '${{ github.sha }} $(date -u +%FT%TZ)' | sudo -u $PM2_USER tee $APP_DIR/DEPLOYED_SHA.txt >/dev/null"
