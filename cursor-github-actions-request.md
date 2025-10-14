@@ -11,7 +11,7 @@ GitHub ActionsでCI/CDパイプラインを設定してください。
 - リポジトリ: https://github.com/itoshu008/kintai.git
 - ブランチ: main
 - サーバー: zatint1991.com
-- ポート: 8000
+- ポート: 8001
 
 設定内容：
 1. .github/workflows/deploy.yml を作成
@@ -70,7 +70,7 @@ GitHub Actionsで本格的なデプロイパイプラインを設定してくだ
 
 環境構成：
 - ステージング: staging.zatint1991.com:8001
-- プロダクション: zatint1991.com:8000
+- プロダクション: zatint1991.com:8001
 - データベース: 環境別に分離
 - ログ: 環境別に分離
 

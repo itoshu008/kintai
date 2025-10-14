@@ -15,7 +15,7 @@ GitHubリポジトリ https://github.com/itoshu008/kintai.git から最新のコ
 5. ヘルスチェックを実行
 
 環境設定：
-- バックエンドポート: 8000
+- バックエンドポート: 8001
 - フロントエンド: Viteビルド
 - プロセス管理: PM2
 ```
@@ -48,7 +48,7 @@ GitHubリポジトリ https://github.com/itoshu008/kintai.git から最新のコ
    pm2 restart all
 
 7. ヘルスチェック
-   curl http://localhost:8000/api/admin/backups/health
+   curl http://localhost:8001/api/admin/backups/health
 
 8. ログ確認
    pm2 logs --lines 20
@@ -64,7 +64,7 @@ GitHubリポジトリ https://github.com/itoshu008/kintai.git から最新のコ
 リポジトリ: https://github.com/itoshu008/kintai.git
 ブランチ: main
 サーバーパス: /home/zatint1991-hvt55/zatint1991.com
-ポート: 8000
+ポート: 8001
 環境: production
 
 実行コマンド：
@@ -79,7 +79,7 @@ GitHubリポジトリ https://github.com/itoshu008/kintai.git から最新のコ
 リポジトリ: https://github.com/itoshu008/kintai.git
 ブランチ: main
 ローカルパス: E:\プログラム\kintai\kintai-clone
-ポート: 8000
+ポート: 8001
 環境: development
 
 実行コマンド：
@@ -100,7 +100,7 @@ npm run dev
    pm2 status
 
 3. ポート使用状況を確認
-   netstat -tlnp | grep 8000
+   netstat -tlnp | grep 8001
 
 4. ディスク容量を確認
    df -h
@@ -126,7 +126,7 @@ npm run dev
    pm2 restart all
 
 4. 動作確認
-   curl http://localhost:8000/api/admin/backups/health
+   curl http://localhost:8001/api/admin/backups/health
 ```
 
 ## 📊 デプロイ後の確認指示
@@ -135,8 +135,8 @@ npm run dev
 デプロイが完了しました。以下を確認してください：
 
 1. バックエンドの動作確認
-   curl http://localhost:8000/api/admin/departments
-   curl http://localhost:8000/api/admin/backups/health
+   curl http://localhost:8001/api/admin/departments
+   curl http://localhost:8001/api/admin/backups/health
 
 2. フロントエンドの動作確認
    curl http://localhost:8001

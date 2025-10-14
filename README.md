@@ -58,7 +58,7 @@ cp -r frontend/dist/* public/
 ```bash
 cd backend
 pm2 start dist/index.js --name "attendance-app" --env production \
-  --env PORT=8000 \
+  --env PORT=8001 \
   --env NODE_ENV=production \
   --env DATA_DIR="/home/zatint1991-hvt55/zatint1991.com/data" \
   --env FRONTEND_PATH="/home/zatint1991-hvt55/zatint1991.com/public" \
@@ -68,7 +68,7 @@ pm2 save
 ```
 
 ## 環境変数
-- `PORT`: サーバーポート（デフォルト: 8000）
+- `PORT`: サーバーポート（デフォルト: 8001）
 - `NODE_ENV`: 環境（production/development）
 - `DATA_DIR`: データディレクトリパス
 - `FRONTEND_PATH`: フロントエンドファイルパス

@@ -52,7 +52,7 @@ sudo nginx -t && sudo systemctl reload nginx
 # 実行コマンド
 cp backend/env.production backend/.env
 export NODE_ENV=production
-export PORT=8000
+export PORT=8001
 ```
 
 ### 2. データベース設定
@@ -98,7 +98,7 @@ tail -f /var/log/nginx/error.log
 # 実行コマンド
 pm2 status
 ps aux | grep node
-netstat -tlnp | grep 8000
+netstat -tlnp | grep 8001
 ```
 
 ### 3. ディスク容量確認
@@ -146,9 +146,9 @@ pm2 restart all
 "APIのヘルスチェックを実行してください。"
 
 # 実行コマンド
-curl http://localhost:8000/api/admin/backups/health
-curl http://localhost:8000/api/admin/departments
-curl -I http://localhost:8000/api/admin/employees
+curl http://localhost:8001/api/admin/backups/health
+curl http://localhost:8001/api/admin/departments
+curl -I http://localhost:8001/api/admin/employees
 ```
 
 ### 2. フロントエンドチェック
@@ -235,7 +235,7 @@ echo "0 2 * * * /home/zatint1991-hvt55/zatint1991.com/backup-script.sh" | cronta
 "バックアップ機能をテストしてください。"
 
 # 実行コマンド
-curl -X POST http://localhost:8000/api/admin/backup \
+curl -X POST http://localhost:8001/api/admin/backup \
   -H "Content-Type: application/json" \
   -d '{"reason": "test"}'
 ```
@@ -246,7 +246,7 @@ curl -X POST http://localhost:8000/api/admin/backup \
 "APIのパフォーマンスをテストしてください。"
 
 # 実行コマンド
-ab -n 100 -c 10 http://localhost:8000/api/admin/departments
+ab -n 100 -c 10 http://localhost:8001/api/admin/departments
 ```
 
 ---

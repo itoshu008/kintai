@@ -107,7 +107,7 @@ pm2 restart kintai-backend
 
 ```bash
 # バックエンドのヘルスチェック
-curl http://localhost:8000/api/admin/backups/health
+curl http://localhost:8001/api/admin/backups/health
 
 # フロントエンドの確認
 curl http://localhost:8001
@@ -160,7 +160,7 @@ server {
 
     # バックエンドAPI
     location /api/ {
-        proxy_pass http://127.0.0.1:8000;
+        proxy_pass http://127.0.0.1:8001;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
