@@ -3,6 +3,28 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getHolidayNameSync, isHolidaySync } from '../utils/holidays';
 import { backupApi } from '../api/backup';
 
+// 型エラー対策（任意）
+declare global {
+  // あるなら boolean を想定。無ければ undefined。
+  var isPreview: boolean | undefined;
+}
+export {};
+
+// --- safe preview flag ---
+const safePreview: boolean = (() => {
+  // グローバル window / globalThis に safePreview があれば優先
+  if (typeof globalThis !== 'undefined' && (globalThis as any).safePreview !== undefined) {
+    return Boolean((globalThis as any).safePreview);
+  }
+  // URLの ?preview=1 等でプレビュー指定された場合
+  if (typeof window !== 'undefined') {
+    const q = new URLSearchParams(window.location.search);
+    if (q.has('preview')) return true;
+  }
+  // それ以外は本番/開発などの環境に応じて既定値
+  return import.meta.env.MODE !== 'production' ? false : false; // ここは必要なら true/false に調整
+})();
+
 //================================================================================
 // 1. 型定義
 //================================================================================
@@ -336,7 +358,7 @@ export default function MasterPage() {
   // バックアップ＆プレビュー関連
   const [backups, setBackups] = useState<BackupItem[]>([]);
   const [backupLoading, setBackupLoading] = useState(false);
-  const [isPreview, setIsPreview] = useState(false);
+  const [safePreview, setIsPreview] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
 
   // UI表示制御
@@ -532,13 +554,13 @@ export default function MasterPage() {
 
   // プレビューモード用の部署データ
   const currentDeps = useMemo(() => {
-    return isPreview ? (previewData?.departments ?? []) : deps;
-  }, [isPreview, previewData, deps]);
+    return safePreview ? (previewData?.departments ?? []) : deps;
+  }, [safePreview, previewData, deps]);
 
-  // デバッグ用：isPreviewの状態をログ出力
+  // デバッグ用：safePreviewの状態をログ出力
   useEffect(() => {
-    console.log('isPreview state:', isPreview);
-  }, [isPreview]);
+    console.log('safePreview state:', safePreview);
+  }, [safePreview]);
 
   // デバッグ用：API接続テスト
   const testApiConnection = async () => {
@@ -873,13 +895,13 @@ export default function MasterPage() {
 
 
   const sorted = useMemo(() => {
-    const currentData = isPreview ? (previewData?.master ?? []) : data;
+    const currentData = safePreview ? (previewData?.master ?? []) : data;
     let filtered = currentData;
     if (depFilter !== null) {
       filtered = currentData.filter((r: MasterRow) => r.department_id === depFilter);
     }
     return [...filtered].sort((a, b) => a.code.localeCompare(b.code));
-  }, [data, depFilter, isPreview, previewData]);
+  }, [data, depFilter, safePreview, previewData]);
 
   // --- JSXレンダリング ---
   return (
@@ -910,7 +932,7 @@ export default function MasterPage() {
       </div>
 
       {/* ================= プレビューバナー ================= */}
-      {isPreview && (
+      {safePreview && (
         <div style={{ background: '#ffc107', color: '#333', padding: '16px', marginBottom: '24px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span>🔍 プレビューモード中です（変更は保存されません）</span>
           <button onClick={exitPreview} style={{ padding: '8px 12px', background: '#333', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>✅ 現状に戻る</button>
@@ -973,86 +995,86 @@ export default function MasterPage() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    console.log('編集ボタンクリック:', r, 'isPreview:', isPreview);
+                    console.log('編集ボタンクリック:', r, 'safePreview:', safePreview);
                     onEditEmployee(r);
                   }}
-                  disabled={isPreview}
-                  title={isPreview ? 'プレビューモード中は編集できません' : '社員情報を編集'}
+                  disabled={safePreview}
+                  title={safePreview ? 'プレビューモード中は編集できません' : '社員情報を編集'}
                   style={{
-                    background: isPreview ? '#6c757d' : '#ffc107',
+                    background: safePreview ? '#6c757d' : '#ffc107',
                     border: 'none',
                     borderRadius: '4px',
                     padding: '4px 8px',
-                    cursor: isPreview ? 'not-allowed' : 'pointer',
+                    cursor: safePreview ? 'not-allowed' : 'pointer',
                     fontSize: '12px',
                     color: '#212529',
                     transition: 'all 0.2s ease',
-                    opacity: isPreview ? 0.6 : 1
+                    opacity: safePreview ? 0.6 : 1
                   }}
                   onMouseEnter={(e) => {
-                    if (!isPreview) e.currentTarget.style.background = '#e0a800';
+                    if (!safePreview) e.currentTarget.style.background = '#e0a800';
                   }}
                   onMouseLeave={(e) => {
-                    if (!isPreview) e.currentTarget.style.background = '#ffc107';
+                    if (!safePreview) e.currentTarget.style.background = '#ffc107';
                   }}
                 >
-                  {isPreview ? '🔒' : '✏️'} 編集 {isPreview ? '(無効)' : '(有効)'}
+                  {safePreview ? '🔒' : '✏️'} 編集 {safePreview ? '(無効)' : '(有効)'}
                 </button>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    console.log('削除ボタンクリック:', r, 'isPreview:', isPreview);
+                    console.log('削除ボタンクリック:', r, 'safePreview:', safePreview);
                     onDeleteEmployee(r);
                   }}
-                  disabled={isPreview}
-                  title={isPreview ? 'プレビューモード中は削除できません' : '社員を削除'}
+                  disabled={safePreview}
+                  title={safePreview ? 'プレビューモード中は削除できません' : '社員を削除'}
               style={{
-                    background: isPreview ? '#6c757d' : '#dc3545',
+                    background: safePreview ? '#6c757d' : '#dc3545',
                     border: 'none',
                               borderRadius: '4px',
                     padding: '4px 8px',
-                    cursor: isPreview ? 'not-allowed' : 'pointer',
+                    cursor: safePreview ? 'not-allowed' : 'pointer',
                     fontSize: '12px',
                     color: 'white',
                     transition: 'all 0.2s ease',
-                    opacity: isPreview ? 0.6 : 1
+                    opacity: safePreview ? 0.6 : 1
                   }}
                   onMouseEnter={(e) => {
-                    if (!isPreview) e.currentTarget.style.background = '#c82333';
+                    if (!safePreview) e.currentTarget.style.background = '#c82333';
                   }}
                   onMouseLeave={(e) => {
-                    if (!isPreview) e.currentTarget.style.background = '#dc3545';
+                    if (!safePreview) e.currentTarget.style.background = '#dc3545';
                   }}
                 >
-                  {isPreview ? '🔒' : '🗑️'} 削除
+                  {safePreview ? '🔒' : '🗑️'} 削除
                 </button>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    console.log('備考ボタンクリック:', r, 'isPreview:', isPreview);
+                    console.log('備考ボタンクリック:', r, 'safePreview:', safePreview);
                     onEditRemark(r);
                   }}
-                  disabled={isPreview}
-                  title={isPreview ? 'プレビューモード中は備考編集できません' : '備考を編集'}
+                  disabled={safePreview}
+                  title={safePreview ? 'プレビューモード中は備考編集できません' : '備考を編集'}
                   style={{
-                    background: isPreview ? '#6c757d' : '#17a2b8',
+                    background: safePreview ? '#6c757d' : '#17a2b8',
                     border: 'none',
                     borderRadius: '4px',
                     padding: '4px 8px',
-                    cursor: isPreview ? 'not-allowed' : 'pointer',
+                    cursor: safePreview ? 'not-allowed' : 'pointer',
                     fontSize: '12px',
                     color: 'white',
                     transition: 'all 0.2s ease',
-                    opacity: isPreview ? 0.6 : 1
+                    opacity: safePreview ? 0.6 : 1
                   }}
                   onMouseEnter={(e) => {
-                    if (!isPreview) e.currentTarget.style.background = '#138496';
+                    if (!safePreview) e.currentTarget.style.background = '#138496';
                   }}
                   onMouseLeave={(e) => {
-                    if (!isPreview) e.currentTarget.style.background = '#17a2b8';
+                    if (!safePreview) e.currentTarget.style.background = '#17a2b8';
                   }}
                 >
-                  {isPreview ? '🔒' : '📝'} 備考
+                  {safePreview ? '🔒' : '📝'} 備考
                 </button>
               </div>
             ))}
