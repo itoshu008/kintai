@@ -40,25 +40,17 @@ jobs:
       - name: Rsync sources (backend / frontend only, run as itoshu)
         run: |
           set -e
-          RSYNC_OPTS="-az -O --no-perms --no-group --delete \
+          RSYNC_OPTS="-az -O --no-perms --no-group --omit-dir-times --delete \
             --exclude '.git' --exclude 'node_modules' \
             --exclude 'backups*/' --exclude 'data*/' \
             --exclude '.public_build*/' --exclude 'public-backup*/' \
             --exclude 'dist-ultimate*/' --exclude 'kintai*/'"
 
-          # 先に宛先ディレクトリを作成
           ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "sudo -u itoshu mkdir -p ${BACKEND_DIR} ${FRONTEND_DIR}"
 
-          # backend だけ同期（アプリコードのみ）
-          rsync $RSYNC_OPTS \
-            ./backend/ \
-            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${BACKEND_DIR}/ \
+          rsync $RSYNC_OPTS ./backend/  ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${BACKEND_DIR}/ \
             --rsync-path="sudo -u itoshu rsync"
-
-          # frontend だけ同期（ソースと設定。公開は後段の build で）
-          rsync $RSYNC_OPTS \
-            ./frontend/ \
-            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${FRONTEND_DIR}/ \
+          rsync $RSYNC_OPTS ./frontend/ ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:${FRONTEND_DIR}/ \
             --rsync-path="sudo -u itoshu rsync"
 
       - name: Build backend & reload PM2
@@ -92,4 +84,9 @@ jobs:
               echo "frontend/ not found. skip."
             fi
           '
+
+      - name: Write deployed commit
+        run: |
+          ssh ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
+            "echo '${{ github.sha }} $(date -u +%FT%TZ)' | sudo -u itoshu tee /home/zatint1991-hvt55/zatint1991.com/DEPLOYED_SHA.txt >/dev/null"
 
