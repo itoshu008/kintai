@@ -1,10 +1,10 @@
 import 'dotenv/config';
 import app from './index.js'; // ← tsc後は .js になるので拡張子 .js
 
-const PORT = Number(process.env.PORT) || 8001;
-const HOST = process.env.HOST || '127.0.0.1';
+const PORT: number = Number(process.env.PORT) || 8001;
+const HOST: string = process.env.HOST || '127.0.0.1';
 
-app.listen(PORT, HOST, () => {
+app.listen(PORT, HOST as any, () => {
   console.log(`ℹ️ Backend server running on http://${HOST}:${PORT}`);
   console.log(`[SERVER] Port: ${PORT}, Host: ${HOST}`);
   console.log(`[SERVER] Environment: ${process.env.NODE_ENV || 'development'}`);

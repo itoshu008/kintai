@@ -6,17 +6,19 @@
 import 'dotenv/config';
 
 import express from 'express';
-import {
-  existsSync,
-  readFileSync,
-  readdirSync,
-  mkdirSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from 'fs';
-import path from 'path';
+import * as fs from 'fs';
+import * as path from 'path';
 import { fileURLToPath } from 'url';
+
+// ---- ESM/CJS 両対応の __filename/__dirname ----
+const __filenameSafe: string =
+  (typeof __filename !== 'undefined')
+    ? __filename
+    : fileURLToPath((import.meta as any).url);
+const __dirnameSafe: string =
+  (typeof __dirname !== 'undefined')
+    ? __dirname
+    : path.dirname(__filenameSafe);
 import { writeJsonAtomic } from './helpers/writeJsonAtomic.js'; // ← ES modulesでは拡張子必須
 
 // ------------------------------------------------------------
@@ -26,15 +28,11 @@ const app = express();
 app.use(express.json({ limit: '2mb' }));
 
 // 環境変数設定
-const PORT = Number(process.env.PORT) || 8001;
-const HOST = process.env.HOST || '127.0.0.1';
-
-// ESM/CJS互換性のための条件分岐
-const __filename = (typeof globalThis !== 'undefined' && (globalThis as any).__filename) || fileURLToPath(import.meta.url);
-const __dirname = (typeof globalThis !== 'undefined' && (globalThis as any).__dirname) || path.dirname(__filename);
+const PORT: number = Number(process.env.PORT) || 8001;
+const HOST: string = process.env.HOST || '127.0.0.1';
 
 // データパス
-const DATA_DIR = path.resolve(__dirname, '..', 'data');
+const DATA_DIR = path.resolve(__dirnameSafe, '..', 'data');
 const EMPLOYEES_FILE = path.join(DATA_DIR, 'employees.json');
 const DEPARTMENTS_FILE = path.join(DATA_DIR, 'departments.json');
 const ATTENDANCE_FILE = path.join(DATA_DIR, 'attendance.json'); // フラットキー: YYYY-MM-DD-コード
@@ -45,18 +43,18 @@ const BACKUP_DIR = path.join(DATA_DIR, 'backups');
 // フロント配信パス（優先: env → public/ → frontend/dist）
 const FRONTEND_PATH = (() => {
   const envPath = process.env.FRONTEND_PATH ? path.resolve(process.env.FRONTEND_PATH) : null;
-  if (envPath && existsSync(envPath)) return envPath;
-  const pub = path.resolve(__dirname, '..', '..', 'public');
-  if (existsSync(pub)) return pub;
-  const dist = path.resolve(__dirname, '..', '..', 'frontend', 'dist');
+  if (envPath && fs.existsSync(envPath)) return envPath;
+  const pub = path.resolve(__dirnameSafe, '..', '..', 'public');
+  if (fs.existsSync(pub)) return pub;
+  const dist = path.resolve(__dirnameSafe, '..', '..', 'frontend', 'dist');
   return dist;
 })();
 
 // ユーティリティ
 function safeReadJSON<T>(filePath: string, fallback: T): T {
   try {
-    if (!existsSync(filePath)) return fallback;
-    const txt = readFileSync(filePath, 'utf-8');
+    if (!fs.existsSync(filePath)) return fallback;
+    const txt = fs.readFileSync(filePath, 'utf-8');
     return JSON.parse(txt) as T;
   } catch (e) {
     console.error('[safeReadJSON] Failed:', filePath, e);
@@ -67,7 +65,7 @@ function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
 }
 function ensureDir(p: string) {
-  if (!existsSync(p)) mkdirSync(p, { recursive: true });
+  if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
 }
 function sortBy<T>(arr: T[], key: (x: T) => number | string, desc = false): T[] {
   return [...arr].sort((a, b) => {
@@ -96,7 +94,7 @@ const sessions = new Map<string, { user: any; createdAt: Date; expiresAt: Date }
 // ------------------------------------------------------------
 // 静的配信（APIより前に）
 // ------------------------------------------------------------
-if (existsSync(FRONTEND_PATH)) {
+if (fs.existsSync(FRONTEND_PATH)) {
   app.use(
     express.static(FRONTEND_PATH, {
       index: ['index.html'],
@@ -625,16 +623,16 @@ app.post('/api/admin/backups', (_req, res) => {
 
     // データ保存
     const dataFile = path.join(dir, 'snapshot.json');
-    writeFileSync(dataFile, JSON.stringify(snap, null, 2));
+    fs.writeFileSync(dataFile, JSON.stringify(snap, null, 2));
 
     // メタ保存
     const meta: BackupMeta = {
       id,
       createdAt: new Date().toISOString(),
       files: ['snapshot.json'],
-      sizeBytes: statSync(dataFile).size,
+      sizeBytes: fs.statSync(dataFile).size,
     };
-    writeFileSync(path.join(dir, 'meta.json'), JSON.stringify(meta, null, 2));
+    fs.writeFileSync(path.join(dir, 'meta.json'), JSON.stringify(meta, null, 2));
 
     res.json({ ok: true, message: 'バックアップが正常に作成されました', backup: meta });
   } catch (e) {
@@ -646,14 +644,14 @@ app.post('/api/admin/backups', (_req, res) => {
 app.get('/api/admin/backups', (_req, res) => {
   try {
     ensureDir(BACKUP_DIR);
-    const dirs = readdirSync(BACKUP_DIR, { withFileTypes: true })
+    const dirs = fs.readdirSync(BACKUP_DIR, { withFileTypes: true })
       .filter(d => d.isDirectory())
       .map(d => d.name);
 
     const metas: BackupMeta[] = [];
     for (const id of dirs) {
       const metaPath = path.join(BACKUP_DIR, id, 'meta.json');
-      if (!existsSync(metaPath)) continue;
+      if (!fs.existsSync(metaPath)) continue;
       const meta = safeReadJSON<BackupMeta>(metaPath, null as any);
       if (meta) metas.push(meta);
     }
@@ -667,7 +665,7 @@ app.get('/api/admin/backups', (_req, res) => {
       for (const m of ordered.slice(keep)) {
         const p = path.join(BACKUP_DIR, m.id);
         try {
-          rmSync(p, { recursive: true, force: true });
+          fs.rmSync(p, { recursive: true, force: true });
         } catch (e) {
           console.warn('[BACKUP] auto-clean failed:', p, e);
         }
@@ -696,7 +694,7 @@ app.get('/api/admin/backups/:id/preview', (req, res) => {
   try {
     const id = req.params.id;
     const dataPath = path.join(BACKUP_DIR, id, 'snapshot.json');
-    if (!existsSync(dataPath)) return res.status(200).json({ ok: false, error: 'バックアップが見つかりません' });
+    if (!fs.existsSync(dataPath)) return res.status(200).json({ ok: false, error: 'バックアップが見つかりません' });
     const snap = safeReadJSON<any>(dataPath, null as any);
     res.json({ ok: true, preview: snap, message: 'プレビューモード：データは復元されません' });
   } catch {
@@ -708,24 +706,24 @@ app.post('/api/admin/backups/:id/restore', (req, res) => {
   try {
     const id = req.params.id;
     const dataPath = path.join(BACKUP_DIR, id, 'snapshot.json');
-    if (!existsSync(dataPath)) return res.status(200).json({ ok: false, error: 'バックアップが見つかりません' });
+    if (!fs.existsSync(dataPath)) return res.status(200).json({ ok: false, error: 'バックアップが見つかりません' });
 
     // 復元前に現在のスナップショットを別バックアップ（安全策）
     const safeId = `pre-restore-${makeBackupId(new Date())}`;
     const safeDir = path.join(BACKUP_DIR, safeId);
     ensureDir(safeDir);
-    writeFileSync(
+    fs.writeFileSync(
       path.join(safeDir, 'snapshot.json'),
       JSON.stringify({ employees, departments, attendanceData, remarksData, holidays }, null, 2),
     );
-    writeFileSync(
+    fs.writeFileSync(
       path.join(safeDir, 'meta.json'),
       JSON.stringify(
         {
           id: safeId,
           createdAt: new Date().toISOString(),
           files: ['snapshot.json'],
-          sizeBytes: statSync(path.join(safeDir, 'snapshot.json')).size,
+          sizeBytes: fs.statSync(path.join(safeDir, 'snapshot.json')).size,
         } satisfies BackupMeta,
         null,
         2,
@@ -767,8 +765,8 @@ app.delete('/api/admin/backups/:id', (req, res) => {
   try {
     const id = req.params.id;
     const dir = path.join(BACKUP_DIR, id);
-    if (!existsSync(dir)) return res.status(200).json({ ok: false, error: 'バックアップが見つかりません' });
-    rmSync(dir, { recursive: true, force: true });
+    if (!fs.existsSync(dir)) return res.status(200).json({ ok: false, error: 'バックアップが見つかりません' });
+    fs.rmSync(dir, { recursive: true, force: true });
     res.json({ ok: true, message: `バックアップ ${id} を削除しました` });
   } catch {
     res.status(200).json({ ok: false, error: 'バックアップ削除に失敗しました' });
@@ -778,14 +776,14 @@ app.delete('/api/admin/backups/:id', (req, res) => {
 app.post('/api/admin/backups/cleanup', (_req, res) => {
   try {
     ensureDir(BACKUP_DIR);
-    const dirs = readdirSync(BACKUP_DIR, { withFileTypes: true })
+    const dirs = fs.readdirSync(BACKUP_DIR, { withFileTypes: true })
       .filter(d => d.isDirectory())
       .map(d => d.name);
 
     const metas: BackupMeta[] = [];
     for (const id of dirs) {
       const metaPath = path.join(BACKUP_DIR, id, 'meta.json');
-      if (!existsSync(metaPath)) continue;
+      if (!fs.existsSync(metaPath)) continue;
       const meta = safeReadJSON<BackupMeta>(metaPath, null as any);
       if (meta) metas.push(meta);
     }
@@ -794,7 +792,7 @@ app.post('/api/admin/backups/cleanup', (_req, res) => {
     for (const m of ordered.slice(keep)) {
       const p = path.join(BACKUP_DIR, m.id);
       try {
-        rmSync(p, { recursive: true, force: true });
+        fs.rmSync(p, { recursive: true, force: true });
       } catch (e) {
         console.warn('[BACKUP] cleanup failed:', p, e);
       }
@@ -811,7 +809,7 @@ app.post('/api/admin/backups/cleanup', (_req, res) => {
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api/')) return next();
   const indexHtmlPath = path.resolve(FRONTEND_PATH, 'index.html');
-  if (existsSync(indexHtmlPath)) {
+  if (fs.existsSync(indexHtmlPath)) {
     res.sendFile(indexHtmlPath, err => {
       if (err) {
         console.error('[SPA] sendFile error:', err);
