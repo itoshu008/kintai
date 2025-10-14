@@ -3,8 +3,7 @@
 // 全機能・簡略安全版（フロント互換レスポンス・ESM/TS対応・SPA配信）
 // ------------------------------------------------------------
 
-import dotenv from 'dotenv';
-dotenv.config({ override: true });
+import 'dotenv/config';
 
 import express from 'express';
 import {
@@ -25,6 +24,10 @@ import { writeJsonAtomic } from './helpers/writeJsonAtomic.js'; // ← ES module
 // ------------------------------------------------------------
 const app = express();
 app.use(express.json({ limit: '2mb' }));
+
+// 環境変数設定
+const PORT = Number(process.env.PORT) || 8001;
+const HOST = process.env.HOST || '127.0.0.1';
 
 // ESM/CJS互換性のための条件分岐
 const __filename = (typeof globalThis !== 'undefined' && (globalThis as any).__filename) || fileURLToPath(import.meta.url);

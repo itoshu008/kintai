@@ -1,7 +1,7 @@
 {
   "name": "attendance-backend",
   "version": "1.0.0",
-  "type": "module",
+  "type": "commonjs",
   "private": true,
   "scripts": {
     "build": "tsc -p tsconfig.json",
