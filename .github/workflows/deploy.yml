@@ -16,8 +16,9 @@ jobs:
       PM2_USER: itoshu
       PORT: "8001"
       NODE_ENV: production
-      VPS_HOST: ${{ secrets.VPS_HOST }}
-      VPS_USER: ${{ secrets.VPS_USER }}
+      DEPLOY_USER: ${{ secrets.VPS_USER }}   # ← たぶん deploy
+      BUILD_USER: itoshu
+      VPS_HOST:   ${{ secrets.VPS_HOST }}
 
     steps:
       - uses: actions/checkout@v4
@@ -36,7 +37,7 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
 
-      - name: Add host key (known_hosts)
+      - name: Add host key
         run: |
           mkdir -p ~/.ssh
           ssh-keygen -R "$VPS_HOST" 2>/dev/null || true
@@ -53,41 +54,34 @@ jobs:
             --exclude 'dist-ultimate*/' --exclude 'kintai*/'"
           RSYNC_SSH="ssh -o StrictHostKeyChecking=accept-new"
 
-          rsync -e "$RSYNC_SSH" $RSYNC_OPTS ./backend/  "$VPS_USER@$VPS_HOST:$BACKEND_DIR/"  --rsync-path="sudo -u $PM2_USER rsync"
-          rsync -e "$RSYNC_SSH" $RSYNC_OPTS ./frontend/ "$VPS_USER@$VPS_HOST:$FRONTEND_DIR/" --rsync-path="sudo -u $PM2_USER rsync"
+          rsync -e "$RSYNC_SSH" $RSYNC_OPTS ./backend/  "$DEPLOY_USER@$VPS_HOST:$BACKEND_DIR/"  --rsync-path="sudo -u $PM2_USER rsync"
+          rsync -e "$RSYNC_SSH" $RSYNC_OPTS ./frontend/ "$DEPLOY_USER@$VPS_HOST:$FRONTEND_DIR/" --rsync-path="sudo -u $PM2_USER rsync"
 
-      - name: Build backend & reload PM2
+      - name: Build backend & reload PM2 (run as itoshu)
         run: |
-          ssh "$VPS_USER@$VPS_HOST" "
+          ssh "$BUILD_USER@$VPS_HOST" "
             set -e
             cd \"$BACKEND_DIR\"
-            sudo chown -R \"$PM2_USER\":\"$PM2_USER\" .
             npm install --omit=dev --no-audit --no-fund
             npm run build || true
-            PORT=\"$PORT\" NODE_ENV=\"$NODE_ENV\" sudo -u \"$PM2_USER\" pm2 reload \"$PM2_APP\" \
-              || PORT=\"$PORT\" NODE_ENV=\"$NODE_ENV\" sudo -u \"$PM2_USER\" pm2 start dist/index.js --name \"$PM2_APP\"
-            sudo -u \"$PM2_USER\" pm2 save
+            PORT=\"$PORT\" NODE_ENV=\"$NODE_ENV\" pm2 reload \"$PM2_APP\" \
+              || PORT=\"$PORT\" NODE_ENV=\"$NODE_ENV\" pm2 start dist/index.js --name \"$PM2_APP\"
+            pm2 save
           "
 
-      - name: Build frontend & publish
+      - name: Build frontend & publish (run as itoshu)
         run: |
-          ssh "$VPS_USER@$VPS_HOST" "
+          ssh "$BUILD_USER@$VPS_HOST" "
             set -e
-            if [ -d \"$FRONTEND_DIR\" ]; then
-              cd \"$FRONTEND_DIR\"
-              sudo chown -R \"$PM2_USER\":\"$PM2_USER\" .
-              npm install --no-audit --no-fund
-              npm run build
-              sudo rm -rf \"$PUBLIC_DIR\"
-              sudo mkdir -p \"$PUBLIC_DIR\"
-              sudo chown -R \"$PM2_USER\":\"$PM2_USER\" \"$PUBLIC_DIR\"
-              rsync -a --delete \"$FRONTEND_DIR/dist/\" \"$PUBLIC_DIR/\"
-              sudo nginx -t && sudo systemctl reload nginx
-            else
-              echo 'frontend/ not found. skip.'
-            fi
+            cd \"$FRONTEND_DIR\" || exit 0
+            npm install --no-audit --no-fund
+            npm run build
+            rm -rf \"$PUBLIC_DIR\"
+            mkdir -p \"$PUBLIC_DIR\"
+            rsync -a --delete \"$FRONTEND_DIR/dist/\" \"$PUBLIC_DIR/\"
+            nginx -t && sudo systemctl reload nginx
           "
 
       - name: Write deployed commit
         run: |
-          ssh "$VPS_USER@$VPS_HOST" "echo '${{ github.sha }} $(date -u +%FT%TZ)' | sudo -u $PM2_USER tee $APP_DIR/DEPLOYED_SHA.txt >/dev/null"
+          ssh "$BUILD_USER@$VPS_HOST" "echo '${{ github.sha }} $(date -u +%FT%TZ)' > $APP_DIR/DEPLOYED_SHA.txt"
