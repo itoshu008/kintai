@@ -35,12 +35,23 @@ jobs:
           ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
+      - name: Prepare target permissions
+        run: |
+          ssh "$DEPLOY_USER@$VPS_HOST" "
+            set -e
+            sudo mkdir -p '$BACKEND_DIR' '$FRONTEND_DIR'
+            sudo chown -R $PM2_USER:$PM2_USER '$BACKEND_DIR' '$FRONTEND_DIR'
+            sudo find '$BACKEND_DIR' -type d -exec chmod 775 {} \;
+            sudo find '$BACKEND_DIR' -type f -exec chmod 664 {} \;
+          "
+
       - name: Rsync sources (backend / frontend only)
         run: |
           set -euo pipefail
           RSYNC_OPTS="-az -O --no-perms --no-group --omit-dir-times --delete \
             --exclude '.git' --exclude 'node_modules' \
-            --exclude 'backups*/' --exclude 'data*/' \
+            --exclude 'backups*/' \
+            --exclude 'data*/**' \
             --exclude '.public_build*/' --exclude 'public-backup*/' \
             --exclude 'dist-ultimate*/' --exclude 'kintai*/'"
           RSYNC_SSH="ssh -o StrictHostKeyChecking=accept-new"
