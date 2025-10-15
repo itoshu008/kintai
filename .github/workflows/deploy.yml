@@ -44,12 +44,12 @@ jobs:
 
       - name: Prepare target (as itoshu, no sudo)
         run: |
-          ssh "$BUILD_USER@$VPS_HOST" <<'SSH'
+          ssh "$BUILD_USER@$VPS_HOST" <<EOF
           set -Eeuo pipefail
           mkdir -p "$APP_DIR/scripts" "$BACKEND_DIR" "$FRONTEND_DIR"
           find "$BACKEND_DIR" -type d -exec chmod 775 {} \; || true
           find "$BACKEND_DIR" -type f -exec chmod 664 {} \; || true
-          SSH
+          EOF
 
       - name: Ensure deploy scripts are executable (repo side)
         run: |
@@ -88,14 +88,14 @@ jobs:
 
       - name: Deploy backend (SoT → PM2 → gates)
         run: |
-          ssh "$BUILD_USER@$VPS_HOST" <<'SSH'
+          ssh "$BUILD_USER@$VPS_HOST" <<EOF
           set -Eeuo pipefail
-          export PM2_HOME="/home/${BUILD_USER}/.pm2"
+          export PM2_HOME="/home/$BUILD_USER/.pm2"
           export BACKEND_DIR="$BACKEND_DIR"
           export PM2_APP="$PM2_APP"
           cd "$APP_DIR"
           scripts/deploy_backend.sh
-          SSH
+          EOF
 
       - name: Post-deploy gates (health/port/frontend/nginx/commit)
         env:
@@ -108,7 +108,7 @@ jobs:
           PM2_APP: kintai-api
           PORT: "8001"
         run: |
-          ssh "$BUILD_USER@$VPS_HOST" <<'SSH'
+          ssh "$BUILD_USER@$VPS_HOST" <<EOF
           set -Eeuo pipefail
           APP_DIR="$APP_DIR"
           FRONTEND_DIR="$FRONTEND_DIR"
@@ -118,26 +118,26 @@ jobs:
 
           echo "== Gate 1: Health gate (3 consecutive OK) =="
           ok=0; streak=0; i=0
-          while [ $i -lt 30 ]; do
-            if curl -fsS --max-time 20 "http://127.0.0.1:${PORT}/api/admin/health" | grep -q '"ok":true'; then
-              streak=$((streak+1)); echo "health OK ($streak/3)"
-              if [ $streak -ge 3 ]; then ok=1; break; fi
+          while [ \$i -lt 30 ]; do
+            if curl -fsS --max-time 20 "http://127.0.0.1:\${PORT}/api/admin/health" | grep -q '"ok":true'; then
+              streak=\$((streak+1)); echo "health OK (\$streak/3)"
+              if [ \$streak -ge 3 ]; then ok=1; break; fi
             else
               streak=0; echo "health NG (reset)"
             fi
-            sleep 1; i=$((i+1))
+            sleep 1; i=\$((i+1))
           done
-          [ $ok -eq 1 ] || { echo "❌ Health gate failed";
-            ERR_LOG=$(pm2 info "$PM2_APP" | awk -F': ' '/error log path/ {print $2}');
-            [ -f "$ERR_LOG" ] && { echo "---PM2 ERR---"; tail -n 200 "$ERR_LOG"; };
+          [ \$ok -eq 1 ] || { echo "❌ Health gate failed";
+            ERR_LOG=\$(pm2 info "$PM2_APP" | awk -F': ' '/error log path/ {print \$2}');
+            [ -f "\$ERR_LOG" ] && { echo "---PM2 ERR---"; tail -n 200 "\$ERR_LOG"; };
             exit 10; }
 
-          echo "== Gate 2: Port ${PORT} stability (3/3 listen) =="
+          echo "== Gate 2: Port \${PORT} stability (3/3 listen) =="
           for j in 1 2 3; do
-            ss -H -ltn "( sport = :${PORT} )" | grep -q . || { echo "❌ not listening on :${PORT}"; exit 11; }
+            ss -H -ltn "( sport = :\${PORT} )" | grep -q . || { echo "❌ not listening on :\${PORT}"; exit 11; }
             sleep 1
           done
-          echo "✅ Port ${PORT} stable"
+          echo "✅ Port \${PORT} stable"
 
           echo "== Gate 3: Build frontend & publish (as itoshu) =="
           sudo -u itoshu bash -lc "
@@ -160,5 +160,5 @@ jobs:
           cd "$APP_DIR"
           git config --global user.email "ci@zat.int"
           git config --global user.name  "CI Bot"
-          git commit --allow-empty -m "[deploy] health ok / port ${PORT} ok / frontend published / nginx reloaded (*** masked)" || true
-          SSH
+          git commit --allow-empty -m "[deploy] health ok / port \${PORT} ok / frontend published / nginx reloaded (*** masked)" || true
+          EOF
