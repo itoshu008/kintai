@@ -346,7 +346,7 @@ export default function MasterPage() {
   // バックアップ＆プレビュー関連
   const [backups, setBackups] = useState<BackupItem[]>([]);
   const [backupLoading, setBackupLoading] = useState(false);
-  const [isPreview, setIsPreview] = useState(false);
+  const [previewMode, setPreviewMode] = useState(false);
   const [previewData, setPreviewData] = useState<any>(null);
 
   // UI表示制御
@@ -444,7 +444,7 @@ export default function MasterPage() {
 
   // プレビュー終了関数（現状に戻す）
   const exitPreview = useCallback(async () => {
-    setIsPreview(false);
+    setPreviewMode(false);
     setPreviewData(null);
     setSelectedBackupId('');
     setMsg('✅ 現状に戻りました');
@@ -542,13 +542,13 @@ export default function MasterPage() {
 
   // プレビューモード用の部署データ
   const currentDeps = useMemo(() => {
-    return isPreviewFlag ? (previewData?.departments ?? []) : deps;
-  }, [isPreviewFlag, previewData, deps]);
+    return previewMode ? (previewData?.departments ?? []) : deps;
+  }, [previewMode, previewData, deps]);
 
-  // デバッグ用：isPreviewFlagの状態をログ出力
+  // デバッグ用：previewModeの状態をログ出力
   useEffect(() => {
-    console.log('isPreviewFlag state:', isPreviewFlag);
-  }, [isPreviewFlag]);
+    console.log('previewMode state:', previewMode);
+  }, [previewMode]);
 
   // デバッグ用：API接続テスト
   const testApiConnection = async () => {
@@ -871,7 +871,7 @@ export default function MasterPage() {
     try {
       const data = await backupApi.previewBackup(backupId);
       setPreviewData(data);
-      setIsPreview(true);
+      setPreviewMode(true);
       setMsg('🔍 プレビューモードに切り替えました');
       setShowBackupManagement(false); // モーダルを閉じる
     } catch (err: any) {
@@ -883,13 +883,13 @@ export default function MasterPage() {
 
 
   const sorted = useMemo(() => {
-    const currentData = isPreviewFlag ? (previewData?.master ?? []) : data;
+    const currentData = previewMode ? (previewData?.master ?? []) : data;
     let filtered = currentData;
     if (depFilter !== null) {
       filtered = currentData.filter((r: MasterRow) => r.department_id === depFilter);
     }
     return [...filtered].sort((a, b) => a.code.localeCompare(b.code));
-  }, [data, depFilter, isPreviewFlag, previewData]);
+  }, [data, depFilter, previewMode, previewData]);
 
   // --- JSXレンダリング ---
   return (
@@ -920,7 +920,7 @@ export default function MasterPage() {
       </div>
 
       {/* ================= プレビューバナー ================= */}
-      {isPreviewFlag && (
+      {previewMode && (
         <div style={{ background: '#ffc107', color: '#333', padding: '16px', marginBottom: '24px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span>🔍 プレビューモード中です（変更は保存されません）</span>
           <button onClick={exitPreview} style={{ padding: '8px 12px', background: '#333', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>✅ 現状に戻る</button>
@@ -983,86 +983,86 @@ export default function MasterPage() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    console.log('編集ボタンクリック:', r, 'isPreviewFlag:', isPreviewFlag);
+                    console.log('編集ボタンクリック:', r, 'previewMode:', previewMode);
                     onEditEmployee(r);
                   }}
-                  disabled={isPreviewFlag}
-                  title={isPreviewFlag ? 'プレビューモード中は編集できません' : '社員情報を編集'}
+                  disabled={previewMode}
+                  title={previewMode ? 'プレビューモード中は編集できません' : '社員情報を編集'}
                   style={{
-                    background: isPreviewFlag ? '#6c757d' : '#ffc107',
+                    background: previewMode ? '#6c757d' : '#ffc107',
                     border: 'none',
                     borderRadius: '4px',
                     padding: '4px 8px',
-                    cursor: isPreviewFlag ? 'not-allowed' : 'pointer',
+                    cursor: previewMode ? 'not-allowed' : 'pointer',
                     fontSize: '12px',
                     color: '#212529',
                     transition: 'all 0.2s ease',
-                    opacity: isPreviewFlag ? 0.6 : 1
+                    opacity: previewMode ? 0.6 : 1
                   }}
                   onMouseEnter={(e) => {
-                    if (!isPreviewFlag) e.currentTarget.style.background = '#e0a800';
+                    if (!previewMode) e.currentTarget.style.background = '#e0a800';
                   }}
                   onMouseLeave={(e) => {
-                    if (!isPreviewFlag) e.currentTarget.style.background = '#ffc107';
+                    if (!previewMode) e.currentTarget.style.background = '#ffc107';
                   }}
                 >
-                  {isPreviewFlag ? '🔒' : '✏️'} 編集 {isPreviewFlag ? '(無効)' : '(有効)'}
+                  {previewMode ? '🔒' : '✏️'} 編集 {previewMode ? '(無効)' : '(有効)'}
                 </button>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    console.log('削除ボタンクリック:', r, 'isPreviewFlag:', isPreviewFlag);
+                    console.log('削除ボタンクリック:', r, 'previewMode:', previewMode);
                     onDeleteEmployee(r);
                   }}
-                  disabled={isPreviewFlag}
-                  title={isPreviewFlag ? 'プレビューモード中は削除できません' : '社員を削除'}
+                  disabled={previewMode}
+                  title={previewMode ? 'プレビューモード中は削除できません' : '社員を削除'}
               style={{
-                    background: isPreviewFlag ? '#6c757d' : '#dc3545',
+                    background: previewMode ? '#6c757d' : '#dc3545',
                     border: 'none',
                               borderRadius: '4px',
                     padding: '4px 8px',
-                    cursor: isPreviewFlag ? 'not-allowed' : 'pointer',
+                    cursor: previewMode ? 'not-allowed' : 'pointer',
                     fontSize: '12px',
                     color: 'white',
                     transition: 'all 0.2s ease',
-                    opacity: isPreviewFlag ? 0.6 : 1
+                    opacity: previewMode ? 0.6 : 1
                   }}
                   onMouseEnter={(e) => {
-                    if (!isPreviewFlag) e.currentTarget.style.background = '#c82333';
+                    if (!previewMode) e.currentTarget.style.background = '#c82333';
                   }}
                   onMouseLeave={(e) => {
-                    if (!isPreviewFlag) e.currentTarget.style.background = '#dc3545';
+                    if (!previewMode) e.currentTarget.style.background = '#dc3545';
                   }}
                 >
-                  {isPreviewFlag ? '🔒' : '🗑️'} 削除
+                  {previewMode ? '🔒' : '🗑️'} 削除
                 </button>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    console.log('備考ボタンクリック:', r, 'isPreviewFlag:', isPreviewFlag);
+                    console.log('備考ボタンクリック:', r, 'previewMode:', previewMode);
                     onEditRemark(r);
                   }}
-                  disabled={isPreviewFlag}
-                  title={isPreviewFlag ? 'プレビューモード中は備考編集できません' : '備考を編集'}
+                  disabled={previewMode}
+                  title={previewMode ? 'プレビューモード中は備考編集できません' : '備考を編集'}
                   style={{
-                    background: isPreviewFlag ? '#6c757d' : '#17a2b8',
+                    background: previewMode ? '#6c757d' : '#17a2b8',
                     border: 'none',
                     borderRadius: '4px',
                     padding: '4px 8px',
-                    cursor: isPreviewFlag ? 'not-allowed' : 'pointer',
+                    cursor: previewMode ? 'not-allowed' : 'pointer',
                     fontSize: '12px',
                     color: 'white',
                     transition: 'all 0.2s ease',
-                    opacity: isPreviewFlag ? 0.6 : 1
+                    opacity: previewMode ? 0.6 : 1
                   }}
                   onMouseEnter={(e) => {
-                    if (!isPreviewFlag) e.currentTarget.style.background = '#138496';
+                    if (!previewMode) e.currentTarget.style.background = '#138496';
                   }}
                   onMouseLeave={(e) => {
-                    if (!isPreviewFlag) e.currentTarget.style.background = '#17a2b8';
+                    if (!previewMode) e.currentTarget.style.background = '#17a2b8';
                   }}
                 >
-                  {isPreviewFlag ? '🔒' : '📝'} 備考
+                  {previewMode ? '🔒' : '📝'} 備考
                 </button>
               </div>
             ))}
