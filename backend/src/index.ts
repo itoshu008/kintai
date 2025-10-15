@@ -29,6 +29,12 @@ import { mountAdminMaster } from './routes/adminMaster.js'; // 管理画面API
 const app = express();
 app.use(express.json({ limit: '2mb' }));
 
+// 文字エンコーディング設定
+app.use((req, res, next) => {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  next();
+});
+
 // 開発用API（ON/OFF は環境変数で）
 app.use('/api/dev', devRouter);
 
