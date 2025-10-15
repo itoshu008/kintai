@@ -35,44 +35,39 @@ jobs:
           ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
-      - name: Prepare target permissions
+      - name: Prepare target (as itoshu, no sudo)
         run: |
-          ssh "$DEPLOY_USER@$VPS_HOST" "
+          ssh "$BUILD_USER@$VPS_HOST" "
             set -e
-            sudo mkdir -p '$BACKEND_DIR' '$FRONTEND_DIR'
-            sudo chown -R $PM2_USER:$PM2_USER '$BACKEND_DIR' '$FRONTEND_DIR'
-            sudo find '$BACKEND_DIR' -type d -exec chmod 775 {} \;
-            sudo find '$BACKEND_DIR' -type f -exec chmod 664 {} \;
+            mkdir -p '$BACKEND_DIR' '$FRONTEND_DIR'
+            # 既存がroot所有でも以後の新規は itoshu 所有になる。chmodは失敗しても無視。
+            find '$BACKEND_DIR' -type d -exec chmod 775 {} \; || true
+            find '$BACKEND_DIR' -type f -exec chmod 664 {} \; || true
           "
 
-      - name: Rsync sources (backend / frontend only)
+      - name: Rsync sources (as itoshu)
         run: |
-          set -euo pipefail
+          set -e
           RSYNC_OPTS="-az -O --no-perms --no-group --omit-dir-times --delete \
             --exclude '.git' --exclude 'node_modules' \
-            --exclude 'backups*/' \
-            --exclude 'data*/**' \
+            --exclude 'backups*/' --exclude 'data*/**' \
             --exclude '.public_build*/' --exclude 'public-backup*/' \
             --exclude 'dist-ultimate*/' --exclude 'kintai*/'"
           RSYNC_SSH="ssh -o StrictHostKeyChecking=accept-new"
 
-          rsync -e "$RSYNC_SSH" $RSYNC_OPTS ./backend/  "$DEPLOY_USER@$VPS_HOST:$BACKEND_DIR/"  --rsync-path="sudo -u $PM2_USER rsync"
-          rsync -e "$RSYNC_SSH" $RSYNC_OPTS ./frontend/ "$DEPLOY_USER@$VPS_HOST:$FRONTEND_DIR/" --rsync-path="sudo -u $PM2_USER rsync"
+          rsync -e "$RSYNC_SSH" $RSYNC_OPTS ./backend/  "$BUILD_USER@$VPS_HOST:$BACKEND_DIR/"
+          rsync -e "$RSYNC_SSH" $RSYNC_OPTS ./frontend/ "$BUILD_USER@$VPS_HOST:$FRONTEND_DIR/"
 
-      - name: Build backend & safe restart PM2 (run as itoshu)
+      - name: Build backend & reload PM2 (as itoshu)
         run: |
           ssh "$BUILD_USER@$VPS_HOST" "
-            set -euo pipefail
+            set -e
             cd \"$BACKEND_DIR\"
-            # devDeps（@types/node / @types/express / typescript）も必要なので include=dev
             npm install --include=dev --no-audit --no-fund
             npm run build
-            # サイズ戻すなら任意で：npm prune --omit=dev
-
-            # ★ pm2: 旧IDの再読み込みを避けるため、毎回 delete→start に統一
-            pm2 delete \"$PM2_APP\" 2>/dev/null || true
-            pm2 start \"$BACKEND_DIR/pm2.config.cjs\" --only \"$PM2_APP\"
-            pm2 save --force
+            npm prune --omit=dev
+            pm2 reload \"$PM2_APP\" || pm2 start \"$BACKEND_DIR/pm2.config.cjs\" --only \"$PM2_APP\"
+            pm2 save
           "
 
       - name: Health gate
@@ -97,14 +92,8 @@ jobs:
             fi
           "
 
-      - name: Nginx config test
-        run: |
-          ssh "$DEPLOY_USER@$VPS_HOST" "sudo /usr/sbin/nginx -t"
-
-      - name: Nginx reload
-        if: ${{ success() }}
-        run: |
-          ssh "$DEPLOY_USER@$VPS_HOST" "sudo /usr/bin/systemctl reload nginx"
+      - name: Reload nginx (as deploy)
+        run: ssh "$DEPLOY_USER@$VPS_HOST" "sudo /usr/sbin/nginx -t && sudo /usr/bin/systemctl reload nginx"
 
       - name: Write deployed commit
         run: |
