@@ -46,7 +46,7 @@ jobs:
 
       - name: Rsync sources (backend / frontend only)
         run: |
-          set -e
+          set -euo pipefail
           RSYNC_OPTS="-az -O --no-perms --no-group --omit-dir-times --delete \
             --exclude '.git' --exclude 'node_modules' \
             --exclude 'backups*/' --exclude 'data*/' \
@@ -64,7 +64,7 @@ jobs:
             cd \"$BACKEND_DIR\"
             npm install --omit=dev --no-audit --no-fund    # ← 一時的に install（lock不一致を回避）
             npm run build
-            pm2 reload kintai-api || pm2 start \"$BACKEND_DIR/pm2.config.cjs\" --only kintai-api
+            pm2 reload \"$PM2_APP\" || pm2 start \"$BACKEND_DIR/pm2.config.cjs\" --only \"$PM2_APP\"
             pm2 save
           "
 
@@ -96,4 +96,5 @@ jobs:
 
       - name: Write deployed commit
         run: |
-          ssh "$BUILD_USER@$VPS_HOST" "echo '${{ github.sha }} $(date -u +%FT%TZ)' > $APP_DIR/DEPLOYED_SHA.txt"
+          # 日付はリモート側で展開（\$ をエスケープ）
+          ssh "$BUILD_USER@$VPS_HOST" "echo '${{ github.sha }} \$(date -u +%FT%TZ)' > \"$APP_DIR/DEPLOYED_SHA.txt\""
