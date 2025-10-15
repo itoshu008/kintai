@@ -37,10 +37,12 @@ jobs:
             HOST="127.0.0.1"
             PORT="8001"
 
-            echo "👤 fix perms"
-            sudo chown -R "$BUILD_USER:$BUILD_USER" "$APP_DIR" "/home/$BUILD_USER/.npm" "/home/$BUILD_USER/.pm2" || true
-            sudo chown -R "$BUILD_USER:$BUILD_USER" "$APP_DIR/.git" || true
-            find "$APP_DIR" -type d -exec chmod 775 {} \; ; find "$APP_DIR" -type f -exec chmod 664 {} \;
+            echo "👤 fix perms（非対話・失敗はスキップ）"
+            # sudo -n = 非対話。権限がないと即スキップ
+            sudo -n chown -R "$BUILD_USER:$BUILD_USER" "$APP_DIR" 2>/dev/null || echo "skip chown app"
+            sudo -n chown -R "$BUILD_USER:$BUILD_USER" "$APP_DIR/.git" 2>/dev/null || echo "skip chown .git"
+            # npm/pm2 は基本不要。必要ならコメントを外す
+            # sudo -n chown -R "$BUILD_USER:$BUILD_USER" "/home/$BUILD_USER/.npm" "/home/$BUILD_USER/.pm2" 2>/dev/null || echo "skip chown npm/pm2"
 
             echo "🌿 git sync"
             cd "$APP_DIR"
