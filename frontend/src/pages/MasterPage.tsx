@@ -96,12 +96,30 @@ const api = {
   fetchEmployees: () => 
     fetch(`${API_BASE_URL}/admin/employees`).then(res => handleResponse<{ ok: boolean; list: MasterRow[] }>(res)),
   
-  createEmployee: (code: string, name: string, department_id?: number) => 
-    fetch(`${API_BASE_URL}/admin/employees`, {
+  createEmployee: async (code: string, name: string, department_id?: number) => {
+    const res = await fetch(`${API_BASE_URL}/admin/employees`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code, name, department_id }),
-    }).then(res => handleResponse<{ ok: boolean; error?: string }>(res)),
+    });
+
+    if (res.status === 409) {
+      // 既存のコード → 上書き確認
+      const ok = window.confirm('この社員コードは既に存在します。上書き更新しますか？');
+      if (ok) {
+        const r2 = await fetch(`${API_BASE_URL}/admin/employees?overwrite=true`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, name, department_id }),
+        });
+        return r2.ok ? await r2.json() : Promise.reject(await r2.json());
+      } else {
+        throw new Error('既存コードのためキャンセルしました');
+      }
+    }
+    if (!res.ok) throw new Error((await res.json()).message ?? '登録に失敗しました');
+    return await res.json();
+  },
 
   updateEmployee: (currentCode: string, data: { code: string; name: string; department_id?: number }) =>
     fetch(`${API_BASE_URL}/admin/employees/${currentCode}`, {

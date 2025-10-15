@@ -22,6 +22,7 @@ const __dirnameSafe: string =
 import { writeJsonAtomic } from './helpers/writeJsonAtomic.js'; // ← ESMでは拡張子必須
 import devRouter from './routes/dev.js'; // 開発用API
 import { mountAdminMaster } from './routes/adminMaster.js'; // 管理画面API
+import { mountAdminEmployees } from './routes/adminEmployees.js'; // 社員管理API
 
 // ------------------------------------------------------------
 // 基盤
@@ -40,6 +41,9 @@ app.use('/api/dev', devRouter);
 
 // 管理画面API
 mountAdminMaster(app);
+
+// 社員管理API
+mountAdminEmployees(app);
 
 // 環境変数設定
 const PORT: number = Number(process.env.PORT) || 8001;
