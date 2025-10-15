@@ -9,7 +9,7 @@ set -Eeuo pipefail
 
 # ====== ログ関数 / トラップ ======
 log() { printf "\n[%s] %s\n" "$(date '+%F %T')" "$*" >&2; }
-trap 's=$?; log "ERROR (exit $s): line $BASH_LINENO cmd: ${BASH_COMMAND:-}"; exit $s' ERR
+trap 's=$?; log "ERROR (exit $s): line ${BASH_LINENO[*]} cmd: ${BASH_COMMAND:-}"; exit $s' ERR
 
 # ====== オプション配列 ======
 RSYNC_OPTS=(
@@ -19,7 +19,7 @@ RSYNC_OPTS=(
   --exclude=dist-ultimate*/ --exclude=kintai*/
 )
 
-# ★ 保護フィルタは配列の各要素を1引数として渡す（スペースを含むため）
+# ★ 保護フィルタ（1要素=1引数）
 RSYNC_PROTECTS=(
   "--filter=P data*/"
   "--filter=P data*/**"
@@ -59,7 +59,7 @@ P data*/**
 P data.bak/
 P data.bak/**
 P backups*/
-P backups/** 
+P backups/**
 EOF
 
   rsync -e "$RSYNC_SSH" "${DRY_ARGS[@]}" \
