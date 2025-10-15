@@ -33,7 +33,7 @@ jobs:
           echo "  - SUDO_PASS: sudoパスワード"
 
       - name: Deploy via SSH
-        if: ${{ secrets.SSH_PRIVATE_KEY != '' }}
+        if: ${{ secrets.SSH_PRIVATE_KEY }}
         uses: appleboy/ssh-action@v1.0.3
         env:
           SUDO_PASS: ${{ secrets.SUDO_PASS }}
