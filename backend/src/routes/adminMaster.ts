@@ -1,5 +1,5 @@
 import type { Express, Request, Response } from 'express';
-import { readJson } from '../utils/dataStore';
+import { readJson } from '../utils/dataStore.js';
 
 export function mountAdminMaster(app: Express) {
   app.get('/api/admin/master', (req: Request, res: Response) => {

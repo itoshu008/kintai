@@ -2,7 +2,7 @@
 import 'dotenv/config';
 
 // index 側の export 形が default / named どちらでも動くように吸収
-import * as Index from './index';
+import * as Index from './index.js';
 const app: any =
   (Index as any).default?.listen ? (Index as any).default :
   (Index as any).app?.listen     ? (Index as any).app     :

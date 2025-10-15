@@ -1,5 +1,5 @@
 import type { Express, Request, Response } from 'express';
-import { readJson, writeJson } from '../utils/dataStore';
+import { readJson, writeJson } from '../utils/dataStore.js';
 
 type Emp = { id?:number; code:string; name:string; department_id:number; is_active?:boolean; created_at?:string; updated_at?:string };
 
