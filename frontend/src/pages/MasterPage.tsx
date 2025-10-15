@@ -4,6 +4,9 @@ import { getHolidayNameSync, isHolidaySync } from '../utils/holidays';
 import { backupApi } from '../api/backup';
 import { IS_PREVIEW } from '../utils/flags';
 
+// デバッグログ
+console.log('MASTER_MOUNT', location.pathname, import.meta.env.BASE_URL);
+
 //================================================================================
 // 1. 型定義
 //================================================================================

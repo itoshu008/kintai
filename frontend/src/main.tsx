@@ -1,17 +1,18 @@
-import React from "react";
-import { createRoot } from "react-dom/client";
-import { BrowserRouter } from 'react-router-dom';
-import App from "./App";
-import { ErrorBoundary } from './components/ErrorBoundary';
-// import "./styles.css";
+// frontend/src/main.tsx
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import { BrowserRouter } from 'react-router-dom'
+import App from './App'
 
-// Vite が注入する base（vite.config.ts の base と一致）
-const BASENAME = import.meta.env.BASE_URL || '/';
+// isPreview 未定義で落ちないように
+if (typeof window !== 'undefined' && (window as any).isPreview === undefined) {
+  (window as any).isPreview = false
+}
 
-createRoot(document.getElementById("root")!).render(
-  <BrowserRouter basename={BASENAME}>
-    <ErrorBoundary>
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <App />
-    </ErrorBoundary>
-  </BrowserRouter>
-);
+    </BrowserRouter>
+  </React.StrictMode>
+)
