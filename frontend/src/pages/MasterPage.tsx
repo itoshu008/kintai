@@ -29,11 +29,105 @@ if (typeof window !== 'undefined') {
 }
 
 const modalInputStyle: React.CSSProperties = {
-  padding: '8px 12px',
-  borderRadius: '6px',
-  border: '1px solid #ddd',
-  fontSize: '14px',
+  padding: '12px 16px',
+  borderRadius: '8px',
+  border: '2px solid #e1e5e9',
+  fontSize: '16px',
   width: '100%',
+  transition: 'all 0.2s ease',
+  backgroundColor: '#fafbfc',
+  outline: 'none',
+};
+
+// フォーカス時のスタイル
+const modalInputFocusStyle: React.CSSProperties = {
+  ...modalInputStyle,
+  borderColor: '#667eea',
+  backgroundColor: '#fff',
+  boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)',
+};
+
+// フォームグループ用スタイル
+const formGroupStyle: React.CSSProperties = {
+  marginBottom: '20px',
+};
+
+const formLabelStyle: React.CSSProperties = {
+  display: 'block',
+  marginBottom: '8px',
+  fontSize: '14px',
+  fontWeight: '600',
+  color: '#374151',
+};
+
+const formErrorStyle: React.CSSProperties = {
+  color: '#dc2626',
+  fontSize: '12px',
+  marginTop: '4px',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '4px',
+};
+
+const formSuccessStyle: React.CSSProperties = {
+  color: '#059669',
+  fontSize: '12px',
+  marginTop: '4px',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '4px',
+};
+
+// セレクトボックス用スタイル
+const modalSelectStyle: React.CSSProperties = {
+  ...modalInputStyle,
+  cursor: 'pointer',
+  backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
+  backgroundPosition: 'right 12px center',
+  backgroundRepeat: 'no-repeat',
+  backgroundSize: '16px',
+  paddingRight: '40px',
+  appearance: 'none',
+};
+
+// ボタングループ用スタイル
+const buttonGroupStyle: React.CSSProperties = {
+  display: 'flex',
+  gap: '12px',
+  justifyContent: 'flex-end',
+  marginTop: '24px',
+  paddingTop: '20px',
+  borderTop: '1px solid #e5e7eb',
+};
+
+const primaryButtonStyle: React.CSSProperties = {
+  ...modalButtonStyle,
+  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+  border: 'none',
+  padding: '12px 24px',
+  fontSize: '16px',
+  fontWeight: '600',
+  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+  transition: 'all 0.2s ease',
+};
+
+const secondaryButtonStyle: React.CSSProperties = {
+  ...modalButtonStyle,
+  background: '#f3f4f6',
+  color: '#374151',
+  border: '1px solid #d1d5db',
+  padding: '12px 24px',
+  fontSize: '16px',
+  fontWeight: '500',
+  transition: 'all 0.2s ease',
+};
+
+// フォームコンテナ用スタイル
+const formContainerStyle: React.CSSProperties = {
+  padding: '24px',
+  backgroundColor: '#fff',
+  borderRadius: '12px',
+  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
 };
 
 //================================================================================
@@ -1246,24 +1340,120 @@ export default function MasterPage() {
       {showDeptManagement && (
         <Modal title="部署管理" onClose={() => setShowDeptManagement(false)}>
           <div style={{display: 'flex', gap: '8px', marginBottom: '16px'}}>
-            <input value={newDeptName} onChange={e => setNewDeptName(e.target.value)} placeholder="新しい部署名" style={{...modalInputStyle, flex: 1}} />
-            <button onClick={onCreateDepartment} style={{...modalButtonStyle, background: '#28a745'}}>追加</button>
+            <div style={formGroupStyle}>
+              <label style={formLabelStyle}>
+                <span>部署名</span>
+                <span style={{color: '#dc2626', marginLeft: '4px'}}>*</span>
+              </label>
+              <div style={{display: 'flex', gap: '12px', alignItems: 'flex-start'}}>
+                <input 
+                  value={newDeptName} 
+                  onChange={e => setNewDeptName(e.target.value)} 
+                  placeholder="例: 営業部" 
+                  style={{...modalInputStyle, flex: 1}}
+                  onFocus={(e) => e.target.style = {...modalInputFocusStyle, flex: 1}}
+                  onBlur={(e) => e.target.style = {...modalInputStyle, flex: 1}}
+                />
+                <button 
+                  onClick={onCreateDepartment} 
+                  disabled={!newDeptName.trim()}
+                  style={{
+                    ...primaryButtonStyle,
+                    padding: '12px 20px',
+                    opacity: !newDeptName.trim() ? 0.5 : 1,
+                    cursor: !newDeptName.trim() ? 'not-allowed' : 'pointer'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (newDeptName.trim()) {
+                      e.target.style = {...primaryButtonStyle, padding: '12px 20px', transform: 'translateY(-1px)', boxShadow: '0 6px 16px rgba(102, 126, 234, 0.4)'};
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (newDeptName.trim()) {
+                      e.target.style = {...primaryButtonStyle, padding: '12px 20px'};
+                    }
+                  }}
+                >
+                  追加
+                </button>
+              </div>
+              {!newDeptName.trim() && (
+                <div style={formErrorStyle}>
+                  <span>⚠️</span>
+                  <span>部署名を入力してください</span>
+                </div>
+              )}
+            </div>
                 </div>
           <div style={{maxHeight: '300px', overflowY: 'auto'}}>
             {currentDeps.map(d => (
               <div key={d.id} style={{display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', borderBottom: '1px solid #eee'}}>
                 {editingDepartment?.id === d.id ? (
-                  <>
-                    <input value={editDeptName} onChange={e => setEditDeptName(e.target.value)} style={{...modalInputStyle, flex: 1}} autoFocus/>
-                    <button onClick={onUpdateDepartment} style={{...modalButtonStyle, background: '#ffc107', color: '#212529'}}>保存</button>
-                    <button onClick={() => setEditingDepartment(null)} style={modalButtonStyle}>キャンセル</button>
-                  </>
+                  <div style={{display: 'flex', gap: '8px', alignItems: 'center', width: '100%'}}>
+                    <input 
+                      value={editDeptName} 
+                      onChange={e => setEditDeptName(e.target.value)} 
+                      style={{...modalInputStyle, flex: 1}} 
+                      autoFocus
+                      onFocus={(e) => e.target.style = {...modalInputFocusStyle, flex: 1}}
+                      onBlur={(e) => e.target.style = {...modalInputStyle, flex: 1}}
+                    />
+                    <button 
+                      onClick={onUpdateDepartment} 
+                      disabled={!editDeptName.trim()}
+                      style={{
+                        ...primaryButtonStyle,
+                        padding: '8px 16px',
+                        fontSize: '14px',
+                        opacity: !editDeptName.trim() ? 0.5 : 1,
+                        cursor: !editDeptName.trim() ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      保存
+                    </button>
+                    <button 
+                      onClick={() => setEditingDepartment(null)} 
+                      style={{
+                        ...secondaryButtonStyle,
+                        padding: '8px 16px',
+                        fontSize: '14px'
+                      }}
+                    >
+                      キャンセル
+                    </button>
+                  </div>
                 ) : (
-                  <>
-                    <span style={{flex: 1}}>{d.name}</span>
-                    <button onClick={() => { setEditingDepartment(d); setEditDeptName(d.name); }} style={{...modalButtonStyle, background: '#ffc107', color: '#212529'}}>編集</button>
-                    <button onClick={() => onDeleteDepartment(d.id, d.name)} style={{...modalButtonStyle, background: '#dc3545'}}>削除</button>
-                  </>
+                  <div style={{display: 'flex', gap: '8px', alignItems: 'center', width: '100%'}}>
+                    <span style={{flex: 1, fontWeight: '500', fontSize: '16px', color: '#374151'}}>{d.name}</span>
+                    <button 
+                      onClick={() => { setEditingDepartment(d); setEditDeptName(d.name); }} 
+                      style={{
+                        ...secondaryButtonStyle,
+                        padding: '6px 12px',
+                        fontSize: '12px',
+                        background: '#3b82f6',
+                        color: '#fff'
+                      }}
+                      onMouseEnter={(e) => e.target.style = {...secondaryButtonStyle, padding: '6px 12px', fontSize: '12px', background: '#2563eb', color: '#fff'}}
+                      onMouseLeave={(e) => e.target.style = {...secondaryButtonStyle, padding: '6px 12px', fontSize: '12px', background: '#3b82f6', color: '#fff'}}
+                    >
+                      編集
+                    </button>
+                    <button 
+                      onClick={() => onDeleteDepartment(d.id, d.name)} 
+                      style={{
+                        ...secondaryButtonStyle,
+                        padding: '6px 12px',
+                        fontSize: '12px',
+                        background: '#dc2626',
+                        color: '#fff'
+                      }}
+                      onMouseEnter={(e) => e.target.style = {...secondaryButtonStyle, padding: '6px 12px', fontSize: '12px', background: '#b91c1c', color: '#fff'}}
+                      onMouseLeave={(e) => e.target.style = {...secondaryButtonStyle, padding: '6px 12px', fontSize: '12px', background: '#dc2626', color: '#fff'}}
+                    >
+                      削除
+                    </button>
+                  </div>
                 )}
                     </div>
                   ))}
@@ -1273,16 +1463,106 @@ export default function MasterPage() {
       
       {showEmployeeRegistration && (
         <Modal title="社員登録" onClose={() => setShowEmployeeRegistration(false)}>
-          <input value={newCode} onChange={e => setNewCode(e.target.value)} placeholder="社員コード" style={modalInputStyle} />
-          <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="氏名" style={modalInputStyle} />
-          <select value={newDepartment} onChange={e => setNewDepartment(e.target.value)} style={modalInputStyle}>
-            <option value="">（部署を選択）</option>
-            {deps.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
-          </select>
-          <div style={{textAlign: 'right'}}>
-            <button onClick={() => setShowEmployeeRegistration(false)} style={modalButtonStyle}>キャンセル</button>
-            <button onClick={onCreate} style={{...modalButtonStyle, background: '#28a745'}}>登録</button>
+          <div style={formContainerStyle}>
+            <div style={formGroupStyle}>
+              <label style={formLabelStyle}>
+                <span>社員コード</span>
+                <span style={{color: '#dc2626', marginLeft: '4px'}}>*</span>
+              </label>
+              <input 
+                value={newCode} 
+                onChange={e => setNewCode(e.target.value)} 
+                placeholder="例: EMP001" 
+                style={modalInputStyle}
+                onFocus={(e) => (e.target as HTMLInputElement).style = {...modalInputFocusStyle} as any}
+                onBlur={(e) => (e.target as HTMLInputElement).style = modalInputStyle as any}
+              />
+              {!newCode.trim() && (
+                <div style={formErrorStyle}>
+                  <span>⚠️</span>
+                  <span>社員コードを入力してください</span>
+                </div>
+              )}
             </div>
+
+            <div style={formGroupStyle}>
+              <label style={formLabelStyle}>
+                <span>氏名</span>
+                <span style={{color: '#dc2626', marginLeft: '4px'}}>*</span>
+              </label>
+              <input 
+                value={newName} 
+                onChange={e => setNewName(e.target.value)} 
+                placeholder="例: 田中太郎" 
+                style={modalInputStyle}
+                onFocus={(e) => (e.target as HTMLInputElement).style = {...modalInputFocusStyle} as any}
+                onBlur={(e) => (e.target as HTMLInputElement).style = modalInputStyle as any}
+              />
+              {!newName.trim() && (
+                <div style={formErrorStyle}>
+                  <span>⚠️</span>
+                  <span>氏名を入力してください</span>
+                </div>
+              )}
+            </div>
+
+            <div style={formGroupStyle}>
+              <label style={formLabelStyle}>
+                <span>部署</span>
+                <span style={{color: '#dc2626', marginLeft: '4px'}}>*</span>
+              </label>
+              <select 
+                value={newDepartment} 
+                onChange={e => setNewDepartment(e.target.value)} 
+                style={modalSelectStyle}
+                onFocus={(e) => (e.target as HTMLSelectElement).style = {...modalInputFocusStyle} as any}
+                onBlur={(e) => (e.target as HTMLSelectElement).style = modalSelectStyle as any}
+              >
+                <option value="">部署を選択してください</option>
+                {deps.map(d => (
+                  <option key={d.id} value={d.name}>{d.name}</option>
+                ))}
+              </select>
+              {!newDepartment && (
+                <div style={formErrorStyle}>
+                  <span>⚠️</span>
+                  <span>部署を選択してください</span>
+                </div>
+              )}
+            </div>
+
+            <div style={buttonGroupStyle}>
+              <button 
+                onClick={() => setShowEmployeeRegistration(false)} 
+                style={secondaryButtonStyle}
+                onMouseEnter={(e) => (e.target as HTMLButtonElement).style = {...secondaryButtonStyle, background: '#e5e7eb'} as any}
+                onMouseLeave={(e) => (e.target as HTMLButtonElement).style = secondaryButtonStyle as any}
+              >
+                キャンセル
+              </button>
+              <button 
+                onClick={onCreate} 
+                disabled={!newCode.trim() || !newName.trim() || !newDepartment}
+                style={{
+                  ...primaryButtonStyle,
+                  opacity: (!newCode.trim() || !newName.trim() || !newDepartment) ? 0.5 : 1,
+                  cursor: (!newCode.trim() || !newName.trim() || !newDepartment) ? 'not-allowed' : 'pointer'
+                }}
+                onMouseEnter={(e) => {
+                  if (newCode.trim() && newName.trim() && newDepartment) {
+                    (e.target as HTMLButtonElement).style = {...primaryButtonStyle, transform: 'translateY(-1px)', boxShadow: '0 6px 16px rgba(102, 126, 234, 0.4)'} as any;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (newCode.trim() && newName.trim() && newDepartment) {
+                    (e.target as HTMLButtonElement).style = primaryButtonStyle as any;
+                  }
+                }}
+              >
+                {loading ? '登録中...' : '社員を登録'}
+              </button>
+            </div>
+          </div>
         </Modal>
       )}
 
