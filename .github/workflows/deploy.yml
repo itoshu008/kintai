@@ -55,12 +55,12 @@ jobs:
 
           # ★ ここがポイント：サーバ側で絶対に消さない "保護" フィルタ
           RSYNC_PROTECTS="\
-            --filter='P data*/' \
-            --filter='P data*/**' \
-            --filter='P data.bak/' \
-            --filter='P data.bak/**' \
-            --filter='P backups*/' \
-            --filter='P backups*/**' \
+            --filter=P data*/ \
+            --filter=P data*/** \
+            --filter=P data.bak/ \
+            --filter=P data.bak/** \
+            --filter=P backups*/ \
+            --filter=P backups*/** \
           "
 
           RSYNC_SSH="ssh -o StrictHostKeyChecking=accept-new"
