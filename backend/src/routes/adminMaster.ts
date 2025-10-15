@@ -9,6 +9,16 @@ export function mountAdminMaster(app: Express) {
     const attendance  = readJson('attendance.json',  [] as any[]);
     const remarks     = readJson('remarks.json',     [] as any[]);
 
-    return res.json({ ok: true, date, employees, departments, attendance, remarks });
+    // フロントエンドが期待する形式に合わせる
+    return res.json({ 
+      ok: true, 
+      date, 
+      employees, 
+      departments, 
+      attendance, 
+      remarks,
+      // 互換性のため list も含める
+      list: employees
+    });
   });
 }

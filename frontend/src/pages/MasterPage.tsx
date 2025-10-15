@@ -193,7 +193,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 
 const api = {
   master: (date: string, signal?: AbortSignal) => 
-    fetch(`${API_BASE_URL}/admin/master?date=${date}`, { signal }).then(res => handleResponse<{ list: MasterRow[] }>(res)),
+    fetch(`${API_BASE_URL}/admin/master?date=${date}`, { signal }).then(res => handleResponse<{ ok: boolean; employees: MasterRow[]; departments: Department[]; attendance: any[]; remarks: any[]; list: MasterRow[]; }>(res)),
 
   fetchEmployees: () => 
     fetch(`${API_BASE_URL}/admin/employees`).then(res => handleResponse<{ ok: boolean; employees: MasterRow[] }>(res)),
@@ -536,7 +536,7 @@ export default function MasterPage() {
       const res = await api.master(key, ac.signal);
       if (!ac.signal.aborted) {
         // 互換レイヤ：remarks → remark 正規化
-        const normalizedList = (res.list || []).map((row: any) => ({
+        const normalizedList = (res.employees || res.list || []).map((row: any) => ({
           ...row,
           remark: row.remark ?? row.remarks ?? ''
         }));
