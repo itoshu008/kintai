@@ -8,6 +8,28 @@ import { IS_PREVIEW } from '../utils/flags';
 console.log('MASTER_MOUNT', location.pathname, import.meta.env.BASE_URL);
 
 //================================================================================
+// スタイル定義
+//================================================================================
+
+const modalButtonStyle: React.CSSProperties = {
+  padding: '8px 12px',
+  borderRadius: '8px',
+  backgroundColor: '#667eea',
+  color: '#fff',
+  border: 'none',
+  cursor: 'pointer',
+  marginLeft: '8px',
+};
+
+const modalInputStyle: React.CSSProperties = {
+  padding: '8px 12px',
+  borderRadius: '6px',
+  border: '1px solid #ddd',
+  fontSize: '14px',
+  width: '100%',
+};
+
+//================================================================================
 // 1. 型定義
 //================================================================================
 
@@ -1262,4 +1284,3 @@ const thStyle: React.CSSProperties = { padding: '12px 8px', textAlign: 'left', b
 const tdStyle: React.CSSProperties = { padding: '12px 8px', borderBottom: '1px solid #eee' };
 const tdEditableStyle: React.CSSProperties = { ...tdStyle, cursor: 'pointer', color: '#007bff', fontWeight: 500 };
 
-const modalInputStyle: React.CSSProperties = { width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '16px', boxSizing: 'border-box' };
