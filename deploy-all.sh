@@ -3,7 +3,7 @@
 # 実行例:  ssh -p 22 itoshu@sv137.xbiz.ne.jp "bash -s" < deploy-all.sh
 
 set -Eeuo pipefail
-trap 's=$?; echo "❌ ERROR (exit $s) at line $LINENO"; exit $s' ERR
+trap 's=$?; echo "❌ ERROR (exit $s) at line $LINENO"; echo "Last command: $BASH_COMMAND"; exit $s' ERR
 
 # ====== ここだけ環境に合わせて必要なら変更 ======
 BUILD_USER="${BUILD_USER:-itoshu}"
