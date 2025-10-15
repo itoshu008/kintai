@@ -23,6 +23,8 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
+          request_pty: true
+          envs: SUDO_PASS
           script: |
             set -Eeuo pipefail
 
@@ -36,8 +38,8 @@ jobs:
             PORT="8001"
 
             echo "👤 fix perms (including .git)"
-            sudo chown -R "$BUILD_USER:$BUILD_USER" "$APP_DIR" "/home/$BUILD_USER/.npm" "/home/$BUILD_USER/.pm2"
-            sudo chown -R "$BUILD_USER:$BUILD_USER" "$APP_DIR/.git" || true
+            echo "$SUDO_PASS" | sudo -S chown -R itoshu:itoshu "$APP_DIR" "/home/itoshu/.npm" "/home/itoshu/.pm2"
+            echo "$SUDO_PASS" | sudo -S chown -R itoshu:itoshu "$APP_DIR/.git" || true
             find "$APP_DIR" -type d -exec chmod 775 {} \; ; find "$APP_DIR" -type f -exec chmod 664 {} \;
 
             echo "🌿 git sync"
@@ -89,7 +91,7 @@ jobs:
             rsync -az --delete "dist/" "$PUBLIC_DIR/"
 
             echo "🌀 nginx reload"
-            sudo nginx -t && sudo systemctl reload nginx || echo "⚠️ nginx reload skipped"
+            echo "$SUDO_PASS" | sudo -S nginx -t && echo "$SUDO_PASS" | sudo -S systemctl reload nginx || echo "⚠️ nginx reload skipped"
 
             echo "🔎 verify"
             curl -I "https://zatint1991.com/kintai/" | sed -n '1,6p'
