@@ -19,11 +19,31 @@ jobs:
       - name: Preflight - Check secrets
         run: |
           echo "🔍 Checking secrets..."
-          echo "SSH_HOST: ${{ secrets.SSH_HOST != '' && 'SET' || 'MISSING' }}"
-          echo "SSH_USER: ${{ secrets.SSH_USER != '' && 'SET' || 'MISSING' }}"
-          echo "SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY != '' && 'SET' || 'MISSING' }}"
-          echo "SSH_PORT: ${{ secrets.SSH_PORT != '' && 'SET' || 'MISSING' }}"
-          echo "SUDO_PASS: ${{ secrets.SUDO_PASS != '' && 'SET' || 'MISSING' }}"
+          if [ -n "${{ secrets.SSH_HOST }}" ]; then
+            echo "SSH_HOST: SET"
+          else
+            echo "SSH_HOST: MISSING"
+          fi
+          if [ -n "${{ secrets.SSH_USER }}" ]; then
+            echo "SSH_USER: SET"
+          else
+            echo "SSH_USER: MISSING"
+          fi
+          if [ -n "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
+            echo "SSH_PRIVATE_KEY: SET"
+          else
+            echo "SSH_PRIVATE_KEY: MISSING"
+          fi
+          if [ -n "${{ secrets.SSH_PORT }}" ]; then
+            echo "SSH_PORT: SET"
+          else
+            echo "SSH_PORT: MISSING"
+          fi
+          if [ -n "${{ secrets.SUDO_PASS }}" ]; then
+            echo "SUDO_PASS: SET"
+          else
+            echo "SUDO_PASS: MISSING"
+          fi
           echo "⚠️ If any secrets are MISSING, please set them in GitHub Settings > Secrets and variables > Actions"
           echo "📋 Required Secrets:"
           echo "  - SSH_HOST: VPSのIPアドレスまたはドメイン"
