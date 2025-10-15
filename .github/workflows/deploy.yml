@@ -17,20 +17,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Deploy via SSH
+      - name: Deploy via SSH (NOPASSWD / non-interactive)
         uses: appleboy/ssh-action@v1.0.3
-        env:
-          SUDO_PASS: ${{ secrets.SUDO_PASS }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT || '22' }}
           request_pty: true
-          envs: SUDO_PASS
           script: |
             set -Eeuo pipefail
-            : "${SUDO_PASS:?SUDO_PASS is not set}"
 
             APP_DIR="/home/zatint1991-hvt55/zatint1991.com"
             BACKEND_DIR="$APP_DIR/backend"
@@ -41,9 +37,10 @@ jobs:
             HOST="127.0.0.1"
             PORT="8001"
 
-            echo "👤 fix perms"
-            printf '%s\n' "$SUDO_PASS" | sudo -S -p '' -k chown -R "$BUILD_USER:$BUILD_USER" "$APP_DIR"
-            printf '%s\n' "$SUDO_PASS" | sudo -S -p '' -k chown -R "$BUILD_USER:$BUILD_USER" "$APP_DIR/.git" || true
+            echo "👤 fix perms（非対話・失敗はスキップ）"
+            sudo -n chown -R "$BUILD_USER:$BUILD_USER" "$APP_DIR"      2>/dev/null || echo "skip chown app"
+            sudo -n chown -R "$BUILD_USER:$BUILD_USER" "$APP_DIR/.git" 2>/dev/null || echo "skip chown .git"
+            find "$APP_DIR" -type d -exec chmod 775 {} \; ; find "$APP_DIR" -type f -exec chmod 664 {} \;
 
             echo "🌿 git sync"
             cd "$APP_DIR"
@@ -68,7 +65,7 @@ jobs:
             HOST="$HOST" PORT="$PORT" NODE_ENV=production pm2 start "$BACKEND_DIR/dist/server.js" --name "$PM2_APP" --update-env
             pm2 save
 
-            echo "🩺 health"
+            echo "🩺 health (最大60秒)"
             ok=""
             for i in $(seq 1 30); do
               curl -fsS "http://$HOST:$PORT/api/admin/health" >/dev/null && ok=yes && break || sleep 2
@@ -89,8 +86,7 @@ jobs:
             rsync -az --delete dist/ "$PUBLIC_DIR/"
 
             echo "🌀 nginx reload"
-            printf '%s\n' "$SUDO_PASS" | sudo -S -p '' -k nginx -t
-            printf '%s\n' "$SUDO_PASS" | sudo -S -p '' -k systemctl reload nginx
+            sudo -n nginx -t && sudo -n systemctl reload nginx
 
             echo "🔎 verify"
             curl -I "https://zatint1991.com/kintai/" | sed -n '1,6p'
