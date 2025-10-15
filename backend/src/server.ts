@@ -3,21 +3,21 @@ import 'dotenv/config';
 import express from 'express';
 import admin from './routes/admin/index.js'; // ★ .js 拡張子（ESM）
 
-// index 側の export 形が default / named どちらでも動くように吸収
-import * as Index from './index.js';
-const app: any =
-  (Index as any).default?.listen ? (Index as any).default :
-  (Index as any).app?.listen     ? (Index as any).app     :
-                                   (Index as any);
-
-if (!app || typeof app.listen !== 'function') {
-  console.error('[server] FATAL: index export is not an express app.');
-  process.exit(1);
-}
+// Express アプリケーションを直接作成
+const app = express();
 
 // --- middlewares ---
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// --- ヘルスチェックエンドポイント ---
+app.get('/api/admin/health', (_req, res) => {
+  res.json({ ok: true, env: process.env.NODE_ENV ?? 'dev', now: new Date().toISOString() });
+});
+
+app.get('/api/health', (_req, res) => {
+  res.json({ ok: true, env: process.env.NODE_ENV ?? 'dev', now: new Date().toISOString() });
+});
 
 // --- API mount point ---
 app.use('/api/admin', admin);

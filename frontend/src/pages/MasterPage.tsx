@@ -181,7 +181,7 @@ interface TimeEditData {
 // (バックエンドとの通信をここに集約)
 //================================================================================
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE ?? '/api/admin';
+const API_BASE_URL = import.meta.env.VITE_API_BASE ?? '/api';
 
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -193,13 +193,13 @@ async function handleResponse<T>(response: Response): Promise<T> {
 
 const api = {
   master: (date: string, signal?: AbortSignal) => 
-    fetch(`${API_BASE_URL}/master?date=${date}`, { signal }).then(res => handleResponse<{ ok: boolean; employees: MasterRow[]; departments: Department[]; attendance: any[]; remarks: any[]; list: MasterRow[]; }>(res)),
+    fetch(`${API_BASE_URL}/admin/master?date=${date}`, { signal }).then(res => handleResponse<{ ok: boolean; employees: MasterRow[]; departments: Department[]; attendance: any[]; remarks: any[]; list: MasterRow[]; }>(res)),
 
   fetchEmployees: () => 
-    fetch(`${API_BASE_URL}/employees`).then(res => handleResponse<{ ok: boolean; employees: MasterRow[] }>(res)),
+    fetch(`${API_BASE_URL}/admin/employees`).then(res => handleResponse<{ ok: boolean; employees: MasterRow[] }>(res)),
   
   createEmployee: async (code: string, name: string, department_id?: number) => {
-    const res = await fetch(`${API_BASE_URL}/employees`, {
+    const res = await fetch(`${API_BASE_URL}/admin/employees`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code, name, department_id }),
@@ -209,7 +209,7 @@ const api = {
       // 既存のコード → 上書き確認
       const ok = window.confirm('この社員コードは既に存在します。上書き更新しますか？');
       if (ok) {
-        const r2 = await fetch(`${API_BASE_URL}/employees?overwrite=true`, {
+        const r2 = await fetch(`${API_BASE_URL}/admin/employees?overwrite=true`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code, name, department_id }),
@@ -224,24 +224,24 @@ const api = {
   },
 
   updateEmployee: (currentCode: string, data: { code: string; name: string; department_id?: number }) =>
-    fetch(`${API_BASE_URL}/employees/${currentCode}`, {
+    fetch(`${API_BASE_URL}/admin/employees/${currentCode}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     }).then(res => handleResponse<{ ok: boolean; error?: string }>(res)),
 
   deleteEmployee: (code: string) =>
-    fetch(`${API_BASE_URL}/employees/${encodeURIComponent(code)}`, { method: 'DELETE' }).then(res => handleResponse<{ ok: boolean; error?: string }>(res)),
+    fetch(`${API_BASE_URL}/admin/employees/${encodeURIComponent(code)}`, { method: 'DELETE' }).then(res => handleResponse<{ ok: boolean; error?: string }>(res)),
 
   clockIn: (code: string) =>
-    fetch(`${API_BASE_URL}/clock/in`, {
+    fetch(`${API_BASE_URL}/admin/clock/in`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code }),
     }).then(handleResponse),
 
   clockOut: (code: string) =>
-    fetch(`${API_BASE_URL}/clock/out`, {
+    fetch(`${API_BASE_URL}/admin/clock/out`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code }),
@@ -249,7 +249,7 @@ const api = {
   
   // 勤怠時間修正API
   updateAttendance: (code: string, date: string, clock_in: string | null, clock_out: string | null) =>
-    fetch(`${API_BASE_URL}/attendance/update`, {
+    fetch(`${API_BASE_URL}/admin/attendance/update`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code, date, clock_in, clock_out }),
