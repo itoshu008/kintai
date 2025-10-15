@@ -86,9 +86,14 @@ jobs:
             fi
           "
 
-      - name: Reload nginx (run as deploy with sudoers)
+      - name: Nginx config test
         run: |
-          ssh "$DEPLOY_USER@$VPS_HOST" "sudo /usr/sbin/nginx -t && sudo /usr/bin/systemctl reload nginx"
+          ssh "$DEPLOY_USER@$VPS_HOST" "sudo /usr/sbin/nginx -t"
+
+      - name: Nginx reload
+        if: ${{ success() }}
+        run: |
+          ssh "$DEPLOY_USER@$VPS_HOST" "sudo /usr/bin/systemctl reload nginx"
 
       - name: Write deployed commit
         run: |
