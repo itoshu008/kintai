@@ -19,25 +19,25 @@ jobs:
       - name: Preflight - Check secrets
         run: |
           echo "🔍 Checking secrets..."
-          if [ -n "${{ secrets.SSH_HOST }}" ]; then
-            echo "SSH_HOST: SET"
+          if [ -n "${{ secrets.VPS_HOST }}" ]; then
+            echo "VPS_HOST: SET"
           else
-            echo "SSH_HOST: MISSING"
+            echo "VPS_HOST: MISSING"
           fi
-          if [ -n "${{ secrets.SSH_USER }}" ]; then
-            echo "SSH_USER: SET"
+          if [ -n "${{ secrets.VPS_USER }}" ]; then
+            echo "VPS_USER: SET"
           else
-            echo "SSH_USER: MISSING"
+            echo "VPS_USER: MISSING"
           fi
-          if [ -n "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
-            echo "SSH_PRIVATE_KEY: SET"
+          if [ -n "${{ secrets.VPS_SSH_KEY }}" ]; then
+            echo "VPS_SSH_KEY: SET"
           else
-            echo "SSH_PRIVATE_KEY: MISSING"
+            echo "VPS_SSH_KEY: MISSING"
           fi
-          if [ -n "${{ secrets.SSH_PORT }}" ]; then
-            echo "SSH_PORT: SET"
+          if [ -n "${{ secrets.VPS_PORT }}" ]; then
+            echo "VPS_PORT: SET"
           else
-            echo "SSH_PORT: MISSING"
+            echo "VPS_PORT: MISSING"
           fi
           if [ -n "${{ secrets.SUDO_PASS }}" ]; then
             echo "SUDO_PASS: SET"
@@ -46,21 +46,21 @@ jobs:
           fi
           echo "⚠️ If any secrets are MISSING, please set them in GitHub Settings > Secrets and variables > Actions"
           echo "📋 Required Secrets:"
-          echo "  - SSH_HOST: VPSのIPアドレスまたはドメイン"
-          echo "  - SSH_USER: SSH接続ユーザー名"
-          echo "  - SSH_PRIVATE_KEY: SSH秘密鍵"
-          echo "  - SSH_PORT: SSHポート番号 (通常22)"
+          echo "  - VPS_HOST: 202.233.67.137"
+          echo "  - VPS_USER: itoshu"
+          echo "  - VPS_SSH_KEY: C:\\Users\\itosh\\Downloads\\itoshu.pem の中身"
+          echo "  - VPS_PORT: 10022"
           echo "  - SUDO_PASS: sudoパスワード"
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         env:
-          SUDO_PASS: ${{ secrets.SUDO_PASS || 'default_password' }}
+          SUDO_PASS: ${{ secrets.SUDO_PASS }}
         with:
-          host: ${{ secrets.SSH_HOST || 'zatint1991.com' }}
-          username: ${{ secrets.SSH_USER || 'zatint1991-hvt55' }}
-          key: ${{ secrets.SSH_PRIVATE_KEY || 'dummy_key' }}
-          port: ${{ secrets.SSH_PORT || '22' }}
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT }}
           request_pty: true
           envs: SUDO_PASS
           script: |
