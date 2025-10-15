@@ -23,6 +23,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Drift guard (ESM & pm2)
+        run: |
+          set -Eeuo pipefail
+          # 相対importに .js 無し → 失敗
+          ! grep -RInE "from ['\"][.]{1,2}/[^'\".]+['\"]" backend/src || (echo "ESM import missing .js" && exit 20)
+          # tsconfig の module 系
+          jq -e '.compilerOptions.module=="NodeNext" and .compilerOptions.moduleResolution=="NodeNext"' backend/tsconfig.json >/dev/null
+          # package.json の type
+          jq -e '.type=="module"' backend/package.json >/dev/null
+
       - name: Setup SSH agent
         uses: webfactory/ssh-agent@v0.9.0
         with:
