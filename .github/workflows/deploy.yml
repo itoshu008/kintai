@@ -63,12 +63,14 @@ jobs:
       - name: Dry run rsync
         run: |
           set -Eeuo pipefail
+          chmod +x scripts/deploy_rsync.sh
           DRY_RUN=1 bash scripts/deploy_rsync.sh | tee rsync_dry.log
           grep -E 'Number of files|Total transferred file size|sent .* bytes' rsync_dry.log || true
 
       - name: Run rsync with timing
         run: |
           set -Eeuo pipefail
+          chmod +x scripts/deploy_rsync.sh
           /usr/bin/time -f 'elapsed=%E  user=%U  sys=%S' bash -c 'scripts/deploy_rsync.sh' | tee rsync_run.log
 
       - name: Upload backend deploy script to VPS
