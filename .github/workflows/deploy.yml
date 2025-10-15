@@ -80,7 +80,7 @@ jobs:
           ssh "$BUILD_USER@$VPS_HOST" '
             set -e
             cd "'"$BACKEND_DIR"'"
-            npm ci --no-audit --no-fund
+            npm ci --include=dev --no-audit --no-fund
             npm run build
             npm prune --omit=dev
             if pm2 describe "'"$PM2_APP"'" >/dev/null 2>&1; then
@@ -139,7 +139,7 @@ jobs:
             set -e
             if [ -d \"$FRONTEND_DIR\" ]; then
               cd \"$FRONTEND_DIR\"
-              npm install --no-audit --no-fund
+              npm install --include=dev --no-audit --no-fund
               npm run build
               rm -rf \"$PUBLIC_DIR\"
               mkdir -p \"$PUBLIC_DIR\"
