@@ -74,7 +74,7 @@ ssh "$BUILD_USER@$VPS_HOST" '
   ls -la /home/zatint1991-hvt55/zatint1991.com/backend/dist/ || true
   echo ""
   echo "フロントエンドファイル確認:"
-  ls -la /home/zatint1991-hvt55/zatint1991.com/public/kintai/ || true
+  ls -la /home/zatint1991-hvt55/zatint1991.com/public/admin-dashboard-2024/ || true
   
   echo ""
   echo "== 9. 環境変数確認 =="
