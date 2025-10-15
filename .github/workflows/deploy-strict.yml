@@ -1,0 +1,105 @@
+name: Deploy to VPS (Safe)
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      BUILD_USER: ${{ secrets.VPS_USER }}    # 例: itoshu or deploy
+      SSH_PORT: ${{ secrets.VPS_SSH_PORT }}  # 未設定なら22
+      APP_DIR: /home/zatint1991-hvt55/zatint1991.com
+      BACKEND_DIR: /home/zatint1991-hvt55/zatint1991.com/backend
+      FRONTEND_DIR: /home/zatint1991-hvt55/zatint1991.com/frontend
+      PUBLIC_DIR: /home/zatint1991-hvt55/zatint1991.com/public/admin-dashboard-2024
+      PM2_APP: kintai-api
+      PM2_HOME: /home/itoshu/.pm2
+      PORT: "8001"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+
+      - name: Add host key
+        run: |
+          set -Eeuo pipefail
+          mkdir -p ~/.ssh
+          ssh-keygen -R "$VPS_HOST" 2>/dev/null || true
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Test SSH
+        run: |
+          set -Eeuo pipefail
+          P=${SSH_PORT:-22}
+          echo "🔍 Testing SSH to $BUILD_USER@$VPS_HOST port $P ..."
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=20 -p "$P" "$BUILD_USER@$VPS_HOST" "echo '✅ SSH OK'"
+
+      - name: Deploy (backend → gates → frontend → nginx)
+        run: |
+          set -Eeuo pipefail
+          P=${SSH_PORT:-22}
+          ssh -p "$P" "$BUILD_USER@$VPS_HOST" <<EOF
+          set -Eeuo pipefail
+          APP_DIR="$APP_DIR"; BACKEND_DIR="$BACKEND_DIR"; FRONTEND_DIR="$FRONTEND_DIR"; PUBLIC_DIR="$PUBLIC_DIR"
+          PM2_APP="$PM2_APP"; PM2_HOME="$PM2_HOME"; PORT="$PORT"
+
+          echo "📁 Ensure dirs"; mkdir -p "\$APP_DIR" "\$BACKEND_DIR" "\$FRONTEND_DIR" "\$PUBLIC_DIR"
+
+          echo "🚀 Backend: ci→build→prune"; cd "\$BACKEND_DIR"
+          npm ci --include=dev --no-audit --no-fund || npm install --include=dev --no-audit --no-fund
+          npm run build
+          npm prune --omit=dev
+
+          echo "🟢 PM2 delete→start(config)"; export PM2_HOME="\$PM2_HOME"
+          pm2 delete "\$PM2_APP" || true
+          pm2 start "\$BACKEND_DIR/pm2.config.cjs" --only "\$PM2_APP"
+          pm2 save
+
+          echo "🧪 LISTEN & HEALTH"
+          ok=0; for j in 1 2 3 4 5; do ss -H -ltn "( sport = :\$PORT )" | grep -q . && { ok=1; break; }; sleep 1; done
+          [ "\$ok" = "1" ] || { echo "❌ listen NG :\$PORT"; tail -n 120 "\$PM2_HOME/logs/\$PM2_APP-error.log" || true; exit 2; }
+
+          ok=0; streak=0
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -fsS --max-time 10 "http://127.0.0.1:\$PORT/api/admin/health" | grep -q '"ok":true'; then
+              streak=\$((streak+1)); echo "health OK (\$streak/3)"
+              [ \$streak -ge 3 ] && { ok=1; break; }
+            else
+              streak=0; echo "health NG (reset)"
+            fi
+            sleep 1
+          done
+          [ "\$ok" = "1" ] || { echo "❌ health NG"; tail -n 120 "\$PM2_HOME/logs/\$PM2_APP-error.log" || true; exit 3; }
+
+          echo "🎨 Frontend: ci→build→publish"; cd "\$FRONTEND_DIR"
+          npm ci --no-audit --no-fund || npm i
+          npm run build
+          rsync -az --delete "\$FRONTEND_DIR/dist/" "\$PUBLIC_DIR/"
+          chown -R itoshu:itoshu "\$PUBLIC_DIR"
+
+          echo "⚙️ Nginx: test→reload"
+          sudo nginx -t
+          sudo systemctl reload nginx
+
+          echo "✅ Deploy done."
+          EOF
+
+      - name: Verify (quick)
+        run: |
+          set -Eeuo pipefail
+          P=${SSH_PORT:-22}
+          ssh -p "$P" "$BUILD_USER@$VPS_HOST" <<EOF
+          set -Eeuo pipefail
+          echo "PM2:"; pm2 status | sed -n '1,80p'
+          echo; echo "Listen :$PORT"; ss -H -ltn "( sport = :$PORT )" | cat || true
+          echo; echo "Health:"; curl -fsS "http://127.0.0.1:$PORT/api/admin/health" || echo "health NG"
+          echo; echo "Frontend index:"; curl -I https://zatint1991.com/kintai/ | sed -n '1,10p' || true
+          EOF
