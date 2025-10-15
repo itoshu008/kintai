@@ -11,6 +11,7 @@ console.log('MASTER_MOUNT', location.pathname, import.meta.env.BASE_URL);
 // スタイル定義
 //================================================================================
 
+// 安全なスタイル定義（未定義エラーを完全に防止）
 const modalButtonStyle: React.CSSProperties = {
   padding: '8px 12px',
   borderRadius: '8px',
@@ -20,6 +21,11 @@ const modalButtonStyle: React.CSSProperties = {
   cursor: 'pointer',
   marginLeft: '8px',
 };
+
+// グローバルに定義（念のため）
+if (typeof window !== 'undefined') {
+  (window as any).modalButtonStyle = modalButtonStyle;
+}
 
 const modalInputStyle: React.CSSProperties = {
   padding: '8px 12px',
