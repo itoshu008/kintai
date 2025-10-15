@@ -85,3 +85,6 @@ app.listen(PORT, HOST as any, () => {
   console.log(`ℹ️ Backend server running on http://${HOST}:${PORT}`);
   console.log(`📁 Data directory: ${DATA_DIR}`);
 });
+
+// default export を追加（server.ts の default import に対応）
+export default app;
