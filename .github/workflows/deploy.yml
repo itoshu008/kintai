@@ -101,10 +101,8 @@ jobs:
             echo "🔧 sudoers 初回設定（存在しなければ作成）"
             if ! printf '%s\n' "$SUDO_PASS" | sudo -S -p '' -k test -f /etc/sudoers.d/kintai-deploy; then
               # sudoers設定ファイルを作成
-              cat << 'EOF' | printf '%s\n' "$SUDO_PASS" | sudo -S -p '' -k tee /etc/sudoers.d/kintai-deploy >/dev/null
-Defaults:itoshu !requiretty
-itoshu ALL=(root) NOPASSWD: /usr/bin/chown -R itoshu:itoshu /home/zatint1991-hvt55/zatint1991.com/*, /usr/sbin/nginx, /bin/systemctl
-EOF
+              echo "Defaults:itoshu !requiretty" | printf '%s\n' "$SUDO_PASS" | sudo -S -p '' -k tee /etc/sudoers.d/kintai-deploy >/dev/null
+              echo "itoshu ALL=(root) NOPASSWD: /usr/bin/chown -R itoshu:itoshu /home/zatint1991-hvt55/zatint1991.com/*, /usr/sbin/nginx, /bin/systemctl" | printf '%s\n' "$SUDO_PASS" | sudo -S -p '' -k tee -a /etc/sudoers.d/kintai-deploy >/dev/null
               printf '%s\n' "$SUDO_PASS" | sudo -S -p '' -k visudo -c
               echo "✅ sudoers installed"
             else
