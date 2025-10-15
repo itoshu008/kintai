@@ -45,19 +45,29 @@ jobs:
             find '$BACKEND_DIR' -type f -exec chmod 664 {} \; || true
           "
 
-      - name: Deploy via rsync (dry run first)
+      - name: Ensure deploy script executable (safety)
+        run: chmod +x scripts/deploy_rsync.sh
+
+      - name: Dry run rsync
         env:
           BUILD_USER: itoshu
           VPS_HOST: ${{ secrets.VPS_HOST }}
           BACKEND_DIR: /home/zatint1991-hvt55/zatint1991.com/backend
           FRONTEND_DIR: /home/zatint1991-hvt55/zatint1991.com/frontend
-          SSH_AUTH_SOCK: ${{ env.SSH_AUTH_SOCK }}
         run: |
           set -Eeuo pipefail
-          # まずドライランで削除・保護の出力を確認
-          DRY_RUN=1 scripts/deploy_rsync.sh
-          # ドライランOKなら本番実行
-          scripts/deploy_rsync.sh
+          ls -l scripts/deploy_rsync.sh
+          DRY_RUN=1 bash scripts/deploy_rsync.sh   # ← bash経由なら権限問題回避も可
+
+      - name: Run rsync
+        env:
+          BUILD_USER: itoshu
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          BACKEND_DIR: /home/zatint1991-hvt55/zatint1991.com/backend
+          FRONTEND_DIR: /home/zatint1991-hvt55/zatint1991.com/frontend
+        run: |
+          set -Eeuo pipefail
+          bash scripts/deploy_rsync.sh
 
       - name: Build backend & reload PM2 (as itoshu)
         run: |
