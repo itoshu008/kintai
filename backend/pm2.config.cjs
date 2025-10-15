@@ -3,7 +3,7 @@ module.exports = {
   apps: [{
     name: 'kintai-api',
     cwd: path.join(__dirname, 'dist'),
-    script: 'server.js',
+    script: 'index.js',
     instances: 1,
     exec_mode: 'fork',
     env: {

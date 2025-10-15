@@ -28,6 +28,9 @@ if (typeof window !== 'undefined') {
   (window as any).modalButtonStyle = modalButtonStyle;
 }
 
+// さらに安全な定義（undefined チェック付き）
+const safeModalButtonStyle = modalButtonStyle ?? { padding: '8px 12px' };
+
 const modalInputStyle: React.CSSProperties = {
   padding: '12px 16px',
   borderRadius: '8px',
