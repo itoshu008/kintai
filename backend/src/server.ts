@@ -22,6 +22,9 @@ app.use(express.urlencoded({ extended: true }));
 // --- API mount point ---
 app.use('/api/admin', admin);
 
+// --- ルートレベルのAPI（Nginxプロキシ用） ---
+app.use('/api', admin);
+
 // --- 404 / error handlers (JSON) ---
 app.use((req, res, _next) => {
   if (req.path.startsWith('/api/')) {
