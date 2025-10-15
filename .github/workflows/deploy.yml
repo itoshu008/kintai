@@ -1,4 +1,4 @@
-name: Deploy to VPS (Simple)
+name: Deploy to VPS (Debug)
 on:
   push:
     branches: [ main ]
@@ -24,6 +24,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Debug environment
+        run: |
+          echo "🔍 Debug environment variables:"
+          echo "VPS_HOST: $VPS_HOST"
+          echo "BUILD_USER: $BUILD_USER"
+          echo "APP_DIR: $APP_DIR"
+          echo "BACKEND_DIR: $BACKEND_DIR"
+          echo "FRONTEND_DIR: $FRONTEND_DIR"
+          echo "PUBLIC_DIR: $PUBLIC_DIR"
+          echo "PM2_APP: $PM2_APP"
+          echo "PORT: $PORT"
+
       - name: Setup SSH agent
         uses: webfactory/ssh-agent@v0.9.0
         with:
@@ -41,13 +53,47 @@ jobs:
       - name: Test SSH connection
         run: |
           echo "🔍 Testing SSH connection..."
-          ssh "$BUILD_USER@$VPS_HOST" "echo 'SSH connection successful'"
+          ssh -o ConnectTimeout=30 "$BUILD_USER@$VPS_HOST" "echo 'SSH connection successful'"
           echo "✅ SSH connection verified"
 
-      - name: Deploy backend
+      - name: Check VPS status
+        run: |
+          echo "🔍 Checking VPS status..."
+          ssh "$BUILD_USER@$VPS_HOST" <<EOF
+          echo "=== VPS Status ==="
+          echo "Current user: \$(whoami)"
+          echo "Current directory: \$(pwd)"
+          echo "Disk usage:"
+          df -h | head -5
+          echo "Memory usage:"
+          free -h
+          echo "PM2 status:"
+          pm2 status || echo "PM2 not running"
+          echo "Nginx status:"
+          sudo systemctl status nginx --no-pager || echo "Nginx not running"
+          echo "Port $PORT status:"
+          ss -tlnp | grep ":$PORT " || echo "Port $PORT not listening"
+          EOF
+
+      - name: Check directories
+        run: |
+          echo "🔍 Checking directories..."
+          ssh "$BUILD_USER@$VPS_HOST" <<EOF
+          echo "=== Directory Check ==="
+          echo "APP_DIR: $APP_DIR"
+          ls -la "$APP_DIR" || echo "APP_DIR not found"
+          echo "BACKEND_DIR: $BACKEND_DIR"
+          ls -la "$BACKEND_DIR" || echo "BACKEND_DIR not found"
+          echo "FRONTEND_DIR: $FRONTEND_DIR"
+          ls -la "$FRONTEND_DIR" || echo "FRONTEND_DIR not found"
+          echo "PUBLIC_DIR: $PUBLIC_DIR"
+          ls -la "$PUBLIC_DIR" || echo "PUBLIC_DIR not found"
+          EOF
+
+      - name: Deploy backend (with timeout)
         run: |
           echo "🚀 Deploying backend..."
-          ssh "$BUILD_USER@$VPS_HOST" <<EOF
+          timeout 300 ssh "$BUILD_USER@$VPS_HOST" <<EOF
           set -e
           cd "$BACKEND_DIR"
           echo "Installing backend dependencies..."
@@ -59,10 +105,10 @@ jobs:
           echo "✅ Backend deployed"
           EOF
 
-      - name: Deploy frontend
+      - name: Deploy frontend (with timeout)
         run: |
           echo "🎨 Deploying frontend..."
-          ssh "$BUILD_USER@$VPS_HOST" <<EOF
+          timeout 300 ssh "$BUILD_USER@$VPS_HOST" <<EOF
           set -e
           cd "$FRONTEND_DIR"
           echo "Installing frontend dependencies..."
@@ -91,12 +137,13 @@ jobs:
         run: |
           echo "🏥 Running health check..."
           sleep 10
-          for i in {1..5}; do
-            if curl -f "http://$VPS_HOST:$PORT/api/admin/health"; then
+          for i in {1..10}; do
+            echo "Health check attempt $i/10..."
+            if curl -f --connect-timeout 10 "http://$VPS_HOST:$PORT/api/admin/health"; then
               echo "✅ Health check passed"
               break
             else
-              echo "⏳ Waiting for service... ($i/5)"
+              echo "⏳ Waiting for service... ($i/10)"
               sleep 10
             fi
           done
@@ -105,10 +152,13 @@ jobs:
         run: |
           echo "🔍 Final verification..."
           ssh "$BUILD_USER@$VPS_HOST" <<EOF
+          echo "=== Final Status ==="
           echo "PM2 status:"
           pm2 status
           echo "Nginx status:"
           sudo systemctl status nginx --no-pager
           echo "Port $PORT status:"
           ss -tlnp | grep ":$PORT " || echo "Port $PORT not listening"
+          echo "Frontend files:"
+          ls -la "$PUBLIC_DIR" | head -10
           EOF
