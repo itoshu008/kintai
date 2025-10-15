@@ -25,78 +25,72 @@ jobs:
           port: ${{ secrets.VPS_PORT }}
           script: |
             set -Eeuo pipefail
-            
-            # 環境設定
+
             APP_DIR="/home/zatint1991-hvt55/zatint1991.com"
             BACKEND_DIR="$APP_DIR/backend"
             FRONTEND_DIR="$APP_DIR/frontend"
-            PUBLIC_DIR="$APP_DIR/public/admin-dashboard-2024"
+            PUBLIC_DIR="$APP_DIR/public/admin-dashboard-2024"  # 必要なら /kintai に
             BUILD_USER="itoshu"
             PM2_APP="kintai-api"
             HOST="127.0.0.1"
             PORT="8001"
-            
-            echo "🚀 デプロイ開始"
-            
-            # 権限設定
-            echo "👤 権限設定"
-            # sudo権限エラーを回避
-            chown -R "$BUILD_USER:$BUILD_USER" "$APP_DIR" "/home/$BUILD_USER/.npm" "/home/$BUILD_USER/.pm2" 2>/dev/null || true
-            
-            # Git同期
-            echo "🌿 Git同期"
+
+            echo "👤 fix perms (including .git)"
+            sudo chown -R "$BUILD_USER:$BUILD_USER" "$APP_DIR" "/home/$BUILD_USER/.npm" "/home/$BUILD_USER/.pm2"
+            sudo chown -R "$BUILD_USER:$BUILD_USER" "$APP_DIR/.git" || true
+            find "$APP_DIR" -type d -exec chmod 775 {} \; ; find "$APP_DIR" -type f -exec chmod 664 {} \;
+
+            echo "🌿 git sync"
             cd "$APP_DIR"
             if [ -d .git ]; then
-              # Git所有権エラーを回避
               git config --global --add safe.directory "$APP_DIR" || true
               git fetch --all -p
-              git reset --hard "origin/main"
+              git reset --hard origin/main
+              git clean -fdx
             else
-              echo "⚠️ .git がありません"
+              echo "⚠️ .git がありません（サーバにコピー配置方式ならここは無視）"
             fi
-            
-            # Backendビルド
-            echo "🧱 Backendビルド"
+
+            echo "🧱 backend build"
             cd "$BACKEND_DIR"
-            npm ci --no-fund --no-audit || npm install --no-fund --no-audit
+            if [ -f package-lock.json ]; then
+              npm ci --no-fund --no-audit || npm install --no-fund --no-audit
+            else
+              npm install --no-fund --no-audit
+            fi
             npm run build
-            
-            # PM2再起動
-            echo "🚀 PM2再起動"
+
+            echo "🚀 pm2 restart"
             pm2 delete "$PM2_APP" 2>/dev/null || true
             HOST="$HOST" PORT="$PORT" NODE_ENV=production pm2 start "$BACKEND_DIR/dist/server.js" --name "$PM2_APP" --update-env
             pm2 save
-            
-            # ヘルスチェック
-            echo "🩺 ヘルスチェック"
+
+            echo "🩺 health (60s)"
             ok=""
             for i in $(seq 1 30); do
               if curl -fsS "http://$HOST:$PORT/api/admin/health" >/dev/null; then
-                echo "✅ Backend正常"
-                ok="yes"; break
+                echo "✅ Backend OK"; ok="yes"; break
               fi
-              echo "  待機中... ($i/30)"
-              sleep 2
+              echo "  waiting... ($i/30)"; sleep 2
             done
-            [ -z "$ok" ] && { echo "❌ Backend異常"; exit 1; }
-            
-            # Frontendビルド
-            echo "🎨 Frontendビルド"
+            [ -z "$ok" ] && { echo "❌ Backend NG"; exit 1; }
+
+            echo "🎨 frontend build"
             cd "$FRONTEND_DIR"
-            npm ci --no-fund --no-audit || npm install --no-fund --no-audit
+            if [ -f package-lock.json ]; then
+              npm ci --no-fund --no-audit || npm install --no-fund --no-audit
+            else
+              npm install --no-fund --no-audit
+            fi
             npm run build
-            
-            # 公開
-            echo "🚚 公開"
+
+            echo "🚚 publish"
             mkdir -p "$PUBLIC_DIR"
             rsync -az --delete "dist/" "$PUBLIC_DIR/"
-            
-            # Nginx再読み込み
-            echo "🌀 Nginx再読み込み"
-            # sudo権限エラーを回避
-            nginx -t && systemctl reload nginx 2>/dev/null || echo "⚠️ Nginx再読み込みスキップ"
-            
-            # 検証
-            echo "🔎 検証"
+
+            echo "🌀 nginx reload"
+            sudo nginx -t && sudo systemctl reload nginx || echo "⚠️ nginx reload skipped"
+
+            echo "🔎 verify"
             curl -I "https://zatint1991.com/kintai/" | sed -n '1,6p'
-            curl -fsS "http://$HOST:$PORT/api/admin/health" && echo "✅ デプロイ完了"
+            curl -fsS "http://$HOST:$PORT/api/admin/health" && echo "✅ deploy done"
