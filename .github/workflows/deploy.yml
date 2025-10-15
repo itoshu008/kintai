@@ -117,65 +117,69 @@ jobs:
             curl -fsS http://127.0.0.1:8001/api/admin/health || { echo "health NG"; exit 3; }
           '
 
-      - name: Health gate
-        run: |
-          ssh "$BUILD_USER@$VPS_HOST" '
-            for i in {1..15}; do curl -fsS http://127.0.0.1:8001/api/admin/health && exit 0; sleep 2; done; exit 1
-          '
-
-      - name: Port 8001 stability verification
+      - name: Post-deploy gates (health/port/frontend/nginx/commit)
+        env:
+          BUILD_USER: itoshu
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          APP_DIR: /home/zatint1991-hvt55/zatint1991.com
+          BACKEND_DIR: /home/zatint1991-hvt55/zatint1991.com/backend
+          FRONTEND_DIR: /home/zatint1991-hvt55/zatint1991.com/frontend
+          PUBLIC_DIR: /home/zatint1991-hvt55/zatint1991.com/public/admin-dashboard-2024
+          PM2_APP: kintai-api
+          PORT: "8001"
         run: |
           ssh "$BUILD_USER@$VPS_HOST" '
             set -Eeuo pipefail
-            echo "🔍 Verifying port 8001 stability..."
-            
-            # 1) PM2の環境にPORT=8001が入っていること
-            echo "Checking PM2 environment variables..."
-            pm2 env $(pm2 pid kintai-api | tr -d "\n") | grep -q "^PORT=8001$" || {
-              echo "❌ PORT is not 8001 in PM2 environment"
-              pm2 env $(pm2 pid kintai-api | tr -d "\n") | grep "^PORT=" || echo "PORT not found"
-              exit 1
-            }
-            
-            # 2) 8001がLISTENしていること
-            echo "Checking if port 8001 is listening..."
-            ss -lntp | grep -q ":8001 " || {
-              echo "❌ Port 8001 is not listening"
-              ss -lntp | grep ":800" || echo "No ports in 800x range found"
-              exit 1
-            }
-            
-            # 3) ヘルスOK
-            echo "Checking health endpoint..."
-            curl -fsS http://127.0.0.1:8001/api/admin/health | grep -q "\"ok\":true" || {
-              echo "❌ Health check failed"
-              curl -sS http://127.0.0.1:8001/api/admin/health || echo "Health endpoint not responding"
-              exit 1
-            }
-            
-            echo "✅ Port 8001 health OK - all checks passed"
-          '
+            APP_DIR="'"$APP_DIR"'"
+            BACKEND_DIR="'"$BACKEND_DIR"'"
+            FRONTEND_DIR="'"$FRONTEND_DIR"'"
+            PUBLIC_DIR="'"$PUBLIC_DIR"'"
+            PM2_APP="'"$PM2_APP"'"
+            PORT="'"$PORT"'"
 
-      - name: Build frontend & publish (run as itoshu)
-        run: |
-          ssh "$BUILD_USER@$VPS_HOST" "
-            set -e
-            if [ -d \"$FRONTEND_DIR\" ]; then
-              cd \"$FRONTEND_DIR\"
-              npm install --include=dev --no-audit --no-fund
+            echo "== Gate 1: Health gate (3 consecutive OK) =="
+            ok=0; streak=0; i=0
+            while [ $i -lt 30 ]; do
+              if curl -fsS --max-time 20 "http://127.0.0.1:${PORT}/api/admin/health" | grep -q "\"ok\":true"; then
+                streak=$((streak+1)); echo "health OK ($streak/3)"
+                if [ $streak -ge 3 ]; then ok=1; break; fi
+              else
+                streak=0; echo "health NG (reset)"
+              fi
+              sleep 1; i=$((i+1))
+            done
+            [ $ok -eq 1 ] || { echo "❌ Health gate failed"; 
+              ERR_LOG=$(pm2 info "'"$PM2_APP"'" | awk -F": " "/error log path/ {print \$2}"); 
+              [ -f "$ERR_LOG" ] && { echo "---PM2 ERR---"; tail -n 200 "$ERR_LOG"; }; 
+              exit 10; }
+
+            echo "== Gate 2: Port ${PORT} stability (3/3 listen) =="
+            for j in 1 2 3; do 
+              ss -lntp | grep -q ":${PORT} " || { echo "❌ not listening on :${PORT}"; exit 11; }
+              sleep 1
+            done
+            echo "✅ Port ${PORT} stable"
+
+            echo "== Gate 3: Build frontend & publish (as itoshu) =="
+            sudo -u itoshu bash -lc "
+              set -Eeuo pipefail
+              cd '$FRONTEND_DIR'
+              npm ci --no-audit --no-fund || npm install --no-audit --no-fund
               npm run build
-              rm -rf \"$PUBLIC_DIR\"
-              mkdir -p \"$PUBLIC_DIR\"
-              rsync -a --delete \"$FRONTEND_DIR/dist/\" \"$PUBLIC_DIR/\"
-            else
-              echo 'frontend/ not found, skip.'
-            fi
-          "
+            "
+            sudo mkdir -p "$PUBLIC_DIR"
+            rsync -az --delete --exclude ".git" --exclude "node_modules" \
+              "$FRONTEND_DIR/dist/" "$PUBLIC_DIR/"
+            sudo chown -R itoshu:itoshu "$PUBLIC_DIR"
 
-      - name: Reload nginx (as deploy)
-        run: ssh "$DEPLOY_USER@$VPS_HOST" "sudo /usr/sbin/nginx -t && sudo /usr/bin/systemctl reload nginx"
+            echo "== Gate 4: Reload nginx =="
+            sudo nginx -t
+            sudo systemctl reload nginx
+            echo "✅ nginx reloaded"
 
-      - name: Write deployed commit
-        run: |
-          # 日付はリモート側で展開（\$ をエスケープ）
-          ssh "$BUILD_USER@$VPS_HOST" "echo '${{ github.sha }} \$(date -u +%FT%TZ)' > \"$APP_DIR/DEPLOYED_SHA.txt\""
+            echo "== Final: masked commit tag =="
+            cd "$APP_DIR"
+            git config --global user.email "ci@zat.int"
+            git config --global user.name  "CI Bot"
+            git commit --allow-empty -m "[deploy] health ok / port ${PORT} ok / frontend published / nginx reloaded (*** masked)" || true
+          '
