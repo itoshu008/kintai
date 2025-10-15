@@ -5,7 +5,7 @@ import react from "@vitejs/plugin-react";
 const buildVersion = new Date().toISOString().replace(/[:.]/g, "-");
 
 export default defineConfig({
-  base: "/admin-dashboard-2024/",
+  base: "/kintai/",
   plugins: [
     react(),
     {

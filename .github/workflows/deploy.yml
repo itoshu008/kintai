@@ -11,7 +11,7 @@ jobs:
       APP_DIR: /home/zatint1991-hvt55/zatint1991.com
       BACKEND_DIR: /home/zatint1991-hvt55/zatint1991.com/backend
       FRONTEND_DIR: /home/zatint1991-hvt55/zatint1991.com/frontend
-      PUBLIC_DIR: /home/zatint1991-hvt55/zatint1991.com/public/admin-dashboard-2024
+      PUBLIC_DIR: /home/zatint1991-hvt55/zatint1991.com/public/kintai
       PM2_APP: kintai-api
       PM2_USER: itoshu
       PORT: "8001"

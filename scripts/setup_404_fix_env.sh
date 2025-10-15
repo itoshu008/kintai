@@ -4,7 +4,7 @@
 export BUILD_USER=itoshu
 export APP_DIR=/home/zatint1991-hvt55/zatint1991.com
 export BACKEND_DIR=$APP_DIR/backend
-export PUBLIC_DIR=$APP_DIR/public/admin-dashboard-2024
+export PUBLIC_DIR=$APP_DIR/public/kintai
 export PM2_HOME=/home/$BUILD_USER/.pm2
 export PM2_APP=kintai-api
 export PORT=8001
