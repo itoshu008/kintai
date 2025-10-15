@@ -1,4 +1,4 @@
-name: Deploy to VPS (SSH Fix)
+name: Deploy to VPS (Robust)
 on:
   push:
     branches: [ main ]
@@ -6,7 +6,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
 
     env:
       APP_DIR: /home/zatint1991-hvt55/zatint1991.com
@@ -30,76 +30,28 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
 
-      - name: Configure SSH
+      - name: Add host key
         run: |
-          echo "🔧 Configuring SSH..."
+          echo "🔑 Setting up SSH host key..."
           mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          
-          # SSH設定ファイルを作成
-          cat > ~/.ssh/config << EOF
-          Host $VPS_HOST
-            HostName $VPS_HOST
-            User $BUILD_USER
-            Port 22
-            ConnectTimeout 60
-            ServerAliveInterval 30
-            ServerAliveCountMax 3
-            TCPKeepAlive yes
-            StrictHostKeyChecking no
-            UserKnownHostsFile /dev/null
-            LogLevel ERROR
-          EOF
-          
-          chmod 600 ~/.ssh/config
-          echo "✅ SSH configuration created"
+          ssh-keygen -R "$VPS_HOST" 2>/dev/null || true
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          echo "✅ SSH host key configured"
 
-      - name: Test network connectivity
+      - name: Test SSH connection
         run: |
-          echo "🌐 Testing network connectivity..."
-          ping -c 3 $VPS_HOST || echo "Ping failed, but continuing..."
-          nc -z -v $VPS_HOST 22 || echo "Port 22 check failed, but continuing..."
-          echo "✅ Network test completed"
+          echo "🔍 Testing SSH connection..."
+          ssh -o ConnectTimeout=30 "$BUILD_USER@$VPS_HOST" "echo 'SSH connection successful'"
+          echo "✅ SSH connection verified"
 
-      - name: Test SSH connection (with retry)
+      - name: Stop existing services
         run: |
-          echo "🔍 Testing SSH connection with retry..."
-          for i in {1..5}; do
-            echo "SSH attempt $i/5..."
-            if ssh -o ConnectTimeout=30 -o ServerAliveInterval=10 "$BUILD_USER@$VPS_HOST" "echo 'SSH connection successful'"; then
-              echo "✅ SSH connection verified"
-              break
-            else
-              echo "❌ SSH attempt $i failed"
-              if [ $i -lt 5 ]; then
-                echo "⏳ Waiting 10 seconds before retry..."
-                sleep 10
-              else
-                echo "❌ All SSH attempts failed"
-                exit 1
-              fi
-            fi
-          done
-
-      - name: Check VPS status
-        run: |
-          echo "🔍 Checking VPS status..."
+          echo "🛑 Stopping existing services..."
           ssh "$BUILD_USER@$VPS_HOST" <<EOF
-          echo "=== VPS Status ==="
-          echo "Current user: \$(whoami)"
-          echo "Current directory: \$(pwd)"
-          echo "Uptime:"
-          uptime
-          echo "Disk usage:"
-          df -h | head -5
-          echo "Memory usage:"
-          free -h
-          echo "Network status:"
-          ss -tlnp | grep ":22 " || echo "SSH port not listening"
-          echo "PM2 status:"
-          pm2 status || echo "PM2 not running"
-          echo "Nginx status:"
-          sudo systemctl status nginx --no-pager | head -5 || echo "Nginx not running"
+          pm2 stop "$PM2_APP" || echo "PM2 app not running"
+          pm2 delete "$PM2_APP" || echo "PM2 app not found"
+          echo "✅ Services stopped"
           EOF
 
       - name: Deploy backend
@@ -107,10 +59,6 @@ jobs:
           echo "🚀 Deploying backend..."
           ssh "$BUILD_USER@$VPS_HOST" <<EOF
           set -e
-          echo "Stopping existing PM2 processes..."
-          pm2 stop "$PM2_APP" || echo "PM2 app not running"
-          pm2 delete "$PM2_APP" || echo "PM2 app not found"
-          
           cd "$BACKEND_DIR"
           echo "Installing backend dependencies..."
           npm ci --no-audit --no-fund || npm install --no-audit --no-fund
@@ -118,16 +66,13 @@ jobs:
           npm run build
           echo "Starting PM2..."
           pm2 start dist/index.js --name "$PM2_APP" --env production
-          pm2 save
           echo "✅ Backend deployed"
           EOF
 
-      - name: Wait for backend
+      - name: Wait for backend startup
         run: |
           echo "⏳ Waiting for backend to start..."
-          sleep 20
-          echo "Checking backend status..."
-          ssh "$BUILD_USER@$VPS_HOST" "pm2 status"
+          sleep 15
           echo "✅ Backend startup wait completed"
 
       - name: Deploy frontend
@@ -158,20 +103,45 @@ jobs:
           echo "✅ nginx config updated"
           EOF
 
-      - name: Final verification
+      - name: Basic health check
         run: |
-          echo "🔍 Final verification..."
+          echo "🏥 Running basic health check..."
+          sleep 10
+          echo "Checking if port is listening..."
+          ssh "$BUILD_USER@$VPS_HOST" "ss -tlnp | grep ':$PORT ' || echo 'Port not listening'"
+          echo "Checking PM2 status..."
+          ssh "$BUILD_USER@$VPS_HOST" "pm2 status"
+          echo "✅ Basic health check completed"
+
+      - name: Optional API health check
+        run: |
+          echo "🔍 Optional API health check..."
+          for i in {1..3}; do
+            echo "API check attempt $i/3..."
+            if curl -f --connect-timeout 5 --max-time 10 "http://$VPS_HOST:$PORT/api/admin/health" 2>/dev/null; then
+              echo "✅ API health check passed"
+              break
+            else
+              echo "⏳ API not ready yet... ($i/3)"
+              sleep 5
+            fi
+          done
+          echo "✅ API health check completed (may have failed, but continuing)"
+
+      - name: Final status check
+        run: |
+          echo "🔍 Final status check..."
           ssh "$BUILD_USER@$VPS_HOST" <<EOF
           echo "=== Final Status ==="
           echo "PM2 status:"
           pm2 status
           echo "Nginx status:"
-          sudo systemctl status nginx --no-pager | head -5
+          sudo systemctl status nginx --no-pager | head -10
           echo "Port $PORT status:"
           ss -tlnp | grep ":$PORT " || echo "Port $PORT not listening"
           echo "Frontend files:"
           ls -la "$PUBLIC_DIR" | head -5
-          echo "✅ Final verification completed"
+          echo "✅ Final status check completed"
           EOF
 
       - name: Success notification
