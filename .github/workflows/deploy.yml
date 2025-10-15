@@ -61,22 +61,12 @@ jobs:
           test -x scripts/deploy_backend.sh || { echo "missing scripts/deploy_backend.sh"; exit 127; }
 
       - name: Dry run rsync
-        env:
-          BUILD_USER: itoshu
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          BACKEND_DIR: /home/zatint1991-hvt55/zatint1991.com/backend
-          FRONTEND_DIR: /home/zatint1991-hvt55/zatint1991.com/frontend
         run: |
           set -Eeuo pipefail
           DRY_RUN=1 bash scripts/deploy_rsync.sh | tee rsync_dry.log
           grep -E 'Number of files|Total transferred file size|sent .* bytes' rsync_dry.log || true
 
       - name: Run rsync with timing
-        env:
-          BUILD_USER: itoshu
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          BACKEND_DIR: /home/zatint1991-hvt55/zatint1991.com/backend
-          FRONTEND_DIR: /home/zatint1991-hvt55/zatint1991.com/frontend
         run: |
           set -Eeuo pipefail
           /usr/bin/time -f 'elapsed=%E  user=%U  sys=%S' bash -c 'scripts/deploy_rsync.sh' | tee rsync_run.log
@@ -98,15 +88,6 @@ jobs:
           EOF
 
       - name: Post-deploy gates (health/port/frontend/nginx/commit)
-        env:
-          BUILD_USER: itoshu
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          APP_DIR: /home/zatint1991-hvt55/zatint1991.com
-          BACKEND_DIR: /home/zatint1991-hvt55/zatint1991.com/backend
-          FRONTEND_DIR: /home/zatint1991-hvt55/zatint1991.com/frontend
-          PUBLIC_DIR: /home/zatint1991-hvt55/zatint1991.com/public/admin-dashboard-2024
-          PM2_APP: kintai-api
-          PORT: "8001"
         run: |
           ssh "$BUILD_USER@$VPS_HOST" <<EOF
           set -Eeuo pipefail
