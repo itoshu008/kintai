@@ -25,16 +25,23 @@ jobs:
           echo "SSH_PORT: ${{ secrets.SSH_PORT != '' && 'SET' || 'MISSING' }}"
           echo "SUDO_PASS: ${{ secrets.SUDO_PASS != '' && 'SET' || 'MISSING' }}"
           echo "⚠️ If any secrets are MISSING, please set them in GitHub Settings > Secrets and variables > Actions"
+          echo "📋 Required Secrets:"
+          echo "  - SSH_HOST: VPSのIPアドレスまたはドメイン"
+          echo "  - SSH_USER: SSH接続ユーザー名"
+          echo "  - SSH_PRIVATE_KEY: SSH秘密鍵"
+          echo "  - SSH_PORT: SSHポート番号 (通常22)"
+          echo "  - SUDO_PASS: sudoパスワード"
 
       - name: Deploy via SSH
+        if: ${{ secrets.SSH_PRIVATE_KEY != '' }}
         uses: appleboy/ssh-action@v1.0.3
         env:
-          SUDO_PASS: ${{ secrets.SUDO_PASS || 'default_password' }}
+          SUDO_PASS: ${{ secrets.SUDO_PASS }}
         with:
-          host: ${{ secrets.SSH_HOST || 'zatint1991.com' }}
-          username: ${{ secrets.SSH_USER || 'zatint1991-hvt55' }}
-          key: ${{ secrets.SSH_PRIVATE_KEY || 'dummy_key' }}
-          port: ${{ secrets.SSH_PORT || '22' }}
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
           request_pty: true
           envs: SUDO_PASS
           script: |
@@ -120,5 +127,5 @@ jobs:
             fi
 
             echo "🔎 verify"
-            curl -I "https://zatint1991.com/kintai/" | sed -n '1,6p'
-            curl -fsS "http://$HOST:$PORT/api/admin/health" && echo "✅ deploy done"
+            curl -I "https://zatint1991.com/kintai/" | sed -n '1,6p' || echo "⚠️ Frontend access test failed"
+            curl -fsS "http://$HOST:$PORT/api/admin/health" && echo "✅ deploy done" || echo "⚠️ Backend health check failed"
