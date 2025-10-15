@@ -8,87 +8,14 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    concurrency:
-      group: prod-deploy
-      cancel-in-progress: false
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Deploy via SSH (non-interactive)
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT || '22' }}
-          request_pty: true
-          script: |
-            set -Eeuo pipefail
-
-            APP_DIR="/home/zatint1991-hvt55/zatint1991.com"
-            BACKEND_DIR="$APP_DIR/backend"
-            FRONTEND_DIR="$APP_DIR/frontend"
-            PUBLIC_DIR="$APP_DIR/public/kintai"
-            BUILD_USER="itoshu"
-            PM2_APP="kintai-api"
-            HOST="127.0.0.1"
-            PORT="8001"
-
-            echo "👤 fix perms（非対話・失敗時はスキップ）"
-            # sudo -n: パスワード要求禁止。権限なければ即スキップして先へ進む
-            sudo -n chown -R "$BUILD_USER:$BUILD_USER" "$APP_DIR"      2>/dev/null || echo "skip chown app"
-            sudo -n chown -R "$BUILD_USER:$BUILD_USER" "$APP_DIR/.git" 2>/dev/null || echo "skip chown .git"
-            find "$APP_DIR" -type d -exec chmod 775 {} \; ; find "$APP_DIR" -type f -exec chmod 664 {} \;
-
-            echo "🌿 git sync"
-            cd "$APP_DIR"
-            if [ -d .git ]; then
-              git config --global --add safe.directory "$APP_DIR" || true
-              git fetch --all -p
-              git reset --hard origin/main
-              git clean -fdx
-            fi
-
-            echo "🧱 backend build"
-            cd "$BACKEND_DIR"
-            if [ -f package-lock.json ]; then
-              npm ci --no-fund --no-audit || npm install --no-fund --no-audit
-            else
-              npm install --no-fund --no-audit
-            fi
-            npm run build
-
-            echo "🚀 pm2 restart"
-            pm2 delete "$PM2_APP" 2>/dev/null || true
-            HOST="$HOST" PORT="$PORT" NODE_ENV=production pm2 start "$BACKEND_DIR/dist/server.js" --name "$PM2_APP" --update-env
-            pm2 save
-
-            echo "🩺 health (最大60秒)"
-            ok=""
-            for i in $(seq 1 30); do
-              curl -fsS "http://$HOST:$PORT/api/admin/health" >/dev/null && ok=yes && break || sleep 2
-            done
-            [ -z "$ok" ] && { echo "❌ Backend NG"; exit 1; }
-
-            echo "🎨 frontend build"
-            cd "$FRONTEND_DIR"
-            if [ -f package-lock.json ]; then
-              npm ci --no-fund --no-audit || npm install --no-fund --no-audit
-            else
-              npm install --no-fund --no-audit
-            fi
-            npm run build
-
-            echo "🚚 publish"
-            mkdir -p "$PUBLIC_DIR"
-            rsync -az --delete dist/ "$PUBLIC_DIR/"
-
-            echo "🌀 nginx reload"
-            sudo -n nginx -t && sudo -n systemctl reload nginx || echo "skip nginx reload (no sudo -n)"
-
-            echo "🔎 verify"
-            curl -I "https://zatint1991.com/kintai/" | sed -n '1,6p'
-            curl -fsS "http://$HOST:$PORT/api/admin/health" && echo "✅ deploy done"
+          script: bash ~/deploy_release.sh
