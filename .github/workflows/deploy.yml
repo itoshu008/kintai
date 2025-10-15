@@ -45,34 +45,19 @@ jobs:
             find '$BACKEND_DIR' -type f -exec chmod 664 {} \; || true
           "
 
-      - name: Rsync sources (protect data/backups)
+      - name: Deploy via rsync (dry run first)
+        env:
+          BUILD_USER: itoshu
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          BACKEND_DIR: /home/zatint1991-hvt55/zatint1991.com/backend
+          FRONTEND_DIR: /home/zatint1991-hvt55/zatint1991.com/frontend
+          SSH_AUTH_SOCK: ${{ env.SSH_AUTH_SOCK }}
         run: |
-          set -e
-
-          RSYNC_OPTS="-az -O --no-perms --no-group --omit-dir-times --delete \
-            --exclude '.git' --exclude 'node_modules' \
-            --exclude '.public_build*/' --exclude 'public-backup*/' \
-            --exclude 'dist-ultimate*/' --exclude 'kintai*/'"
-
-          # ★ "1引数"で渡す（スペース込み）＝クォート必須
-          RSYNC_PROTECTS="\
-            --filter='P data*/' \
-            --filter='P data*/**' \
-            --filter='P data.bak/' \
-            --filter='P data.bak/**' \
-            --filter='P backups*/' \
-            --filter='P backups*/**' \
-          "
-
-          RSYNC_SSH="ssh -o StrictHostKeyChecking=accept-new"
-
-          # backend（保護フィルタ適用）
-          rsync -e "$RSYNC_SSH" $RSYNC_OPTS $RSYNC_PROTECTS \
-            ./backend/  "$BUILD_USER@$VPS_HOST:$BACKEND_DIR/"
-
-          # frontend（データは関係ないので保護不要）
-          rsync -e "$RSYNC_SSH" $RSYNC_OPTS \
-            ./frontend/ "$BUILD_USER@$VPS_HOST:$FRONTEND_DIR/"
+          set -Eeuo pipefail
+          # まずドライランで削除・保護の出力を確認
+          DRY_RUN=1 scripts/deploy_rsync.sh
+          # ドライランOKなら本番実行
+          scripts/deploy_rsync.sh
 
       - name: Build backend & reload PM2 (as itoshu)
         run: |
