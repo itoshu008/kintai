@@ -6,6 +6,12 @@ import admin from './routes/admin/index.js'; // ★ .js 拡張子（ESM）
 // Express アプリケーションを直接作成
 const app = express();
 
+// --- API ログ（一時観測用） ---
+app.use((req, _res, next) => { 
+  if (req.path.startsWith('/api/')) console.log('[API HIT]', req.method, req.originalUrl); 
+  next(); 
+});
+
 // --- middlewares ---
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));

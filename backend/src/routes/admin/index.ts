@@ -8,6 +8,16 @@ export const admin = Router();
 mountAdminEmployees(admin);
 mountAdminMaster(admin);
 
+// --- 最小ルート実装（404を確実に消す） ---
+admin.get('/master', (req, res) => {
+  const date = String(req.query.date ?? '');
+  res.json({ ok: true, date, data: { departments: [], employees: [] } });
+});
+
+admin.get('/employees', (_req, res) => {
+  res.json([{ id: 1, code: 'E001', name: '田中' }]);
+});
+
 // --- departments（完全実装） ---
 admin.get('/departments', (_req, res) => {
   res.json([{ id: 1, name: '開発部' }]);

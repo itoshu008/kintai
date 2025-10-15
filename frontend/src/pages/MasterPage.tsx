@@ -188,6 +188,13 @@ async function handleResponse<T>(response: Response): Promise<T> {
     const errorData = await response.json().catch(() => ({ message: response.statusText }));
     throw new Error(errorData.error || errorData.message || 'API request failed');
   }
+  
+  // ガード: JSON以外のレスポンスを防ぐ（<!DOCTYPE ...> をJSONとして読んで落ちるのを回避）
+  const ct = response.headers.get('content-type') || '';
+  if (!ct.includes('application/json')) {
+    throw new Error(`Unexpected content-type: ${ct}`);
+  }
+  
   return response.json();
 }
 
