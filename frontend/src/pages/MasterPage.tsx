@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getHolidayNameSync, isHolidaySync } from '../utils/holidays';
 import { backupApi } from '../api/backup';
 import { IS_PREVIEW } from '../utils/flags';
+import { getMaster, createEmployee, type MasterData, type Employee, type Department } from '../lib/api';
 
 // デバッグログ
 console.log('MASTER_MOUNT', location.pathname, import.meta.env.BASE_URL);
@@ -742,23 +743,54 @@ export default function MasterPage() {
 
   // --- ハンドラ関数 ---
 
-  // 社員登録
+  // 楽観更新対応の社員登録
   const onCreate = async () => {
     if (!newCode.trim() || !newName.trim()) {
       setMsg('社員番号、氏名を入力してください');
       return;
     }
+    
+    const deptId = deps.find(d => d.name === newDepartment.trim())?.id;
+    if (!deptId) {
+      setMsg('部署を選択してください');
+      return;
+    }
+    
+    const formData = { code: newCode.trim(), name: newName.trim(), department_id: deptId };
+    
     try {
-      const deptId = deps.find(d => d.name === newDepartment.trim())?.id;
-      console.log('社員登録API呼び出し:', { code: newCode.trim(), name: newName.trim(), department_id: deptId });
-      const result = await api.createEmployee(newCode.trim(), newName.trim(), deptId);
+      setLoading(true);
+      console.log('社員登録API呼び出し:', formData);
       
+      // 1) 楽観更新（重複コードを除いてから追加）
+      const newEmployee: MasterRow = {
+        id: Date.now(), // 仮ID
+        code: formData.code,
+        name: formData.name,
+        department_id: formData.department_id,
+        department_name: deps.find(d => d.id === deptId)?.name || '',
+        clock_in: null,
+        clock_out: null,
+        break_start: null,
+        break_end: null,
+        total_hours: null,
+        status: '' as const,
+        remarks: null
+      };
+      
+      setData(prev => {
+        const next = prev.filter(e => e.code !== formData.code);
+        next.push(newEmployee);
+        return next;
+      });
+      
+      // 2) サーバーに送信
+      const result = await createEmployee(formData);
       console.log('社員登録API結果:', result);
       
-      if (!result.ok) {
-        setMsg(`❌ 社員登録エラー: ${result.error || '登録に失敗しました'}`);
-        return;
-      }
+      // 3) サーバーと同期（念押し）
+      await loadOnce(loadKey);
+      await loadEmployees();
       
       setMsg('✅ 社員を登録しました');
       setNewCode('');
@@ -766,12 +798,18 @@ export default function MasterPage() {
       setNewDepartment('');
       setShowEmployeeRegistration(false);
       
-      // データを再取得
-      await loadOnce(loadKey);
-      await loadEmployees();
+      // 4) 部署フィルタを新規作成した社員の部署に設定（確実に表示されるように）
+      setDepFilter(formData.department_id);
+      
     } catch (e: any) {
       console.error('社員登録エラー:', e);
       setMsg(`❌ 社員登録エラー: ${e.message}`);
+      
+      // エラー時はデータを再取得して元に戻す
+      await loadOnce(loadKey);
+      await loadEmployees();
+    } finally {
+      setLoading(false);
     }
   };
 
