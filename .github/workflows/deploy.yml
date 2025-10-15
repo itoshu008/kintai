@@ -12,74 +12,34 @@ jobs:
     concurrency:
       group: prod-deploy
       cancel-in-progress: false
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Preflight - Check secrets
-        run: |
-          echo "🔍 Checking secrets..."
-          if [ -n "${{ secrets.VPS_HOST }}" ]; then
-            echo "VPS_HOST: SET"
-          else
-            echo "VPS_HOST: MISSING"
-          fi
-          if [ -n "${{ secrets.VPS_USER }}" ]; then
-            echo "VPS_USER: SET"
-          else
-            echo "VPS_USER: MISSING"
-          fi
-          if [ -n "${{ secrets.VPS_SSH_KEY }}" ]; then
-            echo "VPS_SSH_KEY: SET"
-          else
-            echo "VPS_SSH_KEY: MISSING"
-          fi
-          if [ -n "${{ secrets.VPS_PORT }}" ]; then
-            echo "VPS_PORT: SET"
-          else
-            echo "VPS_PORT: MISSING"
-          fi
-          if [ -n "${{ secrets.SUDO_PASS }}" ]; then
-            echo "SUDO_PASS: SET"
-          else
-            echo "SUDO_PASS: MISSING"
-          fi
-          echo "⚠️ If any secrets are MISSING, please set them in GitHub Settings > Secrets and variables > Actions"
-          echo "📋 Required Secrets:"
-          echo "  - VPS_HOST: 202.233.67.137"
-          echo "  - VPS_USER: itoshu"
-          echo "  - VPS_SSH_KEY: C:\\Users\\itosh\\Downloads\\itoshu.pem の中身"
-          echo "  - VPS_PORT: 10022"
-          echo "  - SUDO_PASS: sudoパスワード"
-
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
-        env:
-          SUDO_PASS: ${{ secrets.SUDO_PASS }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_PORT }}
+          port: ${{ secrets.VPS_PORT || '22' }}
           request_pty: true
-          envs: SUDO_PASS
           script: |
             set -Eeuo pipefail
-            : "${SUDO_PASS:?SUDO_PASS is not set}"
 
             APP_DIR="/home/zatint1991-hvt55/zatint1991.com"
             BACKEND_DIR="$APP_DIR/backend"
             FRONTEND_DIR="$APP_DIR/frontend"
-            PUBLIC_DIR="$APP_DIR/public/kintai"   # ★ Nginx と揃える
+            PUBLIC_DIR="$APP_DIR/public/kintai"
             BUILD_USER="itoshu"
             PM2_APP="kintai-api"
             HOST="127.0.0.1"
             PORT="8001"
 
-            echo "👤 fix perms (including .git)"
-            printf '%s\n' "$SUDO_PASS" | sudo -S -p '' -k chown -R "$BUILD_USER:$BUILD_USER" "$APP_DIR"
-            printf '%s\n' "$SUDO_PASS" | sudo -S -p '' -k chown -R "$BUILD_USER:$BUILD_USER" "/home/$BUILD_USER/.npm" "/home/$BUILD_USER/.pm2" || true
-            printf '%s\n' "$SUDO_PASS" | sudo -S -p '' -k chown -R "$BUILD_USER:$BUILD_USER" "$APP_DIR/.git" || true
+            echo "👤 fix perms"
+            sudo chown -R "$BUILD_USER:$BUILD_USER" "$APP_DIR" "/home/$BUILD_USER/.npm" "/home/$BUILD_USER/.pm2" || true
+            sudo chown -R "$BUILD_USER:$BUILD_USER" "$APP_DIR/.git" || true
             find "$APP_DIR" -type d -exec chmod 775 {} \; ; find "$APP_DIR" -type f -exec chmod 664 {} \;
 
             echo "🌿 git sync"
@@ -89,8 +49,6 @@ jobs:
               git fetch --all -p
               git reset --hard origin/main
               git clean -fdx
-            else
-              echo "⚠️ .git がありません（サーバにコピー配置方式なら無視）"
             fi
 
             echo "🧱 backend build"
@@ -107,13 +65,10 @@ jobs:
             HOST="$HOST" PORT="$PORT" NODE_ENV=production pm2 start "$BACKEND_DIR/dist/server.js" --name "$PM2_APP" --update-env
             pm2 save
 
-            echo "🩺 health (60s)"
+            echo "🩺 health"
             ok=""
             for i in $(seq 1 30); do
-              if curl -fsS "http://$HOST:$PORT/api/admin/health" >/dev/null; then
-                echo "✅ Backend OK"; ok="yes"; break
-              fi
-              echo "  waiting... ($i/30)"; sleep 2
+              curl -fsS "http://$HOST:$PORT/api/admin/health" >/dev/null && ok=yes && break || sleep 2
             done
             [ -z "$ok" ] && { echo "❌ Backend NG"; exit 1; }
 
@@ -128,23 +83,11 @@ jobs:
 
             echo "🚚 publish"
             mkdir -p "$PUBLIC_DIR"
-            rsync -az --delete "dist/" "$PUBLIC_DIR/"
+            rsync -az --delete dist/ "$PUBLIC_DIR/"
 
             echo "🌀 nginx reload"
-            printf '%s\n' "$SUDO_PASS" | sudo -S -p '' -k nginx -t
-            printf '%s\n' "$SUDO_PASS" | sudo -S -p '' -k systemctl reload nginx
-
-            echo "🔧 sudoers 初回設定（存在しなければ作成）"
-            if ! printf '%s\n' "$SUDO_PASS" | sudo -S -p '' -k test -f /etc/sudoers.d/kintai-deploy; then
-              # sudoers設定ファイルを作成
-              echo "Defaults:itoshu !requiretty" | printf '%s\n' "$SUDO_PASS" | sudo -S -p '' -k tee /etc/sudoers.d/kintai-deploy >/dev/null
-              echo "itoshu ALL=(root) NOPASSWD: /usr/bin/chown -R itoshu:itoshu /home/zatint1991-hvt55/zatint1991.com/*, /usr/sbin/nginx, /bin/systemctl" | printf '%s\n' "$SUDO_PASS" | sudo -S -p '' -k tee -a /etc/sudoers.d/kintai-deploy >/dev/null
-              printf '%s\n' "$SUDO_PASS" | sudo -S -p '' -k visudo -c
-              echo "✅ sudoers installed"
-            else
-              echo "ℹ️ sudoers already present"
-            fi
+            sudo nginx -t && sudo systemctl reload nginx
 
             echo "🔎 verify"
-            curl -I "https://zatint1991.com/kintai/" | sed -n '1,6p' || echo "⚠️ Frontend access test failed"
-            curl -fsS "http://$HOST:$PORT/api/admin/health" && echo "✅ deploy done" || echo "⚠️ Backend health check failed"
+            curl -I "https://zatint1991.com/kintai/" | sed -n '1,6p'
+            curl -fsS "http://$HOST:$PORT/api/admin/health" && echo "✅ deploy done"
