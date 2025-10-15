@@ -30,7 +30,7 @@ if (typeof window !== 'undefined') {
 }
 
 // さらに安全な定義（undefined チェック付き）
-const safeModalButtonStyle = modalButtonStyle ?? { padding: '8px 12px' };
+const _safeModalButtonStyle = modalButtonStyle ?? { padding: '8px 12px' };
 
 const modalInputStyle: React.CSSProperties = {
   padding: '12px 16px',
@@ -73,7 +73,7 @@ const formErrorStyle: React.CSSProperties = {
   gap: '4px',
 };
 
-const formSuccessStyle: React.CSSProperties = {
+const _formSuccessStyle: React.CSSProperties = {
   color: '#059669',
   fontSize: '12px',
   marginTop: '4px',
@@ -329,7 +329,7 @@ const calcWorkTime = (clockIn?: string | null, clockOut?: string | null) => {
   return `${diffHours}:${z(diffMinutes)}`;
 };
 
-const calcOvertimeFromTimes = (clockIn?: string | null, clockOut?: string | null) => {
+const _calcOvertimeFromTimes = (clockIn?: string | null, clockOut?: string | null) => {
   if (!clockIn || !clockOut) return '0:00';
   const start = new Date(clockIn);
   const end = new Date(clockOut);
@@ -343,7 +343,7 @@ const calcOvertimeFromTimes = (clockIn?: string | null, clockOut?: string | null
   return `${hours}:${z(minutes)}`;
 };
 
-const calcLegalOvertime = (clockIn?: string | null, clockOut?: string | null) => {
+const _calcLegalOvertime = (clockIn?: string | null, clockOut?: string | null) => {
   if (!clockIn || !clockOut) return '0:00';
   const start = new Date(clockIn);
   const end = new Date(clockOut);
@@ -374,7 +374,7 @@ const calcIllegalOvertime = (clockIn?: string | null, clockOut?: string | null) 
   return `${hours}:${z(minutes)}`;
 };
 
-const calcNightWorkTime = (clockIn?: string | null, clockOut?: string | null) => {
+const _calcNightWorkTime = (clockIn?: string | null, clockOut?: string | null) => {
   if (!clockIn || !clockOut) return '0:00';
   const start = new Date(clockIn);
   const end = new Date(clockOut);
@@ -476,14 +476,14 @@ export default function MasterPage() {
   const [newName, setNewName] = useState('');
   const [newDepartment, setNewDepartment] = useState('');
   const [editingEmployee, setEditingEmployee] = useState<MasterRow | null>(null);
-  const [editEmployeeCode, setEditEmployeeCode] = useState('');
-  const [editEmployeeName, setEditEmployeeName] = useState('');
-  const [editEmployeeDept, setEditEmployeeDept] = useState<number>(0);
+  const [editEmployeeCode, _setEditEmployeeCode] = useState('');
+  const [editEmployeeName, _setEditEmployeeName] = useState('');
+  const [editEmployeeDept, _setEditEmployeeDept] = useState<number>(0);
   const [deleteTargetEmployee, setDeleteTargetEmployee] = useState<MasterRow | null>(null);
 
   // 勤怠時間・備考関連
   const [editingTimeData, setEditingTimeData] = useState<TimeEditData | null>(null);
-  const [remarks, setRemarks] = useState<{ [key: string]: string }>({});
+  const [_remarks, setRemarks] = useState<{ [key: string]: string }>({});
 
   // バックアップ＆プレビュー関連
   const [backups, setBackups] = useState<BackupItem[]>([]);
@@ -506,8 +506,8 @@ export default function MasterPage() {
   const selectEmployee = (emp: Employee) => setSelectedEmployee(emp as any);
   
   // 未使用変数の警告を回避
-  const _selectedBackupId = selectedBackupId;
-  const _employeeMonthlyData = employeeMonthlyData;
+  const __selectedBackupId = selectedBackupId;
+  const __employeeMonthlyData = employeeMonthlyData;
   
   // 存在しないが参照されているハンドラを定義
   const handleTimeEditClick = (row: MasterRow, index?: number) => {
@@ -535,7 +535,12 @@ export default function MasterPage() {
     try {
       const res = await api.master(key, ac.signal);
       if (!ac.signal.aborted) {
-        setData(res.list || []);
+        // 互換レイヤ：remarks → remark 正規化
+        const normalizedList = (res.list || []).map((row: any) => ({
+          ...row,
+          remark: row.remark ?? row.remarks ?? ''
+        }));
+        setData(normalizedList);
         setMsg('');
       }
     } catch (e: any) {
@@ -776,7 +781,7 @@ export default function MasterPage() {
   };
 
   // 時間修正モーダルのキャンセル
-  const cancelTimeEdit = () => {
+  const _cancelTimeEdit = () => {
     setShowTimeEditModal(false);
     setEditingTimeData(null);
   };
@@ -837,7 +842,7 @@ export default function MasterPage() {
     return `${hours}:${z(minutes)}`;
   };
 
-  const calcIllegalOvertimeFromTimes = (clockIn?: string | null, clockOut?: string | null) => {
+  const _calcIllegalOvertimeFromTimes = (clockIn?: string | null, clockOut?: string | null) => {
     if (!clockIn || !clockOut) return '0:00';
     const start = new Date(clockIn);
     const end = new Date(clockOut);
@@ -890,7 +895,7 @@ export default function MasterPage() {
         break_start: undefined,
         break_end: undefined,
         status: '' as const,
-        remarks: null
+        remark: undefined
       };
       
       setData(prev => {
@@ -929,7 +934,7 @@ export default function MasterPage() {
   };
 
   // 社員情報更新
-  const saveEmployeeEdit = async () => {
+  const _saveEmployeeEdit = async () => {
     if (!editingEmployee || !editEmployeeCode.trim() || !editEmployeeName.trim()) {
       setMsg('社員コードと名前を入力してください');
       return;
@@ -957,7 +962,7 @@ export default function MasterPage() {
   };
 
   // 社員削除
-  const deleteEmployee = async () => {
+  const _deleteEmployee = async () => {
     if (!deleteTargetEmployee) return;
     if (!confirm(`本当に「${deleteTargetEmployee.name}」を削除しますか？\nこの操作は取り消せません。`)) return;
 
