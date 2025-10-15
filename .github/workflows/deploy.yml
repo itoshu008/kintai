@@ -1,4 +1,4 @@
-name: Deploy to VPS (Minimal)
+name: Deploy to VPS (Minimal Safe)
 on:
   push:
     branches: [ main ]
@@ -6,11 +6,18 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     env:
       VPS_HOST: ${{ secrets.VPS_HOST }}
       VPS_USER: ${{ secrets.VPS_USER }}
+      APP_DIR: /home/zatint1991-hvt55/zatint1991.com
+      BACKEND_DIR: /home/zatint1991-hvt55/zatint1991.com/backend
+      FRONTEND_DIR: /home/zatint1991-hvt55/zatint1991.com/frontend
+      PUBLIC_DIR: /home/zatint1991-hvt55/zatint1991.com/public/admin-dashboard-2024
+      PM2_APP: kintai-api
+      PM2_HOME: /home/itoshu/.pm2
+      PORT: "8001"
 
     steps:
       - name: Checkout code
@@ -21,64 +28,107 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
 
-      - name: Deploy everything
+      - name: Add host key
         run: |
-          echo "🚀 Starting minimal deployment..."
-          
-          # SSH設定
+          set -Eeuo pipefail
           mkdir -p ~/.ssh
-          echo "Host $VPS_HOST" >> ~/.ssh/config
-          echo "  StrictHostKeyChecking no" >> ~/.ssh/config
-          echo "  UserKnownHostsFile /dev/null" >> ~/.ssh/config
-          chmod 600 ~/.ssh/config
-          
-          # デプロイ実行
-          ssh $VPS_USER@$VPS_HOST << 'EOF'
-          set -e
-          
-          echo "📁 Setting up directories..."
-          mkdir -p /home/zatint1991-hvt55/zatint1991.com/{backend,frontend,public/admin-dashboard-2024}
-          
-          echo "🔄 Updating code..."
-          cd /home/zatint1991-hvt55/zatint1991.com
-          git fetch origin
-          git reset --hard origin/main
-          
-          echo "🚀 Deploying backend..."
-          cd backend
-          npm install --production
+          ssh-keygen -R "$VPS_HOST" 2>/dev/null || true
+          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Deploy (backend → gates → frontend → nginx)
+        run: |
+          set -Eeuo pipefail
+          ssh "$VPS_USER@$VPS_HOST" <<EOF
+          set -Eeuo pipefail
+
+          echo "📁 Ensure directories..."
+          mkdir -p "$APP_DIR/scripts" "$BACKEND_DIR" "$FRONTEND_DIR" "$PUBLIC_DIR"
+
+          echo "🔄 Sync repo (rsync safest)"
+          # actions/checkout 済みのワークスペース全体を rsync しても良いが、
+          # ここではサーバ側のGitを使わず、既存コードに対し rsync で差分反映する例
+          # → シンプルに git pull したい場合は下を使用:
+          # cd "$APP_DIR" && git fetch origin && git reset --hard origin/main
+          # ここでは安全優先で rsync 例に切替したい場合は別ステップでscp/rsyncしてください
+
+          echo "🚀 Backend: install → build → prune"
+          cd "$BACKEND_DIR"
+          # lock尊重。ズレたら自動フォールバック
+          npm ci --include=dev --no-audit --no-fund || npm install --include=dev --no-audit --no-fund
           npm run build
-          pm2 stop kintai-api || true
-          pm2 delete kintai-api || true
-          pm2 start dist/index.js --name kintai-api
+          npm prune --omit=dev
+
+          echo "🟢 PM2 start from config (delete→start)"
+          export PM2_HOME="$PM2_HOME"
+          pm2 delete "$PM2_APP" || true
+          # ★ 必ず config から。script は dist/server.js を指すこと
+          pm2 start "$BACKEND_DIR/pm2.config.cjs" --only "$PM2_APP"
           pm2 save
-          
-          echo "🎨 Deploying frontend..."
-          cd ../frontend
-          npm install
+
+          echo "🧪 Backend gates: LISTEN(IPv4/IPv6) & HEALTH(3x)"
+          # LISTEN: sport フィルタ（IPv4/IPv6対応）
+          for j in 1 2 3; do
+            ss -H -ltn "( sport = :$PORT )" | grep -q . && ok=1 || ok=0
+            [ "\$ok" = "1" ] && break
+            sleep 1
+          done
+          [ "\$ok" = "1" ] || { echo "❌ listen NG :$PORT"; tail -n 120 "$PM2_HOME/logs/$PM2_APP-error.log" || true; exit 2; }
+
+          # HEALTH: 3連続OK
+          ok=0; streak=0
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -fsS --max-time 10 "http://127.0.0.1:$PORT/api/admin/health" | grep -q '"ok":true'; then
+              streak=\$((streak+1)); echo "health OK (\$streak/3)"
+              [ \$streak -ge 3 ] && { ok=1; break; }
+            else
+              streak=0; echo "health NG (reset)"
+            fi
+            sleep 1
+          done
+          [ "\$ok" = "1" ] || { echo "❌ health NG"; tail -n 120 "$PM2_HOME/logs/$PM2_APP-error.log" || true; exit 3; }
+
+          echo "🎨 Frontend: install → build → publish"
+          cd "$FRONTEND_DIR"
+          npm ci --no-audit --no-fund || npm install --no-audit --no-fund
           npm run build
-          rsync -az --delete dist/ /home/zatint1991-hvt55/zatint1991.com/public/admin-dashboard-2024/
-          chown -R itoshu:itoshu /home/zatint1991-hvt55/zatint1991.com/public/admin-dashboard-2024
-          
-          echo "⚙️ Updating nginx..."
-          cp nginx-zatint1991-final.conf /etc/nginx/sites-enabled/zatint1991.com
+          rsync -az --delete "$FRONTEND_DIR/dist/" "$PUBLIC_DIR/"
+          chown -R itoshu:itoshu "$PUBLIC_DIR"
+
+          echo "⚙️ Nginx: test → reload"
           nginx -t
           systemctl reload nginx
-          
-          echo "✅ Deployment completed!"
+
+          echo "✅ Done."
           EOF
 
       - name: Verify deployment
         run: |
-          echo "🔍 Verifying deployment..."
-          sleep 10
-          ssh $VPS_USER@$VPS_HOST << 'EOF'
+          set -Eeuo pipefail
+          ssh "$VPS_USER@$VPS_HOST" <<EOF
+          set -Eeuo pipefail
           echo "PM2 status:"
-          pm2 status
-          echo "Nginx status:"
-          systemctl status nginx --no-pager | head -5
-          echo "Port 8001:"
-          ss -tlnp | grep ":8001 " || echo "Port 8001 not listening"
-          echo "Frontend files:"
-          ls -la /home/zatint1991-hvt55/zatint1991.com/public/admin-dashboard-2024/ | head -5
+          pm2 status | sed -n '1,80p'
+          echo
+          echo "Nginx status (short):"
+          systemctl is-active nginx && nginx -t
+          echo
+          echo "Listen :8001"
+          ss -H -ltn "( sport = :8001 )" | cat || true
+          echo
+          echo "Health:"
+          curl -fsS http://127.0.0.1:8001/api/admin/health || echo "health NG"
+          echo
+          echo "Frontend index & one asset header:"
+          curl -I https://zatint1991.com/kintai/ | sed -n '1,5p' || true
+          # assetパス抽出（相対/絶対の両対応）
+          PUB="$PUBLIC_DIR"
+          ASSET=$(sed -n 's|.*src="\\([^"]*assets/[^"]*\\.js\\)".*|\\1|p' "$PUB/index.html" | head -n1)
+          case "$ASSET" in
+            /kintai/*)  URL="https://zatint1991.com$ASSET" ;;
+            assets/*)   URL="https://zatint1991.com/kintai/$ASSET" ;;
+            */assets/*) URL="https://zatint1991.com/$ASSET" ;;
+            *)          URL="" ;;
+          esac
+          [ -n "$URL" ] && curl -I "$URL" | sed -n '1,5p' || echo "asset not detected"
           EOF
