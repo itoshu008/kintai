@@ -62,7 +62,7 @@ jobs:
           ssh "$BUILD_USER@$VPS_HOST" "
             set -e
             cd \"$BACKEND_DIR\"
-            npm install --omit=dev --no-audit --no-fund
+            npm install --omit=dev --no-audit --no-fund    # ← 一時的に install（lock不一致を回避）
             npm run build
             pm2 reload kintai-api || pm2 start \"$BACKEND_DIR/pm2.config.cjs\" --only kintai-api
             pm2 save
@@ -78,12 +78,16 @@ jobs:
         run: |
           ssh "$BUILD_USER@$VPS_HOST" "
             set -e
-            cd \"$FRONTEND_DIR\" || exit 0
-            npm install --no-audit --no-fund
-            npm run build
-            rm -rf \"$PUBLIC_DIR\"
-            mkdir -p \"$PUBLIC_DIR\"
-            rsync -a --delete \"$FRONTEND_DIR/dist/\" \"$PUBLIC_DIR/\"
+            if [ -d \"$FRONTEND_DIR\" ]; then
+              cd \"$FRONTEND_DIR\"
+              npm install --no-audit --no-fund
+              npm run build
+              rm -rf \"$PUBLIC_DIR\"
+              mkdir -p \"$PUBLIC_DIR\"
+              rsync -a --delete \"$FRONTEND_DIR/dist/\" \"$PUBLIC_DIR/\"
+            else
+              echo 'frontend/ not found, skip.'
+            fi
           "
 
       - name: Reload nginx (run as deploy with sudoers)
