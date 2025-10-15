@@ -29,11 +29,6 @@ jobs:
           node-version: '18'
           cache: 'npm'
 
-      - name: Install dependencies
-        run: |
-          npm ci
-          cd backend && npm ci && cd ..
-          cd frontend && npm ci && cd ..
 
       - name: Run linting
         run: |
@@ -83,7 +78,6 @@ jobs:
             cd ${{ secrets.STAGING_DEPLOY_PATH }} &&
             git fetch origin &&
             git reset --hard origin/staging &&
-            npm ci &&
             pm2 stop staging-backend || true &&
             pm2 start backend/dist/index.js --name "staging-backend" --env staging &&
             pm2 logs --lines 5
@@ -135,9 +129,8 @@ jobs:
             cd ${{ secrets.DEPLOY_PATH }} &&
             git fetch origin &&
             git reset --hard origin/main &&
-            npm ci &&
-            cd backend && npm ci && npm run build && cd .. &&
-            cd frontend && npm ci && npm run build && cd .. &&
+            cd backend && npm run build && cd .. &&
+            cd frontend && npm run build && cd .. &&
             pm2 stop kintai-backend || true &&
             pm2 start backend/dist/index.js --name "kintai-backend" --env production &&
             pm2 logs --lines 5
