@@ -26,9 +26,11 @@ jobs:
       - name: Drift guard (ESM & pm2)
         run: |
           set -Eeuo pipefail
-          ! grep -RInE "from ['\"][.]{1,2}/[^'\".]+['\"]" backend/src || (echo "ESM import missing .js" && exit 20)
+          echo "🔍 Checking ESM configuration drift..."
+          ! grep -RInE "from ['\"][.]{1,2}/[^'\".]+['\"]" backend/src || (echo "❌ ESM import missing .js" && exit 20)
           jq -e '.compilerOptions.module=="NodeNext" and .compilerOptions.moduleResolution=="NodeNext"' backend/tsconfig.json >/dev/null
           jq -e '.type=="module"' backend/package.json >/dev/null
+          echo "✅ ESM configuration is correct"
 
       - name: Setup SSH agent
         uses: webfactory/ssh-agent@v0.9.0
@@ -37,60 +39,80 @@ jobs:
 
       - name: Add host key
         run: |
+          echo "🔑 Setting up SSH host key..."
           mkdir -p ~/.ssh
           ssh-keygen -R "$VPS_HOST" 2>/dev/null || true
           ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
+          echo "✅ SSH host key configured"
 
       - name: Prepare target (as itoshu, no sudo)
         run: |
+          echo "📁 Preparing target directories on VPS..."
           ssh "$BUILD_USER@$VPS_HOST" <<EOF
           set -Eeuo pipefail
+          echo "Creating directories: $APP_DIR/scripts, $BACKEND_DIR, $FRONTEND_DIR"
           mkdir -p "$APP_DIR/scripts" "$BACKEND_DIR" "$FRONTEND_DIR"
           find "$BACKEND_DIR" -type d -exec chmod 775 {} \; || true
           find "$BACKEND_DIR" -type f -exec chmod 664 {} \; || true
+          echo "✅ Target directories prepared"
           EOF
 
       - name: Ensure deploy scripts are executable (repo side)
         run: |
+          echo "🔧 Setting up deploy scripts..."
           chmod +x scripts/deploy_rsync.sh
           chmod +x scripts/deploy_backend.sh
+          echo "✅ Deploy scripts are executable"
 
       - name: Guard: ensure backend script exists
         run: |
-          test -x scripts/deploy_backend.sh || { echo "missing scripts/deploy_backend.sh"; exit 127; }
+          echo "🛡️ Checking backend script availability..."
+          test -x scripts/deploy_backend.sh || { echo "❌ missing scripts/deploy_backend.sh"; exit 127; }
+          echo "✅ Backend script is available"
 
       - name: Dry run rsync
         run: |
           set -Eeuo pipefail
+          echo "🔄 Running rsync dry run..."
           chmod +x scripts/deploy_rsync.sh
           DRY_RUN=1 bash scripts/deploy_rsync.sh | tee rsync_dry.log
           grep -E 'Number of files|Total transferred file size|sent .* bytes' rsync_dry.log || true
+          echo "✅ Rsync dry run completed"
 
       - name: Run rsync with timing
         run: |
           set -Eeuo pipefail
+          echo "🚀 Running rsync deployment..."
           chmod +x scripts/deploy_rsync.sh
           /usr/bin/time -f 'elapsed=%E  user=%U  sys=%S' bash -c 'scripts/deploy_rsync.sh' | tee rsync_run.log
+          echo "✅ Rsync deployment completed"
 
       - name: Upload backend deploy script to VPS
         run: |
+          echo "📤 Uploading backend deploy script to VPS..."
           scp scripts/deploy_backend.sh "$BUILD_USER@$VPS_HOST:$APP_DIR/scripts/"
           ssh "$BUILD_USER@$VPS_HOST" "chmod +x $APP_DIR/scripts/deploy_backend.sh"
+          echo "✅ Backend deploy script uploaded"
 
       - name: Deploy backend (SoT → PM2 → gates)
         run: |
+          echo "🚀 Deploying backend to VPS..."
           ssh "$BUILD_USER@$VPS_HOST" <<EOF
           set -Eeuo pipefail
+          echo "Setting up PM2 environment..."
           export PM2_HOME="/home/$BUILD_USER/.pm2"
           export BACKEND_DIR="$BACKEND_DIR"
           export PM2_APP="$PM2_APP"
           cd "$APP_DIR"
+          echo "Running backend deployment script..."
           scripts/deploy_backend.sh
+          echo "✅ Backend deployment completed"
           EOF
 
       - name: Post-deploy gates (health/port/frontend/nginx/commit)
         run: |
+          echo "🎯 Running post-deploy validation gates..."
           ssh "$BUILD_USER@$VPS_HOST" <<EOF
           set -Eeuo pipefail
           APP_DIR="$APP_DIR"
