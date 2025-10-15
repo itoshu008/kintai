@@ -1,47 +1,23 @@
-// src/components/ErrorBoundary.tsx
-import React, { Component, ReactNode } from 'react';
-import { handleError } from '../utils/errorHandler';
+import { Component, type ReactNode } from 'react';
 
-interface Props {
-  children: ReactNode;
-  fallback?: ReactNode;
-}
+type Props = { children: ReactNode };
+type State = { error?: Error };
 
-interface State {
-  hasError: boolean;
-  error?: Error;
-}
-
-class ErrorBoundary extends Component<Props, State> {
-  constructor(props: Props) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
-    handleError(error);
-  }
-
+export class ErrorBoundary extends Component<Props, State> {
+  state: State = {};
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  componentDidCatch(error: Error) { console.error('[ErrorBoundary]', error); }
   render() {
-    if (this.state.hasError) {
-      return this.props.fallback || (
-        <div className="error-boundary">
-          <h2>エラーが発生しました</h2>
-          <p>申し訳ございませんが、予期しないエラーが発生しました。</p>
-          <button onClick={() => this.setState({ hasError: false })}>
-            再試行
-          </button>
-        </div>
+    if (this.state.error) {
+      return (
+        <pre style={{
+          whiteSpace:'pre-wrap', padding:12,
+          background:'#111', color:'#f55', border:'1px solid #f55'
+        }}>
+          {String(this.state.error.stack || this.state.error)}
+        </pre>
       );
     }
-
     return this.props.children;
   }
 }
-
-export default ErrorBoundary;

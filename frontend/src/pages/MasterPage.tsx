@@ -3,16 +3,15 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getHolidayNameSync, isHolidaySync } from '../utils/holidays';
 import { backupApi } from '../api/backup';
 
-// 型エラー対策（任意）
-declare global {
-  // あるなら boolean を想定。無ければ undefined。
-  var isPreview: boolean | undefined;
-}
-export {};
-
-// --- safe preview flag ---
-declare var isPreview: boolean | undefined;
-const isPreviewFlag: boolean = typeof isPreview !== 'undefined' ? Boolean(isPreview) : false;
+// ---- safety preview flag (never crash even if missing) ----
+declare global { interface Window { isPreview?: boolean } }
+// 既存のコードで「isPreview」という変数名をそのまま使っていても落ちないように、
+// ローカル変数として定義しておく（window.isPreview が無ければ false）
+const isPreview: boolean =
+  (typeof window !== 'undefined' && window.isPreview === true) ||
+  (typeof import.meta !== 'undefined' &&
+   typeof (import.meta as any).env !== 'undefined' &&
+   (import.meta as any).env.VITE_IS_PREVIEW === 'true');
 
 //================================================================================
 // 1. 型定義

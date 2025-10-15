@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import LoginPage from './pages/LoginPage';
 import MasterPage from './pages/MasterPage';
@@ -64,20 +64,18 @@ export default function App() {
       overflow: 'auto'
     }}>
       <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<LoginPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/m" element={<MasterPage />} />
-            <Route path="/master" element={<MasterPage />} />
-            <Route path="/admin-dashboard-2024" element={<MasterPage />} />
-            <Route path="/p" element={<PersonalPage />} />
-            <Route path="/personal" element={<PersonalPage />} />
-            <Route path="/cursor-command" element={<CursorCommandPage />} />
-            {/* 存在しないパスはログインページにリダイレクト */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </BrowserRouter>
+        <Routes>
+          <Route path="/" element={<LoginPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/m" element={<MasterPage />} />
+          <Route path="/master" element={<MasterPage />} />
+          <Route path="/admin-dashboard-2024" element={<MasterPage />} />
+          <Route path="/p" element={<PersonalPage />} />
+          <Route path="/personal" element={<PersonalPage />} />
+          <Route path="/cursor-command" element={<CursorCommandPage />} />
+          {/* 存在しないパスはログインページにリダイレクト */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </AuthProvider>
     </div>
   );
