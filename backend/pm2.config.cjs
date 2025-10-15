@@ -10,19 +10,22 @@ module.exports = {
       PORT: '8001',
       NODE_ENV: 'production',
       DEV_API_ENABLED: 'false',         // 必要に応じて true/false
-      DEV_TOKEN: ''
+      DEV_TOKEN: '',
+      KINTAI_DATA_DIR: '/srv/kintai/data'   // ★固定データパス
     },
     env_development: {
       PORT: '8001',
       NODE_ENV: 'development',
       DEV_API_ENABLED: 'true',
-      DEV_TOKEN: 'dev-token-123'
+      DEV_TOKEN: 'dev-token-123',
+      KINTAI_DATA_DIR: '/srv/kintai/data'
     },
     env_production: {
       PORT: '8001',
       NODE_ENV: 'production',
       DEV_API_ENABLED: 'false',
-      DEV_TOKEN: ''
+      DEV_TOKEN: '',
+      KINTAI_DATA_DIR: '/srv/kintai/data'
     },
     out_file: './logs/out.log',
     error_file: './logs/error.log',

@@ -39,8 +39,8 @@ mountAdminMaster(app);
 const PORT: number = Number(process.env.PORT) || 8001;
 const HOST: string = process.env.HOST || '127.0.0.1';
 
-// データパス
-const DATA_DIR = path.resolve(__dirnameSafe, '..', 'data');
+// データパス（環境変数優先、なければ ../data）
+const DATA_DIR = process.env.KINTAI_DATA_DIR || path.resolve(__dirnameSafe, '..', 'data');
 const EMPLOYEES_FILE = path.join(DATA_DIR, 'employees.json');
 const DEPARTMENTS_FILE = path.join(DATA_DIR, 'departments.json');
 const ATTENDANCE_FILE = path.join(DATA_DIR, 'attendance.json'); // フラットキー: YYYY-MM-DD-コード
@@ -141,6 +141,16 @@ app.get('/api/admin/health', (_req: import('express').Request, res: import('expr
     console.error(e instanceof Error ? e.message : e);
     res.status(200).json({ ok: false, status: 'unhealthy', error: String(e) });
   }
+});
+
+// デバッグ用API（データディレクトリ確認）
+app.get('/api/admin/_info', (_req: import('express').Request, res: import('express').Response) => {
+  res.json({
+    ok: true,
+    env: process.env.NODE_ENV,
+    data_dir: DATA_DIR,
+    now: new Date().toISOString()
+  });
 });
 
 // ------------------------------------------------------------
