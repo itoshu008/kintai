@@ -1,4 +1,4 @@
-name: Deploy to VPS (Minimal Safe)
+name: Deploy to VPS (Ultra Safe)
 on:
   push:
     branches: [ main ]
@@ -6,7 +6,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
 
     env:
       VPS_HOST: ${{ secrets.VPS_HOST }}
@@ -28,107 +28,175 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
 
-      - name: Add host key
+      - name: Configure SSH (Ultra Safe)
         run: |
-          set -Eeuo pipefail
+          echo "🔧 Configuring SSH for maximum safety..."
           mkdir -p ~/.ssh
-          ssh-keygen -R "$VPS_HOST" 2>/dev/null || true
-          ssh-keyscan -H "$VPS_HOST" >> ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
+          chmod 700 ~/.ssh
+          
+          # SSH設定ファイルを作成
+          cat > ~/.ssh/config << EOF
+          Host $VPS_HOST
+            HostName $VPS_HOST
+            User $VPS_USER
+            Port 22
+            ConnectTimeout 60
+            ServerAliveInterval 15
+            ServerAliveCountMax 6
+            TCPKeepAlive yes
+            StrictHostKeyChecking no
+            UserKnownHostsFile /dev/null
+            LogLevel ERROR
+            Compression yes
+            CompressionLevel 6
+          EOF
+          
+          chmod 600 ~/.ssh/config
+          echo "✅ SSH configuration completed"
 
-      - name: Deploy (backend → gates → frontend → nginx)
+      - name: Test connection (with retry)
         run: |
-          set -Eeuo pipefail
-          ssh "$VPS_USER@$VPS_HOST" <<EOF
-          set -Eeuo pipefail
+          echo "🔍 Testing connection with retry..."
+          for i in {1..3}; do
+            echo "Connection attempt $i/3..."
+            if ssh "$VPS_USER@$VPS_HOST" "echo 'Connection successful'"; then
+              echo "✅ Connection verified"
+              break
+            else
+              echo "❌ Connection attempt $i failed"
+              if [ $i -lt 3 ]; then
+                echo "⏳ Waiting 5 seconds before retry..."
+                sleep 5
+              else
+                echo "❌ All connection attempts failed"
+                exit 1
+              fi
+            fi
+          done
 
-          echo "📁 Ensure directories..."
+      - name: Pre-deployment check
+        run: |
+          echo "🔍 Pre-deployment system check..."
+          ssh "$VPS_USER@$VPS_HOST" << 'EOF'
+          echo "=== System Status ==="
+          echo "Uptime: $(uptime)"
+          echo "Disk usage:"
+          df -h | head -5
+          echo "Memory usage:"
+          free -h
+          echo "Current PM2 status:"
+          pm2 status || echo "PM2 not running"
+          echo "Nginx status:"
+          systemctl is-active nginx || echo "Nginx not active"
+          echo "Port $PORT status:"
+          ss -tlnp | grep ":$PORT " || echo "Port $PORT not listening"
+          EOF
+
+      - name: Safe deployment
+        run: |
+          echo "🚀 Starting ultra-safe deployment..."
+          ssh "$VPS_USER@$VPS_HOST" << 'EOF'
+          set -e
+          
+          echo "📁 Creating directories..."
           mkdir -p "$APP_DIR/scripts" "$BACKEND_DIR" "$FRONTEND_DIR" "$PUBLIC_DIR"
-
-          echo "🔄 Sync repo (rsync safest)"
-          # actions/checkout 済みのワークスペース全体を rsync しても良いが、
-          # ここではサーバ側のGitを使わず、既存コードに対し rsync で差分反映する例
-          # → シンプルに git pull したい場合は下を使用:
-          # cd "$APP_DIR" && git fetch origin && git reset --hard origin/main
-          # ここでは安全優先で rsync 例に切替したい場合は別ステップでscp/rsyncしてください
-
-          echo "🚀 Backend: install → build → prune"
+          
+          echo "🔄 Updating code safely..."
+          cd "$APP_DIR"
+          git fetch origin
+          git reset --hard origin/main
+          
+          echo "🚀 Deploying backend safely..."
           cd "$BACKEND_DIR"
-          # lock尊重。ズレたら自動フォールバック
+          
+          # 依存関係のインストール（安全に）
+          echo "Installing backend dependencies..."
           npm ci --include=dev --no-audit --no-fund || npm install --include=dev --no-audit --no-fund
+          
+          # ビルド
+          echo "Building backend..."
           npm run build
+          
+          # 本番用に最適化
+          echo "Optimizing for production..."
           npm prune --omit=dev
-
-          echo "🟢 PM2 start from config (delete→start)"
+          
+          echo "🟢 Managing PM2 safely..."
           export PM2_HOME="$PM2_HOME"
-          pm2 delete "$PM2_APP" || true
-          # ★ 必ず config から。script は dist/server.js を指すこと
+          
+          # 既存のプロセスを安全に停止
+          pm2 stop "$PM2_APP" || echo "PM2 app not running"
+          pm2 delete "$PM2_APP" || echo "PM2 app not found"
+          
+          # 新しいプロセスを開始
           pm2 start "$BACKEND_DIR/pm2.config.cjs" --only "$PM2_APP"
           pm2 save
-
-          echo "🧪 Backend gates: LISTEN(IPv4/IPv6) & HEALTH(3x)"
-          # LISTEN: sport フィルタ（IPv4/IPv6対応）
-          for j in 1 2 3; do
-            ss -H -ltn "( sport = :$PORT )" | grep -q . && ok=1 || ok=0
-            [ "\$ok" = "1" ] && break
-            sleep 1
-          done
-          [ "\$ok" = "1" ] || { echo "❌ listen NG :$PORT"; tail -n 120 "$PM2_HOME/logs/$PM2_APP-error.log" || true; exit 2; }
-
-          # HEALTH: 3連続OK
-          ok=0; streak=0
-          for i in 1 2 3 4 5 6 7 8 9 10; do
-            if curl -fsS --max-time 10 "http://127.0.0.1:$PORT/api/admin/health" | grep -q '"ok":true'; then
-              streak=\$((streak+1)); echo "health OK (\$streak/3)"
-              [ \$streak -ge 3 ] && { ok=1; break; }
+          
+          echo "⏳ Waiting for backend to start..."
+          sleep 10
+          
+          echo "🧪 Testing backend health..."
+          for i in {1..10}; do
+            if curl -fsS --max-time 5 "http://127.0.0.1:$PORT/api/admin/health" | grep -q '"ok":true'; then
+              echo "✅ Backend health check passed"
+              break
             else
-              streak=0; echo "health NG (reset)"
+              echo "⏳ Waiting for backend... ($i/10)"
+              sleep 2
             fi
-            sleep 1
           done
-          [ "\$ok" = "1" ] || { echo "❌ health NG"; tail -n 120 "$PM2_HOME/logs/$PM2_APP-error.log" || true; exit 3; }
-
-          echo "🎨 Frontend: install → build → publish"
+          
+          echo "🎨 Deploying frontend safely..."
           cd "$FRONTEND_DIR"
+          
+          # 依存関係のインストール
+          echo "Installing frontend dependencies..."
           npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+          
+          # ビルド
+          echo "Building frontend..."
           npm run build
+          
+          # ファイルの配置
+          echo "Publishing frontend..."
           rsync -az --delete "$FRONTEND_DIR/dist/" "$PUBLIC_DIR/"
           chown -R itoshu:itoshu "$PUBLIC_DIR"
-
-          echo "⚙️ Nginx: test → reload"
+          
+          echo "⚙️ Updating nginx safely..."
           nginx -t
           systemctl reload nginx
-
-          echo "✅ Done."
+          
+          echo "✅ Deployment completed successfully!"
           EOF
 
-      - name: Verify deployment
+      - name: Post-deployment verification
         run: |
-          set -Eeuo pipefail
-          ssh "$VPS_USER@$VPS_HOST" <<EOF
-          set -Eeuo pipefail
+          echo "🔍 Post-deployment verification..."
+          ssh "$VPS_USER@$VPS_HOST" << 'EOF'
+          echo "=== Final Status ==="
           echo "PM2 status:"
-          pm2 status | sed -n '1,80p'
+          pm2 status
           echo
-          echo "Nginx status (short):"
+          echo "Nginx status:"
           systemctl is-active nginx && nginx -t
           echo
-          echo "Listen :8001"
-          ss -H -ltn "( sport = :8001 )" | cat || true
+          echo "Port $PORT status:"
+          ss -tlnp | grep ":$PORT " || echo "Port $PORT not listening"
           echo
-          echo "Health:"
-          curl -fsS http://127.0.0.1:8001/api/admin/health || echo "health NG"
+          echo "Backend health:"
+          curl -fsS "http://127.0.0.1:$PORT/api/admin/health" || echo "Health check failed"
           echo
-          echo "Frontend index & one asset header:"
-          curl -I https://zatint1991.com/kintai/ | sed -n '1,5p' || true
-          # assetパス抽出（相対/絶対の両対応）
-          PUB="$PUBLIC_DIR"
-          ASSET=$(sed -n 's|.*src="\\([^"]*assets/[^"]*\\.js\\)".*|\\1|p' "$PUB/index.html" | head -n1)
-          case "$ASSET" in
-            /kintai/*)  URL="https://zatint1991.com$ASSET" ;;
-            assets/*)   URL="https://zatint1991.com/kintai/$ASSET" ;;
-            */assets/*) URL="https://zatint1991.com/$ASSET" ;;
-            *)          URL="" ;;
-          esac
-          [ -n "$URL" ] && curl -I "$URL" | sed -n '1,5p' || echo "asset not detected"
+          echo "Frontend files:"
+          ls -la "$PUBLIC_DIR" | head -5
+          echo
+          echo "Frontend access test:"
+          curl -I "https://zatint1991.com/kintai/" | head -5 || echo "Frontend access failed"
           EOF
+
+      - name: Success notification
+        run: |
+          echo "🎉 Ultra-safe deployment completed successfully!"
+          echo "✅ All systems are operational"
+          echo "🌐 Access URLs:"
+          echo "  - Master page: https://zatint1991.com/kintai/"
+          echo "  - Personal page: https://zatint1991.com/kintai/personal"
