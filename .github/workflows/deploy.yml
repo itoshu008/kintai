@@ -62,8 +62,11 @@ jobs:
           ssh "$BUILD_USER@$VPS_HOST" "
             set -e
             cd \"$BACKEND_DIR\"
-            npm install --omit=dev --no-audit --no-fund    # ← 一時的に install（lock不一致を回避）
+            # ← devDependencies（@types/node, @types/express, typescript）も入れる
+            npm install --include=dev --no-audit --no-fund
             npm run build
+            # サイズを戻したければ dev を落とす（任意）
+            npm prune --omit=dev
             pm2 reload \"$PM2_APP\" || pm2 start \"$BACKEND_DIR/pm2.config.cjs\" --only \"$PM2_APP\"
             pm2 save
           "
