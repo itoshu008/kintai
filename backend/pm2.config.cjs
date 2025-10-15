@@ -1,24 +1,29 @@
+const path = require('path');
 module.exports = {
   apps: [{
     name: 'kintai-api',
-    cwd: __dirname,
-    script: 'dist/server.js',
+    cwd: path.join(__dirname, 'dist'),  // dist を作業ディレクトリに
+    script: 'server.js',                // 本体が index.js なら 'index.js'
     instances: 1,
     exec_mode: 'fork',
-    env: { 
-      PORT: '8001', 
-      NODE_ENV: 'production' 
+    env: {
+      PORT: '8001',
+      NODE_ENV: 'production',
+      DEV_API_ENABLED: 'false',         // 必要に応じて true/false
+      DEV_TOKEN: ''
     },
     env_development: {
       PORT: '8001',
-      NODE_ENV: 'development'
+      NODE_ENV: 'development',
+      DEV_API_ENABLED: 'true',
+      DEV_TOKEN: 'dev-token-123'
     },
     env_production: {
       PORT: '8001',
-      NODE_ENV: 'production'
+      NODE_ENV: 'production',
+      DEV_API_ENABLED: 'false',
+      DEV_TOKEN: ''
     },
-    // ログ設定
-    log_file: './logs/combined.log',
     out_file: './logs/out.log',
     error_file: './logs/error.log',
     log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
@@ -32,10 +37,6 @@ module.exports = {
     
     // 再起動設定
     min_uptime: '10s',
-    max_restarts: 10,
-    
-    // クラスターモード（必要に応じて）
-    // instances: 'max',
-    // exec_mode: 'cluster'
+    max_restarts: 10
   }]
 };

@@ -20,12 +20,16 @@ const __dirnameSafe: string =
     ? __dirname
     : path.dirname(__filenameSafe);
 import { writeJsonAtomic } from './helpers/writeJsonAtomic.js'; // ← ESMでは拡張子必須
+import devRouter from './routes/dev.js'; // 開発用API
 
 // ------------------------------------------------------------
 // 基盤
 // ------------------------------------------------------------
 const app = express();
 app.use(express.json({ limit: '2mb' }));
+
+// 開発用API（ON/OFF は環境変数で）
+app.use('/api/dev', devRouter);
 
 // 環境変数設定
 const PORT: number = Number(process.env.PORT) || 8001;

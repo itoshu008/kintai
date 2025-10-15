@@ -63,11 +63,16 @@ jobs:
             set -e
             cd \"$BACKEND_DIR\"
             npm install --omit=dev --no-audit --no-fund
-            npm run build || true
-            PORT=\"$PORT\" NODE_ENV=\"$NODE_ENV\" pm2 reload \"$PM2_APP\" \
-              || PORT=\"$PORT\" NODE_ENV=\"$NODE_ENV\" pm2 start dist/server.js --name \"$PM2_APP\"
+            npm run build
+            pm2 reload kintai-api || pm2 start \"$BACKEND_DIR/pm2.config.cjs\" --only kintai-api
             pm2 save
           "
+
+      - name: Health gate
+        run: |
+          ssh "$BUILD_USER@$VPS_HOST" '
+            for i in {1..15}; do curl -fsS http://127.0.0.1:8001/api/admin/health && exit 0; sleep 2; done; exit 1
+          '
 
       - name: Build frontend & publish (run as itoshu)
         run: |
