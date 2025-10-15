@@ -69,17 +69,30 @@ jobs:
           set -Eeuo pipefail
           /usr/bin/time -f 'elapsed=%E  user=%U  sys=%S' bash -c 'scripts/deploy_rsync.sh' | tee rsync_run.log
 
-      - name: Build backend & reload PM2 (as itoshu)
+      - name: Build & restart backend on VPS (safe by name)
+        env:
+          BUILD_USER: itoshu
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          BACKEND_DIR: /home/zatint1991-hvt55/zatint1991.com/backend
+          PM2_APP: kintai-api
         run: |
-          ssh "$BUILD_USER@$VPS_HOST" "
+          set -Eeuo pipefail
+          ssh "$BUILD_USER@$VPS_HOST" '
             set -e
-            cd \"$BACKEND_DIR\"
-            npm install --include=dev --no-audit --no-fund
+            cd "'"$BACKEND_DIR"'"
+            npm ci --no-audit --no-fund
             npm run build
             npm prune --omit=dev
-            pm2 reload \"$PM2_APP\" || pm2 start \"$BACKEND_DIR/pm2.config.cjs\" --only \"$PM2_APP\"
+            if pm2 describe "'"$PM2_APP"'" >/dev/null 2>&1; then
+              pm2 restart "'"$PM2_APP"'" --update-env
+            else
+              pm2 start "'"$BACKEND_DIR"'/pm2.config.cjs" --only "'"$PM2_APP"'"
+            fi
             pm2 save
-          "
+            pm2 status "'"$PM2_APP"'"
+            pm2 logs "'"$PM2_APP"'" --lines 50 --timestamp --raw || true
+            curl -sS http://127.0.0.1:8001/api/admin/health || true
+          '
 
       - name: Health gate
         run: |
