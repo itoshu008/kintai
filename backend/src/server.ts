@@ -21,4 +21,5 @@ process.on('unhandledRejection', e => { console.error('[FATAL unhandled]', e); p
 
 app.listen(PORT, HOST, () => {
   console.log(`[server] listening on http://${HOST}:${PORT}`);
+  if (typeof process.send === 'function') process.send('ready'); // ★起動完了シグナル
 });
