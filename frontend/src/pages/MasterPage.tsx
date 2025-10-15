@@ -2,16 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 // 祝日関連のユーティリティ（別途用意されている想定）
 import { getHolidayNameSync, isHolidaySync } from '../utils/holidays';
 import { backupApi } from '../api/backup';
-
-// ---- safety preview flag (never crash even if missing) ----
-declare global { interface Window { isPreview?: boolean } }
-// 既存のコードで「isPreview」という変数名をそのまま使っていても落ちないように、
-// ローカル変数として定義しておく（window.isPreview が無ければ false）
-const isPreview: boolean =
-  (typeof window !== 'undefined' && window.isPreview === true) ||
-  (typeof import.meta !== 'undefined' &&
-   typeof (import.meta as any).env !== 'undefined' &&
-   (import.meta as any).env.VITE_IS_PREVIEW === 'true');
+import { IS_PREVIEW } from '../utils/flags';
 
 //================================================================================
 // 1. 型定義
