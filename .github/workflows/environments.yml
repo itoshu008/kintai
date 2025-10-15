@@ -52,8 +52,8 @@ jobs:
             cd ${{ secrets.DEPLOY_PATH }} &&
             echo "🔄 Rolling back..." &&
             git reset --hard HEAD~1 &&
-            cd backend && npm run build && cd .. &&
-            cd frontend && npm run build && cd .. &&
+            cd backend && npm install --include=dev && npm run build && cd .. &&
+            cd frontend && npm install && npm run build && cd .. &&
             pm2 restart all &&
             echo "✅ Rollback completed"
           '

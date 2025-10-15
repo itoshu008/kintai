@@ -41,9 +41,9 @@ jobs:
           cd frontend && npm test || true
 
       - name: Build application
+        if: false  # VPS側でビルドするため無効化
         run: |
-          cd backend && npm run build && cd ..
-          cd frontend && npm run build && cd ..
+          echo "Build is handled on VPS side"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -129,8 +129,8 @@ jobs:
             cd ${{ secrets.DEPLOY_PATH }} &&
             git fetch origin &&
             git reset --hard origin/main &&
-            cd backend && npm run build && cd .. &&
-            cd frontend && npm run build && cd .. &&
+            cd backend && npm install --include=dev && npm run build && cd .. &&
+            cd frontend && npm install && npm run build && cd .. &&
             pm2 stop kintai-backend || true &&
             pm2 start backend/dist/index.js --name "kintai-backend" --env production &&
             pm2 logs --lines 5
