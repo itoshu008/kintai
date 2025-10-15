@@ -15,10 +15,12 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
-          username: itoshu
+          username: itoshu                  # ← 固定（ここ大事）
           key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_PORT || '22' }}
+          port: ${{ secrets.VPS_PORT || '22' }}   # 10022ならSecrets側を10022に
           script: |
-            whoami
-            ls -la ~/deploy_release.sh
-            bash ~/deploy_release.sh
+            set -Eeuo pipefail
+            echo "whoami: $(whoami)"
+            echo "HOME: $HOME"
+            ls -la /home/itoshu/deploy_release.sh || true
+            bash /home/itoshu/deploy_release.sh
