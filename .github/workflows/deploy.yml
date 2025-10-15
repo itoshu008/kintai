@@ -16,9 +16,9 @@ jobs:
       PM2_USER: itoshu
       PORT: "8001"
       NODE_ENV: production
-      DEPLOY_USER: ${{ secrets.VPS_USER }}   # ← たぶん deploy
+      DEPLOY_USER: ${{ secrets.VPS_USER }}
       BUILD_USER: itoshu
-      VPS_HOST:   ${{ secrets.VPS_HOST }}
+      VPS_HOST: ${{ secrets.VPS_HOST }}
 
     steps:
       - uses: actions/checkout@v4
@@ -26,11 +26,8 @@ jobs:
       - name: Drift guard (ESM & pm2)
         run: |
           set -Eeuo pipefail
-          # 相対importに .js 無し → 失敗
           ! grep -RInE "from ['\"][.]{1,2}/[^'\".]+['\"]" backend/src || (echo "ESM import missing .js" && exit 20)
-          # tsconfig の module 系
           jq -e '.compilerOptions.module=="NodeNext" and .compilerOptions.moduleResolution=="NodeNext"' backend/tsconfig.json >/dev/null
-          # package.json の type
           jq -e '.type=="module"' backend/package.json >/dev/null
 
       - name: Setup SSH agent
@@ -49,14 +46,19 @@ jobs:
         run: |
           ssh "$BUILD_USER@$VPS_HOST" "
             set -e
-            mkdir -p '$BACKEND_DIR' '$FRONTEND_DIR'
-            # 既存がroot所有でも以後の新規は itoshu 所有になる。chmodは失敗しても無視。
+            mkdir -p '$APP_DIR/scripts' '$BACKEND_DIR' '$FRONTEND_DIR'
             find '$BACKEND_DIR' -type d -exec chmod 775 {} \; || true
             find '$BACKEND_DIR' -type f -exec chmod 664 {} \; || true
           "
 
-      - name: Ensure deploy script executable (safety)
-        run: chmod +x scripts/deploy_rsync.sh
+      - name: Ensure deploy scripts are executable (repo side)
+        run: |
+          chmod +x scripts/deploy_rsync.sh
+          chmod +x scripts/deploy_backend.sh
+
+      - name: Guard: ensure backend script exists
+        run: |
+          test -x scripts/deploy_backend.sh || { echo "missing scripts/deploy_backend.sh"; exit 127; }
 
       - name: Dry run rsync
         env:
@@ -79,22 +81,19 @@ jobs:
           set -Eeuo pipefail
           /usr/bin/time -f 'elapsed=%E  user=%U  sys=%S' bash -c 'scripts/deploy_rsync.sh' | tee rsync_run.log
 
-      - name: Guard: ensure script exists
+      - name: Upload backend deploy script to VPS
         run: |
-          test -x scripts/deploy_backend.sh || { echo "missing scripts/deploy_backend.sh"; exit 127; }
-
-      - name: Upload deploy script to VPS
-        run: |
-          scp scripts/deploy_backend.sh "$BUILD_USER@$VPS_HOST:/home/zatint1991-hvt55/zatint1991.com/scripts/"
+          scp scripts/deploy_backend.sh "$BUILD_USER@$VPS_HOST:$APP_DIR/scripts/"
+          ssh "$BUILD_USER@$VPS_HOST" "chmod +x $APP_DIR/scripts/deploy_backend.sh"
 
       - name: Deploy backend (SoT → PM2 → gates)
         run: |
           ssh "$BUILD_USER@$VPS_HOST" 'bash -lc "
             set -Eeuo pipefail
             export PM2_HOME=/home/'"$BUILD_USER"'/.pm2
-            export BACKEND_DIR=\"'"$BACKEND_DIR"'\"
-            export PM2_APP=\"'"$PM2_APP"'\"
-            cd /home/zatint1991-hvt55/zatint1991.com
+            export BACKEND_DIR='\'''"$BACKEND_DIR"'\''
+            export PM2_APP='\'''"$PM2_APP"'\''
+            cd '\'''"$APP_DIR"''\''
             scripts/deploy_backend.sh
           "'
 
@@ -112,7 +111,6 @@ jobs:
           ssh "$BUILD_USER@$VPS_HOST" '
             set -Eeuo pipefail
             APP_DIR="'"$APP_DIR"'"
-            BACKEND_DIR="'"$BACKEND_DIR"'"
             FRONTEND_DIR="'"$FRONTEND_DIR"'"
             PUBLIC_DIR="'"$PUBLIC_DIR"'"
             PM2_APP="'"$PM2_APP"'"
@@ -129,14 +127,14 @@ jobs:
               fi
               sleep 1; i=$((i+1))
             done
-            [ $ok -eq 1 ] || { echo "❌ Health gate failed"; 
-              ERR_LOG=$(pm2 info "'"$PM2_APP"'" | awk -F": " "/error log path/ {print \$2}"); 
-              [ -f "$ERR_LOG" ] && { echo "---PM2 ERR---"; tail -n 200 "$ERR_LOG"; }; 
+            [ $ok -eq 1 ] || { echo "❌ Health gate failed";
+              ERR_LOG=$(pm2 info "'"$PM2_APP"'" | awk -F": " "/error log path/ {print \$2}");
+              [ -f "$ERR_LOG" ] && { echo "---PM2 ERR---"; tail -n 200 "$ERR_LOG"; };
               exit 10; }
 
             echo "== Gate 2: Port ${PORT} stability (3/3 listen) =="
-            for j in 1 2 3; do 
-              ss -lntp | grep -q ":${PORT} " || { echo "❌ not listening on :${PORT}"; exit 11; }
+            for j in 1 2 3; do
+              ss -H -ltn "( sport = :${PORT} )" | grep -q . || { echo "❌ not listening on :${PORT}"; exit 11; }
               sleep 1
             done
             echo "✅ Port ${PORT} stable"
@@ -144,14 +142,14 @@ jobs:
             echo "== Gate 3: Build frontend & publish (as itoshu) =="
             sudo -u itoshu bash -lc "
               set -Eeuo pipefail
-              cd '$FRONTEND_DIR'
+              cd '"$FRONTEND_DIR"'
               npm ci --no-audit --no-fund || npm install --no-audit --no-fund
               npm run build
             "
-            sudo mkdir -p "$PUBLIC_DIR"
+            sudo mkdir -p "'"$PUBLIC_DIR"'"
             rsync -az --delete --exclude ".git" --exclude "node_modules" \
-              "$FRONTEND_DIR/dist/" "$PUBLIC_DIR/"
-            sudo chown -R itoshu:itoshu "$PUBLIC_DIR"
+              "'"$FRONTEND_DIR"'/dist/" "'"$PUBLIC_DIR"'/"
+            sudo chown -R itoshu:itoshu "'"$PUBLIC_DIR"'"
 
             echo "== Gate 4: Reload nginx =="
             sudo nginx -t
@@ -159,7 +157,7 @@ jobs:
             echo "✅ nginx reloaded"
 
             echo "== Final: masked commit tag =="
-            cd "$APP_DIR"
+            cd "'"$APP_DIR"'"
             git config --global user.email "ci@zat.int"
             git config --global user.name  "CI Bot"
             git commit --allow-empty -m "[deploy] health ok / port ${PORT} ok / frontend published / nginx reloaded (*** masked)" || true
