@@ -48,18 +48,20 @@ jobs:
           rsync -e "$RSYNC_SSH" $RSYNC_OPTS ./backend/  "$DEPLOY_USER@$VPS_HOST:$BACKEND_DIR/"  --rsync-path="sudo -u $PM2_USER rsync"
           rsync -e "$RSYNC_SSH" $RSYNC_OPTS ./frontend/ "$DEPLOY_USER@$VPS_HOST:$FRONTEND_DIR/" --rsync-path="sudo -u $PM2_USER rsync"
 
-      - name: Build backend & reload PM2 (run as itoshu)
+      - name: Build backend & safe restart PM2 (run as itoshu)
         run: |
           ssh "$BUILD_USER@$VPS_HOST" "
-            set -e
+            set -euo pipefail
             cd \"$BACKEND_DIR\"
-            # ← devDependencies（@types/node, @types/express, typescript）も入れる
+            # devDeps（@types/node / @types/express / typescript）も必要なので include=dev
             npm install --include=dev --no-audit --no-fund
             npm run build
-            # サイズを戻したければ dev を落とす（任意）
-            npm prune --omit=dev
-            pm2 reload \"$PM2_APP\" || pm2 start \"$BACKEND_DIR/pm2.config.cjs\" --only \"$PM2_APP\"
-            pm2 save
+            # サイズ戻すなら任意で：npm prune --omit=dev
+
+            # ★ pm2: 旧IDの再読み込みを避けるため、毎回 delete→start に統一
+            pm2 delete \"$PM2_APP\" 2>/dev/null || true
+            pm2 start \"$BACKEND_DIR/pm2.config.cjs\" --only \"$PM2_APP\"
+            pm2 save --force
           "
 
       - name: Health gate
