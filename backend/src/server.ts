@@ -1,11 +1,9 @@
 import 'dotenv/config';
 import app from './index.js'; // ← ESMでは拡張子必須
+import { PORT, HOST } from './config.js';
 
-const PORT: number = Number(process.env.PORT) || 8001;
-const HOST: string = process.env.HOST || '127.0.0.1';
-
-app.listen(PORT, HOST as any, () => {
-  console.log(`ℹ️ Backend server running on http://${HOST}:${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`[server] listening on http://${HOST}:${PORT}`);
   console.log(`[SERVER] Port: ${PORT}, Host: ${HOST}`);
   console.log(`[SERVER] Environment: ${process.env.NODE_ENV || 'development'}`);
 });
