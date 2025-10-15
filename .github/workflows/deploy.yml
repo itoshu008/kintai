@@ -37,9 +37,9 @@ jobs:
             HOST="127.0.0.1"
             PORT="8001"
 
-            echo "👤 fix perms（非対話・失敗はスキップ）"
-            sudo -n chown -R "$BUILD_USER:$BUILD_USER" "$APP_DIR"      2>/dev/null || echo "skip chown app"
-            sudo -n chown -R "$BUILD_USER:$BUILD_USER" "$APP_DIR/.git" 2>/dev/null || echo "skip chown .git"
+            echo "👤 fix perms（強制実行）"
+            sudo chown -R "$BUILD_USER:$BUILD_USER" "$APP_DIR" || true
+            sudo chown -R "$BUILD_USER:$BUILD_USER" "$APP_DIR/.git" || true
             find "$APP_DIR" -type d -exec chmod 775 {} \; ; find "$APP_DIR" -type f -exec chmod 664 {} \;
 
             echo "🌿 git sync"
@@ -86,7 +86,7 @@ jobs:
             rsync -az --delete dist/ "$PUBLIC_DIR/"
 
             echo "🌀 nginx reload"
-            sudo -n nginx -t && sudo -n systemctl reload nginx
+            sudo nginx -t && sudo systemctl reload nginx
 
             echo "🔎 verify"
             curl -I "https://zatint1991.com/kintai/" | sed -n '1,6p'
