@@ -19,33 +19,31 @@ jobs:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         env:
-          SUDO_PASS: ${{ secrets.SUDO_PASS }}   # ← 値を定義（必須）
+          SUDO_PASS: ${{ secrets.SUDO_PASS }}   # ← Secrets に設定必須
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.VPS_PORT }}
-          request_pty: true                     # ← sudo対話回避に有効
-          envs: SUDO_PASS                       # ← 渡す変数名を列挙（必須）
+          request_pty: true
+          envs: SUDO_PASS
           script: |
             set -Eeuo pipefail
-            : "${SUDO_PASS:?SUDO_PASS is not set}"   # ← ここで未設定なら即わかる
-            # 以降、sudoに渡すときは printf で確実に1行
-            printf '%s\n' "$SUDO_PASS" | sudo -S whoami >/dev/null
+            : "${SUDO_PASS:?SUDO_PASS is not set}"
 
             APP_DIR="/home/zatint1991-hvt55/zatint1991.com"
             BACKEND_DIR="$APP_DIR/backend"
             FRONTEND_DIR="$APP_DIR/frontend"
-            PUBLIC_DIR="$APP_DIR/public/admin-dashboard-2024"  # 必要なら /kintai に
+            PUBLIC_DIR="$APP_DIR/public/kintai"   # ★ Nginx と揃える
             BUILD_USER="itoshu"
             PM2_APP="kintai-api"
             HOST="127.0.0.1"
             PORT="8001"
 
             echo "👤 fix perms (including .git)"
-            printf '%s\n' "$SUDO_PASS" | sudo -S -p '' -k chown -R itoshu:itoshu "$APP_DIR"
-            printf '%s\n' "$SUDO_PASS" | sudo -S -p '' -k chown -R itoshu:itoshu "/home/itoshu/.npm" "/home/itoshu/.pm2" || true
-            printf '%s\n' "$SUDO_PASS" | sudo -S -p '' -k chown -R itoshu:itoshu "$APP_DIR/.git" || true
+            printf '%s\n' "$SUDO_PASS" | sudo -S -p '' -k chown -R "$BUILD_USER:$BUILD_USER" "$APP_DIR"
+            printf '%s\n' "$SUDO_PASS" | sudo -S -p '' -k chown -R "$BUILD_USER:$BUILD_USER" "/home/$BUILD_USER/.npm" "/home/$BUILD_USER/.pm2" || true
+            printf '%s\n' "$SUDO_PASS" | sudo -S -p '' -k chown -R "$BUILD_USER:$BUILD_USER" "$APP_DIR/.git" || true
             find "$APP_DIR" -type d -exec chmod 775 {} \; ; find "$APP_DIR" -type f -exec chmod 664 {} \;
 
             echo "🌿 git sync"
@@ -56,7 +54,7 @@ jobs:
               git reset --hard origin/main
               git clean -fdx
             else
-              echo "⚠️ .git がありません（サーバにコピー配置方式ならここは無視）"
+              echo "⚠️ .git がありません（サーバにコピー配置方式なら無視）"
             fi
 
             echo "🧱 backend build"
@@ -100,12 +98,18 @@ jobs:
             printf '%s\n' "$SUDO_PASS" | sudo -S -p '' -k nginx -t
             printf '%s\n' "$SUDO_PASS" | sudo -S -p '' -k systemctl reload nginx
 
-            echo "🔧 sudo設定（初回のみ）"
-            cat <<'EOF' | printf '%s\n' "$SUDO_PASS" | sudo -S -p '' -k tee /etc/sudoers.d/kintai-deploy
+            echo "🔧 sudoers 初回設定（存在しなければ作成）"
+            if ! printf '%s\n' "$SUDO_PASS" | sudo -S -p '' -k test -f /etc/sudoers.d/kintai-deploy; then
+              # ★ sudo tee にヒアドキュメントを直接渡す（正しい書き方）
+              printf '%s\n' "$SUDO_PASS" | sudo -S -p '' -k tee /etc/sudoers.d/kintai-deploy >/dev/null <<'EOF'
 Defaults:itoshu !requiretty
 itoshu ALL=(root) NOPASSWD: /usr/bin/chown -R itoshu:itoshu /home/zatint1991-hvt55/zatint1991.com/*, /usr/sbin/nginx, /bin/systemctl
 EOF
-            printf '%s\n' "$SUDO_PASS" | sudo -S -p '' -k visudo -c
+              printf '%s\n' "$SUDO_PASS" | sudo -S -p '' -k visudo -c
+              echo "✅ sudoers installed"
+            else
+              echo "ℹ️ sudoers already present"
+            fi
 
             echo "🔎 verify"
             curl -I "https://zatint1991.com/kintai/" | sed -n '1,6p'
