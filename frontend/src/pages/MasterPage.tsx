@@ -196,7 +196,7 @@ const api = {
     fetch(`${API_BASE_URL}/admin/master?date=${date}`, { signal }).then(res => handleResponse<{ list: MasterRow[] }>(res)),
 
   fetchEmployees: () => 
-    fetch(`${API_BASE_URL}/admin/employees`).then(res => handleResponse<{ ok: boolean; list: MasterRow[] }>(res)),
+    fetch(`${API_BASE_URL}/admin/employees`).then(res => handleResponse<{ ok: boolean; employees: MasterRow[] }>(res)),
   
   createEmployee: async (code: string, name: string, department_id?: number) => {
     const res = await fetch(`${API_BASE_URL}/admin/employees`, {
@@ -554,8 +554,8 @@ export default function MasterPage() {
   const loadEmployees = useCallback(async () => {
     try {
       const res = await api.fetchEmployees();
-      if (res.ok && res.list) {
-        setData(res.list);
+      if (res.ok && res.employees) {
+        setData(res.employees);
         setMsg('');
       }
     } catch (e: any) {
