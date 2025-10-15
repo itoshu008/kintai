@@ -79,15 +79,24 @@ jobs:
           set -Eeuo pipefail
           /usr/bin/time -f 'elapsed=%E  user=%U  sys=%S' bash -c 'scripts/deploy_rsync.sh' | tee rsync_run.log
 
+      - name: Guard: ensure script exists
+        run: |
+          test -x scripts/deploy_backend.sh || { echo "missing scripts/deploy_backend.sh"; exit 127; }
+
+      - name: Upload deploy script to VPS
+        run: |
+          scp scripts/deploy_backend.sh "$BUILD_USER@$VPS_HOST:/home/zatint1991-hvt55/zatint1991.com/scripts/"
+
       - name: Deploy backend (SoT → PM2 → gates)
         run: |
-          ssh "$BUILD_USER@$VPS_HOST" '
+          ssh "$BUILD_USER@$VPS_HOST" 'bash -lc "
             set -Eeuo pipefail
             export PM2_HOME=/home/'"$BUILD_USER"'/.pm2
-            export BACKEND_DIR="'"$BACKEND_DIR"'"
-            export PM2_APP="'"$PM2_APP"'"
+            export BACKEND_DIR=\"'"$BACKEND_DIR"'\"
+            export PM2_APP=\"'"$PM2_APP"'\"
+            cd /home/zatint1991-hvt55/zatint1991.com
             scripts/deploy_backend.sh
-          '
+          "'
 
       - name: Post-deploy gates (health/port/frontend/nginx/commit)
         env:
