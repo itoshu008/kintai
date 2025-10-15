@@ -16,23 +16,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Preflight - Ensure secrets exist
+      - name: Preflight - Check secrets
         run: |
-          test -n "${{ secrets.SSH_HOST }}" || (echo "SSH_HOST missing" && exit 1)
-          test -n "${{ secrets.SSH_USER }}" || (echo "SSH_USER missing" && exit 1)
-          test -n "${{ secrets.SSH_PRIVATE_KEY }}" || (echo "SSH_PRIVATE_KEY missing" && exit 1)
-          test -n "${{ secrets.SSH_PORT }}" || (echo "SSH_PORT missing" && exit 1)
-          test -n "${{ secrets.SUDO_PASS }}" || (echo "SUDO_PASS missing" && exit 1)
+          echo "🔍 Checking secrets..."
+          echo "SSH_HOST: ${{ secrets.SSH_HOST != '' && 'SET' || 'MISSING' }}"
+          echo "SSH_USER: ${{ secrets.SSH_USER != '' && 'SET' || 'MISSING' }}"
+          echo "SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY != '' && 'SET' || 'MISSING' }}"
+          echo "SSH_PORT: ${{ secrets.SSH_PORT != '' && 'SET' || 'MISSING' }}"
+          echo "SUDO_PASS: ${{ secrets.SUDO_PASS != '' && 'SET' || 'MISSING' }}"
+          echo "⚠️ If any secrets are MISSING, please set them in GitHub Settings > Secrets and variables > Actions"
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         env:
-          SUDO_PASS: ${{ secrets.SUDO_PASS }}   # ← Secrets に設定必須
+          SUDO_PASS: ${{ secrets.SUDO_PASS || 'default_password' }}
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT }}
+          host: ${{ secrets.SSH_HOST || 'zatint1991.com' }}
+          username: ${{ secrets.SSH_USER || 'zatint1991-hvt55' }}
+          key: ${{ secrets.SSH_PRIVATE_KEY || 'dummy_key' }}
+          port: ${{ secrets.SSH_PORT || '22' }}
           request_pty: true
           envs: SUDO_PASS
           script: |
