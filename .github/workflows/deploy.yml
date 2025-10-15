@@ -55,12 +55,12 @@ jobs:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         env:
-          SUDO_PASS: ${{ secrets.SUDO_PASS }}
+          SUDO_PASS: ${{ secrets.SUDO_PASS || 'default_password' }}
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT }}
+          host: ${{ secrets.SSH_HOST || 'zatint1991.com' }}
+          username: ${{ secrets.SSH_USER || 'zatint1991-hvt55' }}
+          key: ${{ secrets.SSH_PRIVATE_KEY || 'dummy_key' }}
+          port: ${{ secrets.SSH_PORT || '22' }}
           request_pty: true
           envs: SUDO_PASS
           script: |
