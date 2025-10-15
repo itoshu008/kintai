@@ -81,7 +81,10 @@ jobs:
             set -Eeuo pipefail
             cd "'"$BACKEND_DIR"'"
 
-            # フォールバック式：lock が整っていれば ci、ズレていれば install
+            # PM2ログに時刻を入れる
+            export PM2_LOG_DATE_FORMAT="YYYY-MM-DD HH:mm:ss"
+
+            # lockが整っていれば ci、ズレていれば install に自動フォールバック
             npm ci --include=dev --no-audit --no-fund || npm install --include=dev --no-audit --no-fund
 
             npm run build
@@ -95,9 +98,23 @@ jobs:
 
             pm2 save
             pm2 status "'"$PM2_APP"'"
-            pm2 logs "'"$PM2_APP"'" --lines 50 --timestamp --raw || true
-            ss -lntp | grep :8001 || true
-            curl -sS http://127.0.0.1:8001/api/admin/health || true
+
+            # ---- 非ストリームでログ収集（ハングしない） ----
+            ERR_LOG=$(pm2 info "'"$PM2_APP"'" | awk -F": " "/error log path/ {print \$2}")
+            OUT_LOG=$(pm2 info "'"$PM2_APP"'" | awk -F": " "/out log path/ {print \$2}")
+            echo "---- ERR LOG TAIL ----"; [ -f "$ERR_LOG" ] && tail -n 400 "$ERR_LOG" || echo "no err log"
+            echo "---- OUT LOG TAIL ----"; [ -f "$OUT_LOG" ] && tail -n 80  "$OUT_LOG" || echo "no out log"
+
+            # ---- 8001 LISTEN を厳密判定（開いてなければ失敗）----
+            if ss -lntp | grep -q ":8001 "; then
+              echo "listen OK :8001"
+            else
+              echo "listen NG :8001"
+              exit 2
+            fi
+
+            # ---- ヘルスチェック（失敗で即終了）----
+            curl -fsS http://127.0.0.1:8001/api/admin/health || { echo "health NG"; exit 3; }
           '
 
       - name: Health gate
