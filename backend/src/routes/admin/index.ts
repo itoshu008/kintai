@@ -38,9 +38,19 @@ admin.post('/departments', (req, res) => {
       return res.status(200).json({ ok: false, error: '部署名が空です' });
     }
 
-    // 「？」文字のバリデーション
+    // 不正な文字のバリデーション
     if (/^[\?？]+$/.test(name)) {
       return res.status(200).json({ ok: false, error: '不正な部署名です' });
+    }
+
+    // 特殊文字のバリデーション（制御文字、絵文字等を除外）
+    if (/[\x00-\x1F\x7F-\x9F\uFEFF\u200B-\u200D\uFEFF]/.test(name)) {
+      return res.status(200).json({ ok: false, error: '不正な文字が含まれています' });
+    }
+
+    // 長さ制限
+    if (name.length > 50) {
+      return res.status(200).json({ ok: false, error: '部署名が長すぎます（50文字以内）' });
     }
 
     // 既存の部署データを読み込み

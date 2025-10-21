@@ -498,6 +498,9 @@ export default function MasterPage() {
   const [previewMode, setPreviewMode] = useState(false); // 常にfalse（プレビューモード無効化）
   const [previewData, setPreviewData] = useState<any>(null);
 
+  // 二重実行防止用のref
+  const postingRef = useRef(false);
+
   // UI表示制御
   const [showDropdown, setShowDropdown] = useState(false);
   const [showDeptManagement, setShowDeptManagement] = useState(false);
@@ -1003,21 +1006,22 @@ export default function MasterPage() {
       return;
     }
     
-    // 送信中チェック
-    if (loading) {
+    // 二重実行ガード（useRefロック）
+    if (postingRef.current) {
       return;
     }
     
+    postingRef.current = true;
+    setLoading(true);
+    setMsg(''); // エラーメッセージをクリア
+    
     try {
-      setLoading(true);
-      setMsg(''); // エラーメッセージをクリア
-      
       const result = await api.createDepartment(trimmedName);
       
       if (result.ok) {
         setMsg('✅ 部署を登録しました');
         setNewDeptName('');
-        await loadDeps();
+        await loadDeps(); // 必ずAPIの最新で上書き
       } else {
         setMsg(`❌ ${result.error || '部署登録に失敗しました'}`);
       }
@@ -1025,6 +1029,7 @@ export default function MasterPage() {
       console.error('部署登録エラー:', e);
       setMsg(`❌ 部署登録エラー: ${e.message || '通信エラーが発生しました'}`);
     } finally {
+      postingRef.current = false; // ロック解除
       setLoading(false);
     }
   };
