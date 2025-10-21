@@ -495,7 +495,7 @@ export default function MasterPage() {
   // バックアップ＆プレビュー関連
   const [backups, setBackups] = useState<BackupItem[]>([]);
   const [backupLoading, setBackupLoading] = useState(false);
-  const [previewMode, setPreviewMode] = useState(false);
+  const [previewMode, setPreviewMode] = useState(false); // 常にfalse（プレビューモード無効化）
   const [previewData, setPreviewData] = useState<any>(null);
 
   // UI表示制御
@@ -709,10 +709,10 @@ export default function MasterPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadKey]);
 
-  // プレビューモード用の部署データ
+  // 部署データ（API結果のみ表示、プレビューモード無効化）
   const currentDeps = useMemo(() => {
-    return previewMode ? (previewData?.departments ?? []) : deps;
-  }, [previewMode, previewData, deps]);
+    return deps; // 常にAPI結果のみを使用
+  }, [deps]);
 
   // デバッグ用：previewModeの状態をログ出力
   useEffect(() => {
@@ -1114,13 +1114,13 @@ export default function MasterPage() {
 
 
   const sorted = useMemo(() => {
-    const currentData = previewMode ? (previewData?.master ?? []) : data;
+    const currentData = data; // 常にAPI結果のみを使用
     let filtered = currentData;
     if (depFilter !== null) {
       filtered = currentData.filter((r: MasterRow) => r.department_id === depFilter);
     }
     return [...filtered].sort((a, b) => a.code.localeCompare(b.code));
-  }, [data, depFilter, previewMode, previewData]);
+  }, [data, depFilter]);
 
   // --- JSXレンダリング ---
   return (

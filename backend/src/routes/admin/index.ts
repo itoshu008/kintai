@@ -38,6 +38,11 @@ admin.post('/departments', (req, res) => {
       return res.status(200).json({ ok: false, error: '部署名が空です' });
     }
 
+    // 「？」文字のバリデーション
+    if (/^[\?？]+$/.test(name)) {
+      return res.status(200).json({ ok: false, error: '不正な部署名です' });
+    }
+
     // 既存の部署データを読み込み
     const departments = readJson('departments.json', []);
     
