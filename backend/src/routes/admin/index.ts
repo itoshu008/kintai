@@ -32,8 +32,10 @@ admin.get('/departments', (_req, res) => {
 admin.post('/departments', (req, res) => {
   try {
     const name = String(req.body?.name || '').trim();
+    
+    // 空文字チェック
     if (!name) {
-      return res.status(200).json({ ok: false, error: 'name is required' });
+      return res.status(200).json({ ok: false, error: '部署名が空です' });
     }
 
     // 既存の部署データを読み込み
@@ -41,7 +43,7 @@ admin.post('/departments', (req, res) => {
     
     // 重複チェック
     if (departments.some((d: any) => d.name === name)) {
-      return res.status(200).json({ ok: false, error: 'duplicate department' });
+      return res.status(200).json({ ok: false, error: '同名の部署が既にあります' });
     }
 
     // 新しいIDを生成
@@ -62,7 +64,7 @@ admin.post('/departments', (req, res) => {
     return res.status(200).json({ ok: true, department: newDepartment });
   } catch (error) {
     console.error('POST /admin/departments failed:', error);
-    return res.status(200).json({ ok: false, error: 'Failed to create department' });
+    return res.status(200).json({ ok: false, error: '登録に失敗しました' });
   }
 });
 

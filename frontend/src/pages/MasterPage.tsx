@@ -987,19 +987,45 @@ export default function MasterPage() {
     }
   };
 
-  // 部署作成
+  // 部署作成（二重送信防止・堅牢バリデーション）
   const onCreateDepartment = async () => {
-    if (!newDeptName.trim()) {
+    const trimmedName = newDeptName.trim();
+    
+    // 入力チェック
+    if (!trimmedName) {
       setMsg('部署名を入力してください');
       return;
     }
+    
+    // 重複チェック
+    if (deps.some(d => d.name === trimmedName)) {
+      setMsg('同名の部署が既にあります');
+      return;
+    }
+    
+    // 送信中チェック
+    if (loading) {
+      return;
+    }
+    
     try {
-      await api.createDepartment(newDeptName.trim());
-      setMsg('✅ 部署を登録しました');
-      setNewDeptName('');
-      await loadDeps();
+      setLoading(true);
+      setMsg(''); // エラーメッセージをクリア
+      
+      const result = await api.createDepartment(trimmedName);
+      
+      if (result.ok) {
+        setMsg('✅ 部署を登録しました');
+        setNewDeptName('');
+        await loadDeps();
+      } else {
+        setMsg(`❌ ${result.error || '部署登録に失敗しました'}`);
+      }
     } catch (e: any) {
-      setMsg(`❌ 部署登録エラー: ${e.message}`);
+      console.error('部署登録エラー:', e);
+      setMsg(`❌ 部署登録エラー: ${e.message || '通信エラーが発生しました'}`);
+    } finally {
+      setLoading(false);
     }
   };
   
@@ -1389,25 +1415,25 @@ export default function MasterPage() {
                 />
                 <button 
                   onClick={onCreateDepartment} 
-                  disabled={!newDeptName.trim()}
+                  disabled={!newDeptName.trim() || loading}
                   style={{
                     ...primaryButtonStyle,
                     padding: '12px 20px',
-                    opacity: !newDeptName.trim() ? 0.5 : 1,
-                    cursor: !newDeptName.trim() ? 'not-allowed' : 'pointer'
+                    opacity: (!newDeptName.trim() || loading) ? 0.5 : 1,
+                    cursor: (!newDeptName.trim() || loading) ? 'not-allowed' : 'pointer'
                   }}
                   onMouseEnter={(e) => {
-                    if (newDeptName.trim()) {
+                    if (newDeptName.trim() && !loading) {
                       (e.currentTarget as HTMLButtonElement).style = {...primaryButtonStyle, padding: '12px 20px', transform: 'translateY(-1px)', boxShadow: '0 6px 16px rgba(102, 126, 234, 0.4)'} as any;
                     }
                   }}
                   onMouseLeave={(e) => {
-                    if (newDeptName.trim()) {
+                    if (newDeptName.trim() && !loading) {
                       (e.currentTarget as HTMLButtonElement).style = {...primaryButtonStyle, padding: '12px 20px'} as any;
                     }
                   }}
                 >
-                  追加
+                  {loading ? '追加中...' : '追加'}
                 </button>
               </div>
               {!newDeptName.trim() && (
