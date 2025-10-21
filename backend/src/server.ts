@@ -32,7 +32,7 @@ app.use((err: any, _req: any, res: any, _next: any) => {
 });
 
 // listen（pm2 wait_ready とペア）
-const PORT = Number(process.env.PORT) || 8001;
+const PORT = Number(process.env.PORT) || 4000;
 const HOST = process.env.HOST || '0.0.0.0';
 app.listen(PORT, HOST, () => {
   console.log(`[server] listening on http://${HOST}:${PORT}`);
