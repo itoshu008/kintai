@@ -1,12 +1,12 @@
-// backend/src/server.ts
-import 'dotenv/config';
-import express from 'express';
-import { existsSync, mkdirSync, writeFileSync } from 'fs';
-import { DATA_DIR } from './config.js';
-import { ensureDir, readJson } from './utils/dataStore.js';
-import admin from './routes/admin/index.js';
-import { mysqlAdmin } from './routes/admin/mysql.js';
-import sessionRouter from './routes/session.js';
+// backend/src/server.js
+require('dotenv').config();
+const express = require('express');
+const { existsSync, mkdirSync, writeFileSync } = require('fs');
+const { DATA_DIR } = require('./config.js');
+const { ensureDir, readJson } = require('./utils/dataStore.js');
+const admin = require('./routes/admin/index.js');
+const { mysqlAdmin } = require('./routes/admin/mysql.js');
+const sessionRouter = require('./routes/session.js');
 
 // 起動時初期化：DATA_DIRとJSONファイルを必ず作成
 console.log('🚀 起動時初期化開始...');
@@ -41,13 +41,13 @@ app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // リクエストログ（切り分けしやすく）
-app.use((req, _res, next) => { 
+app.use((req, res, next) => { 
   console.log('[REQ]', req.method, req.url); 
   next(); 
 });
 
 // health
-app.get('/api/admin/health', (_req, res) => {
+app.get('/api/admin/health', (req, res) => {
   res.json({ ok: true, env: process.env.NODE_ENV ?? 'dev', now: new Date().toISOString() });
 });
 
@@ -67,7 +67,7 @@ app.use((req, res, next) => {
   }
   return next();
 });
-app.use((err: any, _req: any, res: any, _next: any) => {
+app.use((err, req, res, next) => {
   console.error('[API ERROR]', err);
   res.status(err?.status || 500).json({ ok: false, error: String(err?.message ?? err) });
 });

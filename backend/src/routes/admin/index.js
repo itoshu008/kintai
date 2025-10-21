@@ -1,16 +1,16 @@
-import { Router } from 'express';
-import { readJson } from '../../utils/dataStore.js';
+const { Router } = require('express');
+const { readJson } = require('../../utils/dataStore.js');
 
 const admin = Router();
 
 // ── 必須: employees 一覧 ──
-admin.get('/employees', async (_req, res) => {
+admin.get('/employees', async (req, res) => {
   console.log('🔍 /admin/employees エンドポイントが呼ばれました');
   try {
     const employees = readJson('employees.json', []);
     console.log('✅ employees データ取得成功:', employees.length, '件');
     return res.json({ ok: true, employees });
-  } catch (e: any) {
+  } catch (e) {
     console.error('❌ GET /admin/employees failed:', e);
     return res.status(200).json({ ok: false, error: 'failed to load employees', detail: String(e?.message ?? e) });
   }
@@ -29,12 +29,12 @@ admin.get('/master', async (req, res) => {
     const departments = readJson('departments.json', []);
 
     // 指定日の勤怠データを取得（attendanceが配列でない場合は空配列にする）
-    const dayAttendance = Array.isArray(attendance) ? attendance.filter((a: any) => a.date === date) : [];
+    const dayAttendance = Array.isArray(attendance) ? attendance.filter((a) => a.date === date) : [];
     
     // 社員データと勤怠データを結合
-    const list = employees.map((emp: any) => {
-      const att = dayAttendance.find((a: any) => a.employee_code === emp.code);
-      const dept = departments.find((d: any) => d.id === emp.department_id);
+    const list = employees.map((emp) => {
+      const att = dayAttendance.find((a) => a.employee_code === emp.code);
+      const dept = departments.find((d) => d.id === emp.department_id);
       
       return {
         id: emp.id,
@@ -51,20 +51,20 @@ admin.get('/master', async (req, res) => {
     });
 
     res.json({ ok: true, date, list });
-  } catch (e: any) {
+  } catch (e) {
     console.error('GET /admin/master failed:', e);
     res.status(200).json({ ok: false, error: 'failed to load master', detail: String(e?.message ?? e) });
   }
 });
 
-admin.get('/departments', async (_req, res) => {
+admin.get('/departments', async (req, res) => {
   try {
     const departments = readJson('departments.json', []);
     return res.json({ ok: true, departments });
-  } catch (e: any) {
+  } catch (e) {
     console.error('GET /admin/departments failed:', e);
     return res.status(200).json({ ok: false, error: 'failed to load departments', detail: String(e?.message ?? e) });
   }
 });
 
-export default admin;
+module.exports = admin;
