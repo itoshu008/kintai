@@ -1,8 +1,37 @@
 // backend/src/server.ts
 import 'dotenv/config';
 import express from 'express';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { DATA_DIR } from './config.js';
+import { ensureDir, readJson } from './utils/dataStore.js';
 import admin from './routes/admin/index.js';
 import { mysqlAdmin } from './routes/admin/mysql.js';
+
+// 起動時初期化：DATA_DIRとJSONファイルを必ず作成
+console.log('🚀 起動時初期化開始...');
+ensureDir();
+console.log(`📁 DATA_DIR: ${DATA_DIR}`);
+
+// 各JSONファイルの初期化
+const files = [
+  'departments.json',
+  'employees.json', 
+  'attendance.json',
+  'remarks.json',
+  'personal_pages.json'
+];
+
+files.forEach(file => {
+  const filePath = `${DATA_DIR}/${file}`;
+  if (!existsSync(filePath)) {
+    console.log(`📄 初期化: ${file}`);
+    writeFileSync(filePath, '[]', 'utf-8');
+  }
+});
+
+// 初期データの読み込み確認
+const departments = readJson('departments.json', []);
+console.log(`✅ 初期化完了: departments=${departments.length}件`);
 
 const app = express();
 

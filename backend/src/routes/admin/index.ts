@@ -17,30 +17,52 @@ admin.get('/health', (_req, res) => res.json({ ok: true }));
 // 部署管理 API
 // ============================================================================
 
-// 部署一覧取得
-admin.get('/departments', async (_req, res) => {
+// 部署一覧取得（JSONファイルベース）
+admin.get('/departments', (_req, res) => {
   try {
-    const departments = await getDepartments();
+    const departments = readJson('departments.json', []);
     res.json({ ok: true, departments });
   } catch (error) {
     console.error('Error fetching departments:', error);
-    res.status(500).json({ ok: false, error: 'Failed to read departments' });
+    res.status(200).json({ ok: false, error: 'Failed to read departments' });
   }
 });
 
-// 部署追加
-admin.post('/departments', async (req, res) => {
+// 部署追加（JSONファイルベースの安全な実装）
+admin.post('/departments', (req, res) => {
   try {
-    const name = (req.body?.name ?? '').toString().trim();
-    if (!name) return res.status(400).json({ ok: false, error: 'name required' });
+    const name = String(req.body?.name || '').trim();
+    if (!name) {
+      return res.status(200).json({ ok: false, error: 'name is required' });
+    }
+
+    // 既存の部署データを読み込み
+    const departments = readJson('departments.json', []);
     
-    const result = await createDepartment(name);
-    const department = { id: result.insertId, name, created_at: new Date().toISOString() };
+    // 重複チェック
+    if (departments.some((d: any) => d.name === name)) {
+      return res.status(200).json({ ok: false, error: 'duplicate department' });
+    }
+
+    // 新しいIDを生成
+    const id = departments.length ? Math.max(...departments.map((d: any) => d.id || 0)) + 1 : 1;
     
-    res.status(201).json({ ok: true, department });
+    // 新しい部署を追加
+    const newDepartment = { 
+      id, 
+      name, 
+      created_at: new Date().toISOString() 
+    };
+    departments.push(newDepartment);
+
+    // ファイルに保存
+    writeJson('departments.json', departments);
+    
+    console.log(`✅ 部署追加成功: ${name} (ID: ${id})`);
+    return res.status(200).json({ ok: true, department: newDepartment });
   } catch (error) {
-    console.error('Error creating department:', error);
-    res.status(500).json({ ok: false, error: 'Failed to create department' });
+    console.error('POST /admin/departments failed:', error);
+    return res.status(200).json({ ok: false, error: 'Failed to create department' });
   }
 });
 
