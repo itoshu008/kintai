@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const admin = require('./routes/admin');           // ← 実際のパスに合わせて
+const personal = require('./routes/personal');
+const attendance = require('./routes/attendance');
 const app = express();
 
 app.use(express.json({ limit: '2mb' }));
@@ -16,6 +18,12 @@ app.get('/api/health', (req, res) => res.json({ ok: true }));
 
 // 管理APIを /api/admin にマウント（必須）
 app.use('/api/admin', admin);
+
+// パーソナルAPIを /api/personal にマウント
+app.use('/api/personal', personal);
+
+// 勤怠APIを /api/attendance にマウント
+app.use('/api/attendance', attendance);
 
 const PORT = Number(process.env.PORT || 4000);
 app.listen(PORT, () => console.log(`[server] listening on http://0.0.0.0:${PORT}`));
