@@ -9,7 +9,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -17,5 +18,38 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: itoshu
           key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_PORT || '22' }}  # 10022 を使うなら Secrets に入れておく
-          script: bash ~/deploy_release.sh
+          port: ${{ secrets.VPS_PORT || '22' }}
+          script: |
+            # デプロイスクリプト実行
+            cd /home/itoshu/projects/kintai/kintai
+            
+            # 最新コードを取得
+            git fetch origin
+            git reset --hard origin/main
+            
+            # バックエンドのセットアップ
+            cd backend
+            cp env.production .env
+            npm ci --production
+            npm run build
+            
+            # PM2で再起動
+            pm2 stop kintai-api 2>/dev/null || true
+            pm2 delete kintai-api 2>/dev/null || true
+            pm2 start pm2.config.cjs --env production
+            
+            # フロントエンドのセットアップ
+            cd ../frontend
+            npm ci --production
+            npm run build
+            
+            # Nginx設定の更新
+            sudo cp /home/itoshu/projects/kintai/kintai/docs/nginx-production.conf /etc/nginx/sites-available/zatint1991.com
+            sudo nginx -t && sudo systemctl reload nginx
+            
+            # ヘルスチェック
+            sleep 10
+            curl -f http://localhost:4000/api/admin/health || exit 1
+            
+            # PM2ステータス確認
+            pm2 status

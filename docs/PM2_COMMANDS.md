@@ -1,8 +1,8 @@
-# PM2起動コマンドガイド
+# PM2起動コマンドガイド - 最適化版
 
-## 🚀 正しいPM2起動コマンド
+## 🚀 最適化されたPM2起動コマンド
 
-### 1. 基本的な起動コマンド
+### 1. 基本的な起動コマンド（推奨）
 
 ```bash
 # バックエンドディレクトリに移動
@@ -12,16 +12,23 @@ cd backend
 cp env.production .env
 
 # 依存関係をインストール
-npm ci
+npm ci --production
 
 # ビルド
 npm run build
 
-# PM2で起動（正しいファイルパス）
-pm2 start dist/index.js --name kintai-api --env production
+# PM2設定ファイルで起動（推奨）
+pm2 start pm2.config.cjs --env production
 ```
 
-### 2. 既存プロセスの管理
+### 2. 手動起動コマンド
+
+```bash
+# 手動でPM2起動（設定ファイルなし）
+pm2 start dist/index.js --name kintai-api --env production --instances 2 --exec-mode cluster
+```
+
+### 3. 既存プロセスの管理
 
 ```bash
 # 既存プロセスを停止
@@ -37,7 +44,7 @@ pm2 restart all
 pm2 stop all
 ```
 
-### 3. ステータス確認
+### 4. ステータス確認
 
 ```bash
 # PM2プロセス一覧
@@ -50,24 +57,24 @@ pm2 logs kintai-api --lines 20
 pm2 show kintai-api
 ```
 
-### 4. ヘルスチェック
+### 5. ヘルスチェック
 
 ```bash
 # ローカルヘルスチェック
-curl http://localhost:8001/api/admin/health
+curl http://localhost:4000/api/admin/health
 
 # 本番ヘルスチェック
 curl https://zatint1991.com/api/admin/health
 ```
 
-### 5. ポート確認
+### 6. ポート確認
 
 ```bash
-# ポート8001の使用状況
-netstat -an | grep :8001
+# ポート4000の使用状況
+netstat -an | grep :4000
 
 # または
-lsof -i :8001
+lsof -i :4000
 ```
 
 ## 🔍 トラブルシューティング
@@ -135,7 +142,7 @@ npm ci
 npm run build
 
 # 5. ヘルスチェック
-curl http://localhost:8001/api/admin/health
+curl http://localhost:4000/api/admin/health
 ```
 
 ## 🎯 期待される結果
