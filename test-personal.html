@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>パーソナル画面テスト</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background-color: #0056b3; }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 パーソナル画面テスト</h1>
+        
+        <div class="test-section info">
+            <h3>📋 テスト項目</h3>
+            <p>パーソナル画面の白画面問題を調査します。</p>
+        </div>
+
+        <div class="test-section">
+            <h3>1. バックエンドAPI接続テスト</h3>
+            <button onclick="testBackendAPI()">API接続テスト</button>
+            <div id="api-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. フロントエンド接続テスト</h3>
+            <button onclick="testFrontend()">フロントエンドテスト</button>
+            <div id="frontend-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>3. パーソナル画面直接テスト</h3>
+            <button onclick="testPersonalPage()">パーソナル画面テスト</button>
+            <div id="personal-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>4. 環境情報</h3>
+            <div id="env-info" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        // 環境情報を表示
+        document.getElementById('env-info').innerHTML = `
+現在のURL: ${window.location.href}
+User Agent: ${navigator.userAgent}
+現在時刻: ${new Date().toLocaleString('ja-JP')}
+        `;
+
+        async function testBackendAPI() {
+            const resultDiv = document.getElementById('api-result');
+            resultDiv.innerHTML = 'テスト中...';
+            
+            try {
+                // バックエンドAPIのヘルスチェック
+                const response = await fetch('/api/admin/health');
+                const data = await response.json();
+                
+                if (response.ok && data.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `✅ API接続成功\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `❌ API接続失敗\nStatus: ${response.status}\nData: ${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ API接続エラー\n${error.message}`;
+            }
+        }
+
+        async function testFrontend() {
+            const resultDiv = document.getElementById('frontend-result');
+            resultDiv.innerHTML = 'テスト中...';
+            
+            try {
+                // フロントエンドの基本接続テスト
+                const response = await fetch('/');
+                
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `✅ フロントエンド接続成功\nStatus: ${response.status}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `❌ フロントエンド接続失敗\nStatus: ${response.status}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ フロントエンド接続エラー\n${error.message}`;
+            }
+        }
+
+        async function testPersonalPage() {
+            const resultDiv = document.getElementById('personal-result');
+            resultDiv.innerHTML = 'テスト中...';
+            
+            try {
+                // パーソナル画面のテスト
+                const response = await fetch('/personal');
+                
+                if (response.ok) {
+                    const html = await response.text();
+                    if (html.includes('PersonalPage') || html.includes('personal')) {
+                        resultDiv.className = 'result success';
+                        resultDiv.innerHTML = `✅ パーソナル画面接続成功\nStatus: ${response.status}\nHTML長: ${html.length}文字`;
+                    } else {
+                        resultDiv.className = 'result error';
+                        resultDiv.innerHTML = `⚠️ パーソナル画面は接続するが、コンテンツが正しくない\nStatus: ${response.status}\nHTML: ${html.substring(0, 200)}...`;
+                    }
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `❌ パーソナル画面接続失敗\nStatus: ${response.status}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ パーソナル画面接続エラー\n${error.message}`;
+            }
+        }
+
+        // ページ読み込み時に自動テスト実行
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                testBackendAPI();
+                testFrontend();
+                testPersonalPage();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
