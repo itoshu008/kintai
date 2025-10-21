@@ -113,6 +113,9 @@ const calcIllegalOvertimeFromTimes = (clockIn?: string | null, clockOut?: string
 };
 
 export default function PersonalPage() {
+  // 一時ログを入れると読めたか即わかる
+  console.log('[PersonalPage] loaded');
+  
   // 開発環境でのみログ出力
   if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
     console.log('🟡 PersonalPage が読み込まれました');
