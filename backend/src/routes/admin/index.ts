@@ -1,6 +1,12 @@
 // backend/src/routes/admin/index.ts
 import { Router } from 'express';
 import { readJson, writeJson } from '../../utils/dataStore';
+import { 
+  getDepartments, createDepartment, updateDepartment, deleteDepartment,
+  getEmployees, createEmployee, updateEmployee, deleteEmployee,
+  getAttendance, saveAttendance, getRemark, saveRemark, getRemarks,
+  testConnection, createTables
+} from '../../utils/mysql';
 
 export const admin = Router();
 
@@ -12,49 +18,48 @@ admin.get('/health', (_req, res) => res.json({ ok: true }));
 // ============================================================================
 
 // 部署一覧取得
-admin.get('/departments', (_req, res) => {
+admin.get('/departments', async (_req, res) => {
   try {
-    const departments = readJson('departments.json', []);
-    res.json({ ok: true, items: departments });
+    const departments = await getDepartments();
+    res.json({ ok: true, departments });
   } catch (error) {
+    console.error('Error fetching departments:', error);
     res.status(500).json({ ok: false, error: 'Failed to read departments' });
   }
 });
 
 // 部署追加
-admin.post('/departments', (req, res) => {
+admin.post('/departments', async (req, res) => {
   try {
     const name = (req.body?.name ?? '').toString().trim();
     if (!name) return res.status(400).json({ ok: false, error: 'name required' });
     
-    const departments = readJson('departments.json', []);
-    const id = Date.now();
-    const dept = { id, name, created_at: new Date().toISOString() };
-    departments.push(dept);
-    writeJson('departments.json', departments);
+    const result = await createDepartment(name);
+    const department = { id: result.insertId, name, created_at: new Date().toISOString() };
     
-    res.status(201).json({ ok: true, item: dept });
+    res.status(201).json({ ok: true, department });
   } catch (error) {
+    console.error('Error creating department:', error);
     res.status(500).json({ ok: false, error: 'Failed to create department' });
   }
 });
 
 // 部署更新
-admin.put('/departments/:id', (req, res) => {
+admin.put('/departments/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
     const name = (req.body?.name ?? '').toString().trim();
     if (!name) return res.status(400).json({ ok: false, error: 'name required' });
     
-    const departments = readJson('departments.json', []);
-    const index = departments.findIndex((d: any) => d.id === id);
-    if (index === -1) return res.status(404).json({ ok: false, error: 'department not found' });
+    const result = await updateDepartment(id, name);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ ok: false, error: 'Department not found' });
+    }
     
-    departments[index] = { ...departments[index], name, updated_at: new Date().toISOString() };
-    writeJson('departments.json', departments);
-    
-    res.json({ ok: true, item: departments[index] });
+    const department = { id, name, updated_at: new Date().toISOString() };
+    res.json({ ok: true, department });
   } catch (error) {
+    console.error('Error updating department:', error);
     res.status(500).json({ ok: false, error: 'Failed to update department' });
   }
 });

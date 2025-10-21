@@ -33,10 +33,18 @@ jobs:
             npm ci --production
             npm run build
             
+            # MySQLデータベースの初期化
+            echo "Initializing MySQL database..."
+            mysql -u itoshu -pzatint_6487 -e "CREATE DATABASE IF NOT EXISTS kintai;"
+            
             # PM2で再起動
             pm2 stop kintai-api 2>/dev/null || true
             pm2 delete kintai-api 2>/dev/null || true
             pm2 start pm2.config.cjs --env production
+            
+            # データベーステーブルの初期化
+            sleep 5
+            curl -X POST http://localhost:4000/api/mysql/init || echo "Database init failed, continuing..."
             
             # フロントエンドのセットアップ
             cd ../frontend
@@ -49,7 +57,7 @@ jobs:
             
             # ヘルスチェック
             sleep 10
-            curl -f http://localhost:4000/api/admin/health || exit 1
+            curl -f http://localhost:4000/api/mysql/health || exit 1
             
             # PM2ステータス確認
             pm2 status

@@ -2,6 +2,7 @@
 import 'dotenv/config';
 import express from 'express';
 import admin from './routes/admin/index.js';
+import { mysqlAdmin } from './routes/admin/mysql.js';
 
 const app = express();
 
@@ -16,6 +17,7 @@ app.get('/api/admin/health', (_req, res) => {
 
 // API routes
 app.use('/api/admin', admin);
+app.use('/api/mysql', mysqlAdmin);
 
 // API 404 / error handlers (JSON only for /api/*)
 app.use((req, res, next) => {
